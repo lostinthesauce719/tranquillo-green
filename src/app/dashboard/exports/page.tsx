@@ -8,9 +8,11 @@ import {
   demoPacketChecklist,
   summarizeExportCenter,
 } from "@/lib/demo/accounting-handoff";
+import { getFeaturedCashReconciliationHref } from "@/lib/demo/accounting-operations";
 
 export default function ExportsPage() {
   const summary = summarizeExportCenter();
+  const featuredReconciliationHref = getFeaturedCashReconciliationHref();
 
   return (
     <AppShell
@@ -30,6 +32,7 @@ export default function ExportsPage() {
           checklist={demoPacketChecklist}
           history={demoGenerationHistory}
           agents={demoAutomationAgents}
+          featuredReconciliationHref={featuredReconciliationHref}
         />
       </div>
     </AppShell>

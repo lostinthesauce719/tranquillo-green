@@ -1,3 +1,6 @@
+"use client";
+
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
 import type {
@@ -6,6 +9,16 @@ import type {
   DemoGenerationHistoryItem,
   DemoPacketChecklistItem,
 } from "@/lib/demo/accounting-handoff";
+
+type BuilderState = {
+  selectedBundleId: string;
+  selectedFormats: string[];
+  selectedSchedules: string[];
+  selectedChecklistTitles: string[];
+  coverMemoMode: "controller_summary" | "cpa_handoff" | "open_items";
+  includeDeliveryNotes: boolean;
+  buildCount: number;
+};
 
 function bundleTone(status: DemoExportBundle["status"]) {
   switch (status) {
@@ -42,102 +55,297 @@ function agentTone(status: DemoAutomationAgent["status"]) {
   }
 }
 
+function buildInitialState(bundle: DemoExportBundle, checklist: DemoPacketChecklistItem[]): BuilderState {
+  return {
+    selectedBundleId: bundle.id,
+    selectedFormats: bundle.exportFormats,
+    selectedSchedules: bundle.includedSchedules,
+    selectedChecklistTitles: checklist.filter((item) => item.status !== "missing").map((item) => item.title),
+    coverMemoMode: "controller_summary",
+    includeDeliveryNotes: true,
+    buildCount: 0,
+  };
+}
+
+function toggleValue(list: string[], value: string) {
+  return list.includes(value) ? list.filter((item) => item !== value) : [...list, value];
+}
+
 export function CpaExportCenter({
   bundles,
   checklist,
   history,
   agents,
+  featuredReconciliationHref,
 }: {
   bundles: DemoExportBundle[];
   checklist: DemoPacketChecklistItem[];
   history: DemoGenerationHistoryItem[];
   agents: DemoAutomationAgent[];
+  featuredReconciliationHref: string;
 }) {
+  const fallbackBundle = bundles[0];
+  const [builderState, setBuilderState] = useState<BuilderState>(() => buildInitialState(fallbackBundle, checklist));
+  const [demoHistory, setDemoHistory] = useState(history);
+
+  const selectedBundle = bundles.find((bundle) => bundle.id === builderState.selectedBundleId) ?? fallbackBundle;
+  const selectedChecklistItems = checklist.filter((item) => builderState.selectedChecklistTitles.includes(item.title));
+  const selectedChecklistStatuses = new Set(selectedChecklistItems.map((item) => item.status));
+  const packetReadinessLabel = selectedChecklistStatuses.has("missing")
+    ? "Packet still has missing support selected"
+    : selectedChecklistStatuses.has("watch")
+      ? "Packet includes watch items for reviewer follow-up"
+      : "Packet selection is ready for demo handoff";
+
+  const packetSummary = useMemo(
+    () => [
+      `${builderState.selectedSchedules.length} sections selected`,
+      `${builderState.selectedFormats.length} output format${builderState.selectedFormats.length === 1 ? "" : "s"}`,
+      `${builderState.selectedChecklistTitles.length} checklist items attached`,
+      builderState.includeDeliveryNotes ? "Recipient notes included" : "Recipient notes omitted",
+    ],
+    [builderState],
+  );
+
   return (
     <div className="space-y-6">
-      <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+      <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
         <div className="rounded-2xl border border-border bg-surface-mid p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <div className="text-xs uppercase tracking-[0.2em] text-accent">Export bundles</div>
-              <h2 className="mt-2 text-xl font-semibold">CPA handoff packet builder</h2>
-              <p className="mt-2 text-sm text-text-muted">Static packet center connecting close posture, reconciliations, 280E support, and reviewer memos into exportable demo bundles.</p>
+              <div className="text-xs uppercase tracking-[0.2em] text-accent">Packet builder</div>
+              <h2 className="mt-2 text-xl font-semibold">CPA handoff packet assembly center</h2>
+              <p className="mt-2 text-sm text-text-muted">Static packet builder with demo controls for selecting bundle sections, export formats, memo style, and readiness attachments before generating a mock handoff event.</p>
             </div>
             <div className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-muted">
               Demo-backed generation only
             </div>
           </div>
-          <div className="mt-4 space-y-4">
-            {bundles.map((bundle) => (
-              <div key={bundle.id} className="rounded-2xl border border-border bg-surface p-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <div className="text-xs uppercase tracking-[0.2em] text-text-muted">{bundle.periodLabel}</div>
-                    <div className="mt-2 font-medium text-text-primary">{bundle.name}</div>
-                    <p className="mt-2 text-sm text-text-muted">{bundle.description}</p>
+
+          <div className="mt-5 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+            <section className="rounded-2xl border border-border bg-surface p-4">
+              <div className="text-xs uppercase tracking-[0.2em] text-text-muted">1. Choose packet</div>
+              <div className="mt-3 space-y-3">
+                {bundles.map((bundle) => {
+                  const active = bundle.id === builderState.selectedBundleId;
+
+                  return (
+                    <button
+                      key={bundle.id}
+                      type="button"
+                      onClick={() => {
+                        setBuilderState((current) => ({
+                          ...current,
+                          selectedBundleId: bundle.id,
+                          selectedFormats: bundle.exportFormats,
+                          selectedSchedules: bundle.includedSchedules,
+                        }));
+                      }}
+                      className={`w-full rounded-2xl border px-4 py-4 text-left transition ${active ? "border-accent bg-accent/10" : "border-border bg-background hover:bg-surface"}`}
+                    >
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div>
+                          <div className="text-xs uppercase tracking-[0.2em] text-text-muted">{bundle.periodLabel}</div>
+                          <div className="mt-2 font-medium text-text-primary">{bundle.name}</div>
+                          <p className="mt-2 text-sm text-text-muted">{bundle.description}</p>
+                        </div>
+                        <AccountingStatusBadge label={bundle.status.replaceAll("_", " ")} tone={bundleTone(bundle.status)} />
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="space-y-4 rounded-2xl border border-border bg-surface p-4">
+              <div>
+                <div className="text-xs uppercase tracking-[0.2em] text-text-muted">2. Assemble sections</div>
+                <div className="mt-2 text-sm text-text-muted">Select the output mix and schedule set to show what this demo packet would contain.</div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Export formats</div>
+                  <div className="mt-3 space-y-2">
+                    {selectedBundle.exportFormats.map((format) => (
+                      <label key={format} className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-background px-3 py-3 text-sm text-text-muted">
+                        <input
+                          type="checkbox"
+                          checked={builderState.selectedFormats.includes(format)}
+                          onChange={() => {
+                            setBuilderState((current) => ({
+                              ...current,
+                              selectedFormats: toggleValue(current.selectedFormats, format),
+                            }));
+                          }}
+                          className="mt-0.5"
+                        />
+                        <span>{format}</span>
+                      </label>
+                    ))}
                   </div>
-                  <AccountingStatusBadge label={bundle.status.replaceAll("_", " ")} tone={bundleTone(bundle.status)} />
                 </div>
-                <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-                  <div className="rounded-xl border border-border bg-background p-3 text-sm text-text-muted">
-                    <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Recipient</div>
-                    <div className="mt-2 text-text-primary">{bundle.recipient}</div>
-                  </div>
-                  <div className="rounded-xl border border-border bg-background p-3 text-sm text-text-muted">
-                    <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Owner</div>
-                    <div className="mt-2 text-text-primary">{bundle.owner}</div>
-                  </div>
-                  <div className="rounded-xl border border-border bg-background p-3 text-sm text-text-muted">
-                    <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Generated</div>
-                    <div className="mt-2 text-text-primary">{bundle.generatedAt}</div>
-                  </div>
-                  <div className="rounded-xl border border-border bg-background p-3 text-sm text-text-muted">
-                    <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Formats</div>
-                    <div className="mt-2 text-text-primary">{bundle.exportFormats.join(" • ")}</div>
-                  </div>
-                </div>
-                <div className="mt-4 grid gap-4 md:grid-cols-2">
-                  <div>
-                    <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Included schedules / reports</div>
-                    <ul className="mt-2 space-y-2 text-sm text-text-muted">
-                      {bundle.includedSchedules.map((schedule) => (
-                        <li key={schedule}>• {schedule}</li>
-                      ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Packet blockers</div>
-                    {bundle.blockers.length === 0 ? (
-                      <div className="mt-2 text-sm text-emerald-200">No blockers. Bundle is ready for handoff.</div>
-                    ) : (
-                      <ul className="mt-2 space-y-2 text-sm text-text-muted">
-                        {bundle.blockers.map((blocker) => (
-                          <li key={blocker}>• {blocker}</li>
-                        ))}
-                      </ul>
-                    )}
+
+                <div>
+                  <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Included schedules</div>
+                  <div className="mt-3 space-y-2">
+                    {selectedBundle.includedSchedules.map((schedule) => (
+                      <label key={schedule} className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-background px-3 py-3 text-sm text-text-muted">
+                        <input
+                          type="checkbox"
+                          checked={builderState.selectedSchedules.includes(schedule)}
+                          onChange={() => {
+                            setBuilderState((current) => ({
+                              ...current,
+                              selectedSchedules: toggleValue(current.selectedSchedules, schedule),
+                            }));
+                          }}
+                          className="mt-0.5"
+                        />
+                        <span>{schedule}</span>
+                      </label>
+                    ))}
                   </div>
                 </div>
               </div>
-            ))}
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Cover memo mode</div>
+                  <div className="mt-3 space-y-2">
+                    {[
+                      ["controller_summary", "Controller summary"],
+                      ["cpa_handoff", "CPA handoff memo"],
+                      ["open_items", "Open items list"],
+                    ].map(([value, label]) => (
+                      <label key={value} className="flex cursor-pointer items-center gap-3 rounded-xl border border-border bg-background px-3 py-3 text-sm text-text-muted">
+                        <input
+                          type="radio"
+                          name="cover-memo-mode"
+                          checked={builderState.coverMemoMode === value}
+                          onChange={() => {
+                            setBuilderState((current) => ({
+                              ...current,
+                              coverMemoMode: value as BuilderState["coverMemoMode"],
+                            }));
+                          }}
+                        />
+                        <span>{label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Recipient + build settings</div>
+                  <div className="mt-3 space-y-3 rounded-xl border border-border bg-background p-3 text-sm text-text-muted">
+                    <div>Recipient: <span className="text-text-primary">{selectedBundle.recipient}</span></div>
+                    <div>Owner: <span className="text-text-primary">{selectedBundle.owner}</span></div>
+                    <label className="flex cursor-pointer items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={builderState.includeDeliveryNotes}
+                        onChange={() => {
+                          setBuilderState((current) => ({
+                            ...current,
+                            includeDeliveryNotes: !current.includeDeliveryNotes,
+                          }));
+                        }}
+                        className="mt-0.5"
+                      />
+                      <span>Include delivery notes + release reminders in the demo packet cover page</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const eventTime = `Demo build #${builderState.buildCount + 1}`;
+                        setBuilderState((current) => ({
+                          ...current,
+                          buildCount: current.buildCount + 1,
+                        }));
+                        setDemoHistory((current) => [
+                          {
+                            timestampLabel: eventTime,
+                            actor: "Packet builder",
+                            action: `Assembled ${selectedBundle.name}`,
+                            detail: `Prepared ${builderState.selectedSchedules.length} sections in ${builderState.selectedFormats.length} output formats with ${builderState.coverMemoMode.replaceAll("_", " ")} framing.`,
+                          },
+                          ...current,
+                        ]);
+                      }}
+                      className="rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-3 text-sm text-violet-100 transition hover:bg-violet-500/20"
+                    >
+                      Assemble demo packet
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </section>
           </div>
         </div>
 
         <div className="space-y-6">
           <section className="rounded-2xl border border-border bg-surface-mid p-5">
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">Packet checklist</div>
+            <div className="text-xs uppercase tracking-[0.2em] text-accent">Assembly preview</div>
+            <div className="mt-4 rounded-2xl border border-border bg-surface p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Selected bundle</div>
+                  <div className="mt-2 font-medium text-text-primary">{selectedBundle.name}</div>
+                  <p className="mt-2 text-sm text-text-muted">{selectedBundle.description}</p>
+                </div>
+                <AccountingStatusBadge label={selectedBundle.status.replaceAll("_", " ")} tone={bundleTone(selectedBundle.status)} />
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {packetSummary.map((line) => (
+                  <div key={line} className="rounded-xl border border-border bg-background px-3 py-3 text-sm text-text-muted">
+                    {line}
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 rounded-xl border border-border bg-background p-3">
+                <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Readiness framing</div>
+                <div className="mt-2 text-sm text-text-primary">{packetReadinessLabel}</div>
+                {selectedBundle.blockers.length > 0 ? (
+                  <ul className="mt-3 space-y-2 text-sm text-text-muted">
+                    {selectedBundle.blockers.map((blocker) => (
+                      <li key={blocker}>• {blocker}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="mt-3 text-sm text-emerald-200">No bundle-level blockers remain in the base demo data.</div>
+                )}
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-border bg-surface-mid p-5">
+            <div className="text-xs uppercase tracking-[0.2em] text-accent">3. Attach checklist items</div>
             <div className="mt-4 space-y-3">
               {checklist.map((item) => (
-                <div key={item.title} className="rounded-2xl border border-border bg-surface p-4">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                      <div className="font-medium">{item.title}</div>
-                      <div className="mt-1 text-sm text-text-muted">Owner: {item.owner}</div>
+                <label key={item.title} className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border bg-surface p-4">
+                  <input
+                    type="checkbox"
+                    checked={builderState.selectedChecklistTitles.includes(item.title)}
+                    onChange={() => {
+                      setBuilderState((current) => ({
+                        ...current,
+                        selectedChecklistTitles: toggleValue(current.selectedChecklistTitles, item.title),
+                      }));
+                    }}
+                    className="mt-1"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <div className="font-medium">{item.title}</div>
+                        <div className="mt-1 text-sm text-text-muted">Owner: {item.owner}</div>
+                      </div>
+                      <AccountingStatusBadge label={item.status} tone={checklistTone(item.status)} className="capitalize" />
                     </div>
-                    <AccountingStatusBadge label={item.status} tone={checklistTone(item.status)} className="capitalize" />
+                    <p className="mt-3 text-sm text-text-muted">{item.note}</p>
                   </div>
-                  <p className="mt-3 text-sm text-text-muted">{item.note}</p>
-                </div>
+                </label>
               ))}
             </div>
           </section>
@@ -154,8 +362,8 @@ export function CpaExportCenter({
               <Link href="/dashboard/accounting/close" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
                 Open close dashboard
               </Link>
-              <Link href="/dashboard/reconciliations/rec_003" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
-                Open clearing exception detail
+              <Link href={featuredReconciliationHref} className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
+                Open featured reconciliation detail
               </Link>
             </div>
           </section>
@@ -166,7 +374,7 @@ export function CpaExportCenter({
         <div className="rounded-2xl border border-border bg-surface-mid p-5">
           <div className="text-xs uppercase tracking-[0.2em] text-accent">Generation history</div>
           <div className="mt-4 space-y-3">
-            {history.map((entry) => (
+            {demoHistory.map((entry) => (
               <div key={`${entry.timestampLabel}-${entry.action}`} className="rounded-2xl border border-border bg-surface p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <div>

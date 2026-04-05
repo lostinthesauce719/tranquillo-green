@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AppShell } from "@/components/shell/app-shell";
 import { MetricCard } from "@/components/ui/metric-card";
-import { demoAllocationReviewQueue, demoCashReconciliations, summarizeAllocationQueue, summarizeCashReconciliations } from "@/lib/demo/accounting-operations";
+import { demoAllocationReviewQueue, demoCashReconciliations, getFeaturedCashReconciliationHref, summarizeAllocationQueue, summarizeCashReconciliations } from "@/lib/demo/accounting-operations";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -12,6 +12,7 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
 export default function DashboardPage() {
   const allocationSummary = summarizeAllocationQueue(demoAllocationReviewQueue);
   const reconciliationSummary = summarizeCashReconciliations(demoCashReconciliations);
+  const featuredReconciliationHref = getFeaturedCashReconciliationHref(demoCashReconciliations);
 
   return (
     <AppShell
@@ -31,7 +32,7 @@ export default function DashboardPage() {
           <div className="mt-2 font-medium">Allocation override history</div>
           <div className="mt-2 text-sm text-text-muted">Audit trail view of recommendations, overrides, evidence, and policy trail.</div>
         </Link>
-        <Link href="/dashboard/reconciliations/rec_003" className="rounded-2xl border border-border bg-surface-mid px-5 py-4 transition hover:bg-surface/70">
+        <Link href={featuredReconciliationHref} className="rounded-2xl border border-border bg-surface-mid px-5 py-4 transition hover:bg-surface/70">
           <div className="text-xs uppercase tracking-[0.2em] text-accent">New detail</div>
           <div className="mt-2 font-medium">Reconciliation drill-down</div>
           <div className="mt-2 text-sm text-text-muted">Controller-style detail page with source breakdown, variance drivers, and next steps.</div>

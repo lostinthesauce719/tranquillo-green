@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CashReconciliationWorkspace } from "@/components/accounting/cash-reconciliation-workspace";
 import { AppShell } from "@/components/shell/app-shell";
 import { MetricCard } from "@/components/ui/metric-card";
-import { demoCashReconciliations, summarizeCashReconciliations } from "@/lib/demo/accounting-operations";
+import { demoCashReconciliations, getFeaturedCashReconciliation, getFeaturedCashReconciliationHref, summarizeCashReconciliations } from "@/lib/demo/accounting-operations";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -12,6 +12,8 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
 
 export default function ReconciliationsPage() {
   const summary = summarizeCashReconciliations(demoCashReconciliations);
+  const featuredReconciliation = getFeaturedCashReconciliation(demoCashReconciliations);
+  const featuredReconciliationHref = getFeaturedCashReconciliationHref(demoCashReconciliations);
 
   return (
     <AppShell
@@ -47,8 +49,8 @@ export default function ReconciliationsPage() {
                 <li>4. Move workspace to ready-for-review only after evidence and notes explain the remaining difference.</li>
               </ol>
             </div>
-            <Link href="/dashboard/reconciliations/rec_003" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
-              Open clearing detail
+            <Link href={featuredReconciliationHref} className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
+              {featuredReconciliation ? `Open featured detail: ${featuredReconciliation.accountName}` : "Open reconciliation workspace"}
             </Link>
           </div>
         </section>

@@ -763,3 +763,18 @@ export function summarizeCashReconciliations(items: DemoCashReconciliationItem[]
 export function getDemoCashReconciliation(id: string) {
   return demoCashReconciliations.find((item) => item.id === id);
 }
+
+export function getFeaturedCashReconciliation(items: DemoCashReconciliationItem[] = demoCashReconciliations) {
+  return (
+    items.find((item) => item.status === "exception") ??
+    items.find((item) => item.status === "investigating") ??
+    items.find((item) => item.status === "ready_to_post") ??
+    items[0]
+  );
+}
+
+export function getFeaturedCashReconciliationHref(items: DemoCashReconciliationItem[] = demoCashReconciliations) {
+  const featured = getFeaturedCashReconciliation(items);
+
+  return featured ? `/dashboard/reconciliations/${featured.id}` : "/dashboard/reconciliations";
+}
