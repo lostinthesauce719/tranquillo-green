@@ -3,6 +3,7 @@ import { AppShell } from "@/components/shell/app-shell";
 import { ReportingPeriodsOverview } from "@/components/accounting/reporting-periods-overview";
 import { MetricCard } from "@/components/ui/metric-card";
 import { californiaOperatorDemo, demoReportingPeriods, summarizeDemoReportingPeriods } from "@/lib/demo/accounting";
+import { demoCloseWorkflows } from "@/lib/demo/accounting-workflows";
 
 export default function ReportingPeriodsPage() {
   const summary = summarizeDemoReportingPeriods(demoReportingPeriods);
@@ -21,7 +22,7 @@ export default function ReportingPeriodsPage() {
       </div>
 
       <div className="mt-6 grid gap-4 xl:grid-cols-[1.65fr_1fr]">
-        <ReportingPeriodsOverview periods={demoReportingPeriods} />
+        <ReportingPeriodsOverview periods={demoReportingPeriods} workflows={demoCloseWorkflows} />
 
         <div className="grid gap-4">
           <section className="rounded-2xl border border-border bg-surface-mid p-5">
@@ -37,11 +38,16 @@ export default function ReportingPeriodsPage() {
           <section className="rounded-2xl border border-border bg-surface-mid p-5">
             <div className="text-xs uppercase tracking-[0.2em] text-accent">Next accounting action</div>
             <p className="mt-3 text-sm text-text-muted">
-              Use the transactions workspace to review imported activity and draft balancing entries that support the current close.
+              Use the imports and transactions workspaces to stage source activity, review mappings, and draft balancing entries that support the current close.
             </p>
-            <Link href="/dashboard/accounting/transactions" className="mt-4 inline-flex rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
-              Open transactions workspace
-            </Link>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Link href="/dashboard/accounting/imports" className="inline-flex rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
+                Open imports workspace
+              </Link>
+              <Link href="/dashboard/accounting/transactions" className="inline-flex rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
+                Open transactions workspace
+              </Link>
+            </div>
           </section>
         </div>
       </div>

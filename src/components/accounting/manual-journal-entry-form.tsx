@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
 import { DemoChartOfAccount, DemoReportingPeriod } from "@/lib/demo/accounting";
 
@@ -12,10 +12,32 @@ type JournalLine = {
   memo: string;
 };
 
-const initialLines: JournalLine[] = [
-  { id: "line_1", accountCode: "", direction: "debit", amount: "", memo: "" },
-  { id: "line_2", accountCode: "", direction: "credit", amount: "", memo: "" },
-];
+type ManualJournalDraftPayload = {
+  entryDate: string;
+  periodLabel: string;
+  reference: string;
+  description: string;
+  lines: JournalLine[];
+};
+
+type SavedManualJournalDraft = ManualJournalDraftPayload & {
+  id: string;
+  title: string;
+  savedAt: string;
+};
+
+const RECENT_DRAFTS_STORAGE_KEY = "tranquillo.accounting.manualJournalDrafts";
+const WORKING_DRAFT_STORAGE_KEY = "tranquillo.accounting.manualJournalWorkingDraft";
+
+const defaultDraft = {
+  entryDate: "2026-04-15",
+  reference: "JE-DRAFT-LOCAL",
+  description: "April close adjustment",
+  lines: [
+    { id: "line_1", accountCode: "6415", direction: "debit", amount: "4500", memo: "Monthly advisory support" },
+    { id: "line_2", accountCode: "1010", direction: "credit", amount: "4500", memo: "Cash disbursement" },
+  ] satisfies JournalLine[],
+};
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-US", {
@@ -23,6 +45,19 @@ function formatCurrency(value: number) {
     currency: "USD",
     maximumFractionDigits: 2,
   }).format(value);
+}
+
+function formatSavedAt(value: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function buildDraftTitle(reference: string, description: string) {
+  return reference.trim() || description.trim() || "Untitled journal draft";
 }
 
 export function ManualJournalEntryForm({
@@ -34,16 +69,64 @@ export function ManualJournalEntryForm({
 }) {
   const activeAccounts = useMemo(() => accounts.filter((account) => account.isActive), [accounts]);
   const editablePeriods = useMemo(() => periods.filter((period) => period.status !== "closed"), [periods]);
+  const defaultPeriodLabel = editablePeriods[0]?.label ?? periods[0]?.label ?? "";
+  const hasLoadedStorage = useRef(false);
 
-  const [entryDate, setEntryDate] = useState("2026-04-15");
-  const [periodLabel, setPeriodLabel] = useState(editablePeriods[0]?.label ?? periods[0]?.label ?? "");
-  const [reference, setReference] = useState("JE-DRAFT-LOCAL");
-  const [description, setDescription] = useState("April close adjustment");
-  const [lines, setLines] = useState<JournalLine[]>([
-    { id: "line_1", accountCode: "6415", direction: "debit", amount: "4500", memo: "Monthly advisory support" },
-    { id: "line_2", accountCode: "1010", direction: "credit", amount: "4500", memo: "Cash disbursement" },
-  ]);
+  const [entryDate, setEntryDate] = useState(defaultDraft.entryDate);
+  const [periodLabel, setPeriodLabel] = useState(defaultPeriodLabel);
+  const [reference, setReference] = useState(defaultDraft.reference);
+  const [description, setDescription] = useState(defaultDraft.description);
+  const [lines, setLines] = useState<JournalLine[]>(defaultDraft.lines);
   const [message, setMessage] = useState<string | null>(null);
+  const [recentDrafts, setRecentDrafts] = useState<SavedManualJournalDraft[]>([]);
+  const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
+
+  const draftPayload = useMemo<ManualJournalDraftPayload>(
+    () => ({
+      entryDate,
+      periodLabel,
+      reference,
+      description,
+      lines,
+    }),
+    [description, entryDate, lines, periodLabel, reference],
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    try {
+      const storedRecentDrafts = window.localStorage.getItem(RECENT_DRAFTS_STORAGE_KEY);
+      if (storedRecentDrafts) {
+        setRecentDrafts(JSON.parse(storedRecentDrafts) as SavedManualJournalDraft[]);
+      }
+
+      const storedWorkingDraft = window.localStorage.getItem(WORKING_DRAFT_STORAGE_KEY);
+      if (storedWorkingDraft) {
+        const parsedDraft = JSON.parse(storedWorkingDraft) as ManualJournalDraftPayload;
+        setEntryDate(parsedDraft.entryDate || defaultDraft.entryDate);
+        setPeriodLabel(parsedDraft.periodLabel || defaultPeriodLabel);
+        setReference(parsedDraft.reference || defaultDraft.reference);
+        setDescription(parsedDraft.description || defaultDraft.description);
+        setLines(parsedDraft.lines?.length ? parsedDraft.lines : defaultDraft.lines);
+        setMessage("Restored your working draft from local storage.");
+      }
+    } catch {
+      setMessage("Could not restore local drafts. You can continue with a fresh manual entry.");
+    } finally {
+      hasLoadedStorage.current = true;
+    }
+  }, [defaultPeriodLabel]);
+
+  useEffect(() => {
+    if (!hasLoadedStorage.current || typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(WORKING_DRAFT_STORAGE_KEY, JSON.stringify(draftPayload));
+  }, [draftPayload]);
 
   const totals = useMemo(() => {
     return lines.reduce(
@@ -84,9 +167,30 @@ export function ManualJournalEntryForm({
       }
       return errors;
     }),
-    ...(difference === 0 ? [] : ["Journal must balance before save"]).filter(Boolean),
+    ...(difference === 0 ? [] : ["Journal must balance before save"]),
   ];
   const isBalanced = difference === 0 && populatedLines.length >= 2 && validationErrors.length === 0;
+
+  function applyDraft(payload: ManualJournalDraftPayload, draftId?: string | null) {
+    setEntryDate(payload.entryDate || defaultDraft.entryDate);
+    setPeriodLabel(payload.periodLabel || defaultPeriodLabel);
+    setReference(payload.reference || defaultDraft.reference);
+    setDescription(payload.description || defaultDraft.description);
+    setLines(payload.lines?.length ? payload.lines : defaultDraft.lines);
+    setActiveDraftId(draftId ?? null);
+  }
+
+  function resetToDefault() {
+    applyDraft({ ...defaultDraft, periodLabel: defaultPeriodLabel });
+    setMessage("Started a fresh local journal draft.");
+  }
+
+  function persistRecentDrafts(nextDrafts: SavedManualJournalDraft[]) {
+    setRecentDrafts(nextDrafts);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(RECENT_DRAFTS_STORAGE_KEY, JSON.stringify(nextDrafts));
+    }
+  }
 
   function updateLine(id: string, patch: Partial<JournalLine>) {
     setLines((current) => current.map((line) => (line.id === id ? { ...line, ...patch } : line)));
@@ -96,7 +200,13 @@ export function ManualJournalEntryForm({
   function addLine() {
     setLines((current) => [
       ...current,
-      { id: `line_${current.length + 1}`, accountCode: "", direction: current.length % 2 === 0 ? "debit" : "credit", amount: "", memo: "" },
+      {
+        id: `line_${current.length + 1}`,
+        accountCode: "",
+        direction: current.length % 2 === 0 ? "debit" : "credit",
+        amount: "",
+        memo: "",
+      },
     ]);
     setMessage(null);
   }
@@ -107,13 +217,51 @@ export function ManualJournalEntryForm({
   }
 
   function loadExpensePreset() {
-    setDescription("Professional fees cash disbursement");
-    setReference("JE-PRESET-FEES");
-    setLines([
-      { id: "line_1", accountCode: "6415", direction: "debit", amount: "4500", memo: "Monthly advisory retainer" },
-      { id: "line_2", accountCode: "1010", direction: "credit", amount: "4500", memo: "Bank cash payment" },
-    ]);
-    setMessage("Loaded a realistic local preset. Review and adjust before saving draft.");
+    applyDraft(
+      {
+        entryDate: "2026-04-15",
+        periodLabel: defaultPeriodLabel,
+        description: "Professional fees cash disbursement",
+        reference: "JE-PRESET-FEES",
+        lines: [
+          { id: "line_1", accountCode: "6415", direction: "debit", amount: "4500", memo: "Monthly advisory retainer" },
+          { id: "line_2", accountCode: "1010", direction: "credit", amount: "4500", memo: "Bank cash payment" },
+        ],
+      },
+      null,
+    );
+    setMessage("Loaded a realistic local preset. Review and save it into recent drafts if you want to keep a checkpoint.");
+  }
+
+  function saveDraft() {
+    const savedAt = new Date().toISOString();
+    const draftId = activeDraftId ?? `draft_${savedAt}`;
+    const nextDraft: SavedManualJournalDraft = {
+      id: draftId,
+      savedAt,
+      title: buildDraftTitle(reference, description),
+      ...draftPayload,
+    };
+
+    const nextDrafts = [nextDraft, ...recentDrafts.filter((draft) => draft.id !== draftId)].slice(0, 5);
+    persistRecentDrafts(nextDrafts);
+    setActiveDraftId(draftId);
+    setMessage(`Saved local draft ${nextDraft.title}. Recent drafts stay on this browser only.`);
+  }
+
+  function loadRecentDraft(draft: SavedManualJournalDraft) {
+    applyDraft(draft, draft.id);
+    setMessage(`Loaded recent draft ${draft.title} saved ${formatSavedAt(draft.savedAt)}.`);
+  }
+
+  function deleteRecentDraft(draftId: string) {
+    const draftToDelete = recentDrafts.find((draft) => draft.id === draftId);
+    const nextDrafts = recentDrafts.filter((draft) => draft.id !== draftId);
+    persistRecentDrafts(nextDrafts);
+    if (activeDraftId === draftId) {
+      setActiveDraftId(null);
+    }
+    setMessage(`Deleted local draft ${draftToDelete?.title ?? draftId}.`);
   }
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -133,12 +281,17 @@ export function ManualJournalEntryForm({
           <div className="text-xs uppercase tracking-[0.2em] text-accent">Static-safe first flow</div>
           <h2 className="mt-2 text-xl font-semibold">Manual journal entry draft</h2>
           <p className="mt-2 max-w-2xl text-sm text-text-muted">
-            Client-side form for the first real manual entry workflow. It validates line detail, enforces balance, and previews a local draft without requiring Convex credentials.
+            Client-side journal prep with local draft persistence, recent draft recall, balance validation, and zero dependency on Convex during static generation.
           </p>
         </div>
-        <button type="button" onClick={loadExpensePreset} className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
-          Load sample preset
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={loadExpensePreset} className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
+            Load sample preset
+          </button>
+          <button type="button" onClick={resetToDefault} className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
+            New draft
+          </button>
+        </div>
       </div>
 
       <form className="mt-6 grid gap-6" onSubmit={handleSubmit}>
@@ -226,7 +379,7 @@ export function ManualJournalEntryForm({
           </div>
         </div>
 
-        <div className="grid gap-4 xl:grid-cols-[1.25fr_0.9fr]">
+        <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr_0.9fr]">
           <div className="rounded-2xl border border-border bg-surface p-4">
             <div className="text-xs uppercase tracking-[0.2em] text-accent">Validation</div>
             {validationErrors.length === 0 ? (
@@ -241,6 +394,48 @@ export function ManualJournalEntryForm({
               </ul>
             )}
             {message ? <div className="mt-4 text-sm text-text-muted">{message}</div> : null}
+          </div>
+
+          <div className="rounded-2xl border border-border bg-surface p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-xs uppercase tracking-[0.2em] text-accent">Draft controls</div>
+              {activeDraftId ? <AccountingStatusBadge label="recent draft linked" tone="blue" /> : null}
+            </div>
+            <div className="mt-4 grid gap-3">
+              <button type="button" onClick={saveDraft} className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-200 transition hover:bg-emerald-500/15">
+                Save to recent drafts
+              </button>
+              <div className="rounded-xl border border-border bg-background px-3 py-3 text-xs text-text-muted">
+                Working changes auto-save in local storage as you type. Recent drafts keep the last five named checkpoints on this browser.
+              </div>
+            </div>
+            <div className="mt-4 space-y-3">
+              {recentDrafts.length === 0 ? (
+                <div className="rounded-xl border border-border bg-surface-mid px-3 py-3 text-sm text-text-muted">
+                  No recent drafts yet. Save your first checkpoint to build a reusable local draft list.
+                </div>
+              ) : (
+                recentDrafts.map((draft) => (
+                  <div key={draft.id} className="rounded-xl border border-border bg-surface-mid px-3 py-3 text-sm text-text-muted">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-medium text-text-primary">{draft.title}</div>
+                        <div className="mt-1 text-xs">{draft.reference} • {draft.periodLabel} • Saved {formatSavedAt(draft.savedAt)}</div>
+                      </div>
+                      <AccountingStatusBadge label={draft.id === activeDraftId ? "active" : "saved"} tone={draft.id === activeDraftId ? "blue" : "slate"} />
+                    </div>
+                    <div className="mt-3 flex gap-2">
+                      <button type="button" onClick={() => loadRecentDraft(draft)} className="rounded-lg border border-border px-3 py-2 text-xs text-text-primary transition hover:bg-surface">
+                        Load
+                      </button>
+                      <button type="button" onClick={() => deleteRecentDraft(draft.id)} className="rounded-lg border border-border px-3 py-2 text-xs text-text-muted transition hover:text-text-primary">
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
           <div className="rounded-2xl border border-border bg-surface p-4">
@@ -267,7 +462,7 @@ export function ManualJournalEntryForm({
               </div>
             </div>
             <button type="submit" className="mt-4 w-full rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-200 transition hover:bg-emerald-500/15">
-              Save local draft
+              Validate local draft
             </button>
           </div>
         </div>

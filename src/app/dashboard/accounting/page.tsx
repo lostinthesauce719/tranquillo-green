@@ -23,6 +23,11 @@ const workspaceLinks = [
     label: "Transactions + manual journals",
     detail: "Review imported activity, inspect suggested accounts, and draft balanced manual entries locally.",
   },
+  {
+    href: "/dashboard/accounting/imports",
+    label: "CSV imports",
+    detail: "Stage bank and payroll files, apply column mappings, and validate row-level posting suggestions locally.",
+  },
 ];
 
 export default function AccountingPage() {
@@ -103,7 +108,8 @@ export default function AccountingPage() {
             <ul className="mt-3 space-y-3 text-sm text-text-muted">
               <li>• Reporting periods now show open, review, and closed states with checklist progress and blockers.</li>
               <li>• Transactions table includes imported activity, suggested entry codes, and receipt follow-up flags.</li>
-              <li>• Manual journal entry flow validates balanced debits and credits locally with no backend dependency.</li>
+              <li>• Manual journal entry flow now restores working drafts and keeps a recent local draft list.</li>
+              <li>• CSV import staging adds mapping profiles, required-field validation, and row-level preview without backend jobs.</li>
               <li>• Static-safe demo data still mirrors companies, locations, licenses, accounts, periods, and transaction prep.</li>
             </ul>
           </section>

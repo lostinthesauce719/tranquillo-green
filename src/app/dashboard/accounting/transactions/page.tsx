@@ -44,9 +44,14 @@ export default function AccountingTransactionsPage() {
                 Rows are modeled after POS batches, bank activity, payroll, inventory movements, and manual accruals. Each row includes realistic suggested entry codes to support manual posting work.
               </p>
             </div>
-            <Link href="/dashboard/accounting/periods" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
-              View reporting periods
-            </Link>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/dashboard/accounting/imports" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
+                Open imports
+              </Link>
+              <Link href="/dashboard/accounting/periods" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
+                View reporting periods
+              </Link>
+            </div>
           </div>
           <div className="mt-5">
             <TransactionsTable transactions={demoTransactions} />
@@ -71,8 +76,9 @@ export default function AccountingTransactionsPage() {
             <div className="text-xs uppercase tracking-[0.2em] text-accent">Why this is static-safe</div>
             <ul className="mt-3 space-y-3 text-sm text-text-muted">
               <li>• No client-side Convex hook or NEXT_PUBLIC_CONVEX_URL is required.</li>
-              <li>• Manual draft creation runs entirely in component state.</li>
+              <li>• Manual draft creation and persistence run entirely in browser state and local storage.</li>
               <li>• Demo transactions already include realistic reference IDs, locations, and suggested mappings.</li>
+              <li>• CSV import staging lives in its own route and stays local/demo-backed.</li>
             </ul>
           </section>
         </div>
