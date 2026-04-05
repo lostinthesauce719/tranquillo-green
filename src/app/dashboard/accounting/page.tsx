@@ -14,9 +14,19 @@ import {
 
 const workspaceLinks = [
   {
+    href: "/dashboard/accounting/close",
+    label: "Month-end close dashboard",
+    detail: "See readiness, blockers, next actions, and signoff status across the full accounting close workflow.",
+  },
+  {
     href: "/dashboard/accounting/periods",
     label: "Reporting periods",
     detail: "Track month-end status, checklist progress, blockers, and lock readiness.",
+  },
+  {
+    href: "/dashboard/accounting/pipeline",
+    label: "Imported-to-posted pipeline",
+    detail: "Move staged imports through review, posting readiness, and posted retention with owner and blocker visibility.",
   },
   {
     href: "/dashboard/accounting/transactions",
@@ -118,6 +128,8 @@ export default function AccountingPage() {
             <ul className="mt-3 space-y-3 text-sm text-text-muted">
               <li>• Reporting periods now show open, review, and closed states with checklist progress and blockers.</li>
               <li>• Transactions table includes imported activity, suggested entry codes, and receipt follow-up flags.</li>
+              <li>• New imported-to-posted pipeline board shows staged handoff from import validation into reviewer and posting lanes.</li>
+              <li>• New month-end close dashboard connects periods, imports, posting, reconciliations, allocations, and support schedule readiness.</li>
               <li>• Manual journal entry flow now restores working drafts and keeps a recent local draft list.</li>
               <li>• CSV import staging adds mapping profiles, required-field validation, and row-level preview without backend jobs.</li>
               <li>• Static-safe demo data still mirrors companies, locations, licenses, accounts, periods, and transaction prep.</li>

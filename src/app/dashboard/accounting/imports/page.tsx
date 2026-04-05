@@ -42,11 +42,17 @@ export default function AccountingImportsPage() {
         <section className="rounded-2xl border border-border bg-surface-mid p-5">
           <div className="text-xs uppercase tracking-[0.2em] text-accent">Related workspaces</div>
           <div className="mt-4 grid gap-3">
+            <Link href="/dashboard/accounting/pipeline" className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-4 py-3 text-sm text-violet-100 transition hover:bg-violet-500/20">
+              Open transaction pipeline
+            </Link>
             <Link href="/dashboard/accounting/transactions" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
               Open transactions review
             </Link>
             <Link href="/dashboard/accounting/periods" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
               Open close periods
+            </Link>
+            <Link href="/dashboard/accounting/close" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
+              Open month-end close dashboard
             </Link>
           </div>
         </section>

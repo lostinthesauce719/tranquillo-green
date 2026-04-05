@@ -1,7 +1,9 @@
 export const moduleLinks = [
   { href: "/dashboard", label: "Overview" },
   { href: "/dashboard/accounting", label: "Accounting" },
+  { href: "/dashboard/accounting/close", label: "Month-End Close" },
   { href: "/dashboard/accounting/periods", label: "Reporting Periods" },
+  { href: "/dashboard/accounting/pipeline", label: "Transaction Pipeline" },
   { href: "/dashboard/accounting/transactions", label: "Transactions" },
   { href: "/dashboard/accounting/imports", label: "Imports" },
   { href: "/dashboard/allocations", label: "280E Allocations" },
