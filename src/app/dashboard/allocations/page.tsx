@@ -52,9 +52,14 @@ export default function AllocationsPage() {
                 <li>4. Carry approved splits into close workpapers and preserve reviewer attribution for audit support.</li>
               </ol>
             </div>
-            <Link href="/dashboard/allocations/support-schedule" className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-4 py-3 text-sm text-violet-100 transition hover:bg-violet-500/20">
-              Open support schedule
-            </Link>
+            <div className="grid gap-3">
+              <Link href="/dashboard/allocations/support-schedule" className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-4 py-3 text-sm text-violet-100 transition hover:bg-violet-500/20">
+                Open support schedule
+              </Link>
+              <Link href="/dashboard/allocations/history" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
+                Open override history
+              </Link>
+            </div>
           </div>
         </section>
       </div>

@@ -7,10 +7,12 @@ export const moduleLinks = [
   { href: "/dashboard/accounting/transactions", label: "Transactions" },
   { href: "/dashboard/accounting/imports", label: "Imports" },
   { href: "/dashboard/allocations", label: "280E Allocations" },
+  { href: "/dashboard/allocations/history", label: "Allocation History" },
   { href: "/dashboard/allocations/support-schedule", label: "280E Support Schedule" },
   { href: "/dashboard/inventory", label: "Inventory" },
   { href: "/dashboard/compliance", label: "Compliance" },
   { href: "/dashboard/reconciliations", label: "Reconciliations" },
-  { href: "/dashboard/exports", label: "Exports" },
+  { href: "/dashboard/exports", label: "CPA Export Center" },
+  { href: "/dashboard/automation", label: "Automation" },
   { href: "/dashboard/settings", label: "Settings" },
 ];

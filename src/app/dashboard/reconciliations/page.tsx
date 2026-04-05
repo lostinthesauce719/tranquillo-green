@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CashReconciliationWorkspace } from "@/components/accounting/cash-reconciliation-workspace";
 import { AppShell } from "@/components/shell/app-shell";
 import { MetricCard } from "@/components/ui/metric-card";
@@ -36,13 +37,20 @@ export default function ReconciliationsPage() {
         </section>
 
         <section className="rounded-2xl border border-border bg-surface-mid p-5">
-          <div className="text-xs uppercase tracking-[0.2em] text-accent">Variance workflow</div>
-          <ol className="mt-4 space-y-3 text-sm text-text-muted">
-            <li>1. Compare expected ledger or POS cash to physical count / statement actuals.</li>
-            <li>2. Open an investigation case when variance is non-zero or support is missing.</li>
-            <li>3. Assign actions for recounts, support collection, and fee or reclass journal drafts.</li>
-            <li>4. Move workspace to ready-for-review only after evidence and notes explain the remaining difference.</li>
-          </ol>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-[0.2em] text-accent">Variance workflow</div>
+              <ol className="mt-4 space-y-3 text-sm text-text-muted">
+                <li>1. Compare expected ledger or POS cash to physical count / statement actuals.</li>
+                <li>2. Open an investigation case when variance is non-zero or support is missing.</li>
+                <li>3. Assign actions for recounts, support collection, and fee or reclass journal drafts.</li>
+                <li>4. Move workspace to ready-for-review only after evidence and notes explain the remaining difference.</li>
+              </ol>
+            </div>
+            <Link href="/dashboard/reconciliations/rec_003" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
+              Open clearing detail
+            </Link>
+          </div>
         </section>
       </div>
 

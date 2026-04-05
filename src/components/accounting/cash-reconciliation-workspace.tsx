@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
 import type { DemoCashReconciliationItem } from "@/lib/demo/accounting-operations";
 
@@ -116,10 +117,13 @@ export function CashReconciliationWorkspace({ items }: { items: DemoCashReconcil
                       </div>
                     ))}
                   </div>
-                  <div className="mt-4 grid gap-2 sm:grid-cols-3">
+                  <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                     <button className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-muted">Log note</button>
                     <button className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100">Open variance case</button>
                     <button className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm text-blue-100">Mark ready for review</button>
+                    <Link href={`/dashboard/reconciliations/${item.id}`} className="rounded-xl border border-border bg-surface px-3 py-2 text-center text-sm text-text-primary transition hover:bg-surface/70">
+                      Open detail
+                    </Link>
                   </div>
                 </div>
               </div>

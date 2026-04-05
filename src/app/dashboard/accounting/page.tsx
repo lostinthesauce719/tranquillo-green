@@ -48,6 +48,16 @@ const workspaceLinks = [
     label: "Cash reconciliations",
     detail: "Tie drawers, vault, armored clearing, and bank balances with variance investigation workflow.",
   },
+  {
+    href: "/dashboard/exports",
+    label: "CPA export center",
+    detail: "Assemble close packets, support schedules, override history, and recipient checklists for external handoff.",
+  },
+  {
+    href: "/dashboard/automation",
+    label: "Automation control surface",
+    detail: "Review static workflow agents for allocation monitoring, close blockers, and reconciliation follow-up.",
+  },
 ];
 
 export default function AccountingPage() {
