@@ -36,9 +36,18 @@ function ownerCue(card: DemoPipelineCard) {
   return `${card.owner} → ${card.reviewer}`;
 }
 
-export function TransactionPipelineBoard({ stages }: { stages: DemoPipelineStage[] }) {
+export function TransactionPipelineBoard({
+  stages,
+  source = "demo",
+}: {
+  stages: DemoPipelineStage[];
+  source?: "demo" | "convex";
+}) {
   return (
     <div className="space-y-6">
+      <div className="rounded-2xl border border-border bg-surface-mid px-4 py-3 text-sm text-text-muted">
+        Pipeline source: {source === "convex" ? "persisted import-job + transaction backend" : "demo-safe fallback data"}
+      </div>
       <div className="grid gap-4 xl:grid-cols-4">
         {stages.map((stage) => (
           <section key={stage.id} className={`rounded-2xl border p-5 ${stageToneClass(stage.tone)}`}>

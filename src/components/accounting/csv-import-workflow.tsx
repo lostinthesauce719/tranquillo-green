@@ -1,14 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
-import { DemoChartOfAccount } from "@/lib/demo/accounting";
-import {
-  DemoImportDataset,
-  DemoImportRow,
+import type { DemoChartOfAccount } from "@/lib/demo/accounting";
+import type {
   DemoImportTargetField,
-  demoImportDatasets,
 } from "@/lib/demo/accounting-workflows";
+import type { ImportWorkspace } from "@/lib/import-job-types";
 
 const targetFieldLabels: Record<DemoImportTargetField, string> = {
   date: "Transaction date",
@@ -29,7 +28,7 @@ function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
 }
 
-function getRowTone(status: DemoImportRow["status"]) {
+function getRowTone(status: "ready" | "warning" | "error") {
   switch (status) {
     case "ready":
       return "emerald" as const;
@@ -40,42 +39,61 @@ function getRowTone(status: DemoImportRow["status"]) {
   }
 }
 
-function getAvailableTargetFields(dataset: DemoImportDataset): DemoImportTargetField[] {
-  return dataset.profiles.some((profile) => profile.amountStrategy === "split_debit_credit")
+function getAvailableTargetFields(amountStrategy: "single_signed" | "split_debit_credit") {
+  return amountStrategy === "split_debit_credit"
     ? ["date", "postedDate", "description", "reference", "debit", "credit", "location", "memo", "ignore"]
     : ["date", "postedDate", "description", "reference", "amount", "location", "memo", "ignore"];
 }
 
-export function CsvImportWorkflow({ accounts }: { accounts: DemoChartOfAccount[] }) {
-  const [selectedDatasetId, setSelectedDatasetId] = useState(demoImportDatasets[0]?.id ?? "");
+export function CsvImportWorkflow({
+  accounts,
+  companySlug,
+  workspace,
+}: {
+  accounts: DemoChartOfAccount[];
+  companySlug: string;
+  workspace: ImportWorkspace;
+}) {
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [selectedDatasetId, setSelectedDatasetId] = useState(workspace.datasets[0]?.id ?? "");
   const dataset = useMemo(
-    () => demoImportDatasets.find((item) => item.id === selectedDatasetId) ?? demoImportDatasets[0],
-    [selectedDatasetId],
+    () => workspace.datasets.find((item) => item.id === selectedDatasetId) ?? workspace.datasets[0],
+    [selectedDatasetId, workspace.datasets],
   );
-  const [selectedProfileId, setSelectedProfileId] = useState(dataset?.profiles[0]?.id ?? "");
+  const [selectedProfileId, setSelectedProfileId] = useState(dataset?.appliedProfileId || dataset?.profiles[0]?.id || "");
   const [mappingOverrides, setMappingOverrides] = useState<Record<string, DemoImportTargetField>>(
-    dataset?.profiles[0]?.fieldMappings ?? {},
+    dataset?.profiles.find((profile) => profile.id === (dataset.appliedProfileId || dataset.profiles[0]?.id))?.fieldMappings ?? {},
   );
   const [selectedRowId, setSelectedRowId] = useState(dataset?.rows[0]?.id ?? "");
   const [message, setMessage] = useState<string | null>(null);
 
   const activeAccounts = useMemo(() => accounts.filter((account) => account.isActive), [accounts]);
 
+  useEffect(() => {
+    if (!dataset) {
+      return;
+    }
+    const nextProfileId = dataset.appliedProfileId || dataset.profiles[0]?.id || "";
+    const nextProfile = dataset.profiles.find((profile) => profile.id === nextProfileId) ?? dataset.profiles[0];
+    setSelectedProfileId(nextProfileId);
+    setMappingOverrides(nextProfile?.fieldMappings ?? {});
+    setSelectedRowId(dataset.rows[0]?.id ?? "");
+  }, [dataset]);
+
   if (!dataset || dataset.profiles.length === 0 || dataset.rows.length === 0) {
     return null;
   }
 
   const selectedProfile = dataset.profiles.find((profile) => profile.id === selectedProfileId) ?? dataset.profiles[0]!;
-  const availableTargets = getAvailableTargetFields(dataset);
+  const availableTargets = getAvailableTargetFields(selectedProfile.amountStrategy);
   const effectiveMappings = dataset.columns.reduce<Record<string, DemoImportTargetField>>((acc, column) => {
-    acc[column.key] = mappingOverrides[column.key] ?? selectedProfile?.fieldMappings[column.key] ?? column.suggestedTarget;
+    acc[column.key] = mappingOverrides[column.key] ?? selectedProfile.fieldMappings[column.key] ?? column.suggestedTarget;
     return acc;
   }, {});
 
-  const requiredFieldIssues = requiredTargets.filter(
-    (field) => !Object.values(effectiveMappings).includes(field),
-  );
-  const amountStrategyFieldIssues = selectedProfile?.amountStrategy === "split_debit_credit"
+  const requiredFieldIssues = requiredTargets.filter((field) => !Object.values(effectiveMappings).includes(field));
+  const amountStrategyFieldIssues = selectedProfile.amountStrategy === "split_debit_credit"
     ? ["debit", "credit"].filter((field) => !Object.values(effectiveMappings).includes(field as DemoImportTargetField))
     : Object.values(effectiveMappings).includes("amount")
       ? []
@@ -84,29 +102,25 @@ export function CsvImportWorkflow({ accounts }: { accounts: DemoChartOfAccount[]
   const previewStats = dataset.rows.reduce(
     (acc, row) => {
       acc.total += 1;
-      if (row.status === "ready") {
-        acc.ready += 1;
-      }
-      if (row.status === "warning") {
-        acc.warning += 1;
-      }
-      if (row.status === "error") {
-        acc.error += 1;
-      }
+      if (row.status === "ready") acc.ready += 1;
+      if (row.status === "warning") acc.warning += 1;
+      if (row.status === "error") acc.error += 1;
+      if (row.promotedTransactionId) acc.promoted += 1;
       return acc;
     },
-    { total: 0, ready: 0, warning: 0, error: 0 },
+    { total: 0, ready: 0, warning: 0, error: 0, promoted: 0 },
   );
 
   const selectedRow = dataset.rows.find((row) => row.id === selectedRowId) ?? dataset.rows[0]!;
 
   function handleDatasetChange(nextDatasetId: string) {
-    const nextDataset = demoImportDatasets.find((item) => item.id === nextDatasetId) ?? demoImportDatasets[0];
+    const nextDataset = workspace.datasets.find((item) => item.id === nextDatasetId) ?? workspace.datasets[0];
     setSelectedDatasetId(nextDataset.id);
-    setSelectedProfileId(nextDataset.profiles[0]?.id ?? "");
-    setMappingOverrides(nextDataset.profiles[0]?.fieldMappings ?? {});
-    setSelectedRowId(nextDataset.rows[0]?.id ?? "");
-    setMessage(`Loaded demo file ${nextDataset.fileName} with ${nextDataset.rows.length} rows for mapping review.`);
+    setMessage(
+      nextDataset.backendMode === "persisted"
+        ? `Loaded persisted import job ${nextDataset.fileName} with ${nextDataset.rows.length} rows.`
+        : `Loaded demo file ${nextDataset.fileName} with ${nextDataset.rows.length} rows for mapping review.`,
+    );
   }
 
   function handleProfileChange(nextProfileId: string) {
@@ -121,16 +135,79 @@ export function CsvImportWorkflow({ accounts }: { accounts: DemoChartOfAccount[]
     setMessage(null);
   }
 
-  function stageImport() {
+  async function submitImportJob() {
     const issues = [...requiredFieldIssues, ...amountStrategyFieldIssues];
     if (issues.length > 0) {
       setMessage(`Import cannot be staged yet. Resolve mapping gaps for: ${issues.join(", ")}.`);
       return;
     }
 
-    setMessage(
-      `Demo import staged locally: ${previewStats.ready} ready, ${previewStats.warning} warning, ${previewStats.error} error rows. No backend job was created.`,
-    );
+    startTransition(async () => {
+      const response = await fetch("/api/accounting/import-jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "stage",
+          companySlug,
+          dataset: {
+            id: dataset.id,
+            fileName: dataset.fileName,
+            source: dataset.source,
+            periodLabel: dataset.periodLabel,
+            uploadedAt: dataset.uploadedAt,
+            delimiter: dataset.delimiter,
+            columns: dataset.columns,
+            rows: dataset.rows.map((row) => ({
+              id: row.id,
+              values: row.values,
+              sourceAccountName: row.sourceAccountName,
+              suggestedDebitAccountCode: row.suggestedDebitAccountCode,
+              suggestedCreditAccountCode: row.suggestedCreditAccountCode,
+              confidence: row.confidence,
+              status: row.status,
+              validationIssues: row.validationIssues,
+            })),
+            selectedProfile: {
+              id: selectedProfile.id,
+              name: selectedProfile.name,
+              description: selectedProfile.description,
+              amountStrategy: selectedProfile.amountStrategy,
+              fieldMappings: selectedProfile.fieldMappings,
+            },
+            effectiveMappings,
+          },
+        }),
+      });
+      const result = await response.json();
+      setMessage(result.message ?? "Import job request completed.");
+      if (result.ok) {
+        router.refresh();
+      }
+    });
+  }
+
+  async function promoteDataset() {
+    if (!dataset.jobId) {
+      setMessage("Only persisted import jobs can be promoted into transactions.");
+      return;
+    }
+
+    startTransition(async () => {
+      const response = await fetch("/api/accounting/import-jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "promote",
+          companySlug,
+          jobId: dataset.jobId,
+        }),
+      });
+      const result = await response.json();
+      setMessage(result.message ?? "Promotion request completed.");
+      if (result.ok) {
+        router.refresh();
+      }
+    });
   }
 
   return (
@@ -138,22 +215,24 @@ export function CsvImportWorkflow({ accounts }: { accounts: DemoChartOfAccount[]
       <section className="rounded-2xl border border-border bg-surface-mid p-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">Static-safe import flow</div>
+            <div className="text-xs uppercase tracking-[0.2em] text-accent">
+              {workspace.source === "convex" ? "Persisted import-job flow" : "Static-safe import flow"}
+            </div>
             <h2 className="mt-2 text-xl font-semibold">CSV import mapping workspace</h2>
             <p className="mt-2 max-w-3xl text-sm text-text-muted">
-              This demo workflow mimics a real accounting import: choose a staged file, apply a mapping profile,
-              validate required fields, and inspect row-level posting suggestions before anything reaches the ledger.
+              This workflow now prefers the persisted import-job backend for mapping profiles, validation results,
+              and row promotion into transactions, while preserving the demo-safe fallback path when Convex is unavailable.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="grid gap-2 text-sm">
-              <span className="text-text-muted">Demo file</span>
+              <span className="text-text-muted">Import file / job</span>
               <select
                 value={dataset.id}
                 onChange={(event) => handleDatasetChange(event.target.value)}
                 className="rounded-xl border border-border bg-surface px-3 py-2 text-text-primary outline-none"
               >
-                {demoImportDatasets.map((item) => (
+                {workspace.datasets.map((item) => (
                   <option key={item.id} value={item.id}>
                     {item.fileName}
                   </option>
@@ -163,7 +242,7 @@ export function CsvImportWorkflow({ accounts }: { accounts: DemoChartOfAccount[]
             <label className="grid gap-2 text-sm">
               <span className="text-text-muted">Mapping profile</span>
               <select
-                value={selectedProfile?.id ?? ""}
+                value={selectedProfile.id}
                 onChange={(event) => handleProfileChange(event.target.value)}
                 className="rounded-xl border border-border bg-surface px-3 py-2 text-text-primary outline-none"
               >
@@ -189,11 +268,12 @@ export function CsvImportWorkflow({ accounts }: { accounts: DemoChartOfAccount[]
             <div className="mt-1">Uploaded {dataset.uploadedAt}</div>
           </div>
           <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">Amount strategy</div>
-            <div className="mt-3 font-medium capitalize text-text-primary">
-              {selectedProfile.amountStrategy.replaceAll("_", " ")}
+            <div className="text-xs uppercase tracking-[0.2em] text-accent">Lifecycle</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <AccountingStatusBadge label={dataset.backendMode} tone={dataset.backendMode === "persisted" ? "violet" : "slate"} />
+              <AccountingStatusBadge label={dataset.persistedStatus.replaceAll("_", " ")} tone={dataset.persistedStatus === "promoted" ? "emerald" : dataset.persistedStatus === "mapped" ? "amber" : "blue"} className="capitalize" />
             </div>
-            <div className="mt-1">Period {dataset.periodLabel}</div>
+            <div className="mt-1">Promoted {dataset.promotedRowCount} / {dataset.rows.length} rows</div>
           </div>
           <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">
             <div className="text-xs uppercase tracking-[0.2em] text-accent">Validation summary</div>
@@ -211,10 +291,10 @@ export function CsvImportWorkflow({ accounts }: { accounts: DemoChartOfAccount[]
           <div>
             <div className="text-xs uppercase tracking-[0.2em] text-accent">Field mapping</div>
             <p className="mt-2 text-sm text-text-muted">
-              Map source columns into accounting fields. Required fields must be present before the file can move into review.
+              Map source columns into accounting fields. Required fields must be present before the file can move into review or promotion.
             </p>
           </div>
-          <div className="text-sm text-text-muted">{selectedProfile?.description}</div>
+          <div className="text-sm text-text-muted">{selectedProfile.description}</div>
         </div>
 
         <div className="mt-5 overflow-hidden rounded-2xl border border-border bg-surface">
@@ -287,6 +367,7 @@ export function CsvImportWorkflow({ accounts }: { accounts: DemoChartOfAccount[]
             <AccountingStatusBadge label={`Amount issue: ${amountStrategyFieldIssues.join(", ")}`} tone="amber" />
           )}
           <AccountingStatusBadge label={`Delimiter ${dataset.delimiter}`} tone="slate" />
+          {dataset.sourceFileSizeBytes ? <AccountingStatusBadge label={`${dataset.sourceFileSizeBytes} bytes`} tone="slate" /> : null}
         </div>
       </section>
 
@@ -299,13 +380,26 @@ export function CsvImportWorkflow({ accounts }: { accounts: DemoChartOfAccount[]
                 Review confidence, suggested posting accounts, and row issues before submitting for accounting review.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={stageImport}
-              className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-200 transition hover:bg-emerald-500/15"
-            >
-              Stage demo import
-            </button>
+            <div className="flex flex-wrap gap-3">
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={submitImportJob}
+                className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-200 transition hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {workspace.source === "convex" ? "Persist import job" : "Stage demo import"}
+              </button>
+              {dataset.backendMode === "persisted" && dataset.jobId ? (
+                <button
+                  type="button"
+                  disabled={isPending || dataset.promotionReadyCount === 0}
+                  onClick={promoteDataset}
+                  className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-4 py-3 text-sm font-medium text-violet-100 transition hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Promote to transactions
+                </button>
+              ) : null}
+            </div>
           </div>
 
           <div className="mt-5 overflow-hidden rounded-2xl border border-border bg-surface">
@@ -324,7 +418,7 @@ export function CsvImportWorkflow({ accounts }: { accounts: DemoChartOfAccount[]
                   {dataset.rows.map((row) => (
                     <tr
                       key={row.id}
-                      className={`cursor-pointer align-top transition hover:bg-surface/60 ${row.id === selectedRow?.id ? "bg-surface/70" : ""}`}
+                      className={`cursor-pointer align-top transition hover:bg-surface/60 ${row.id === selectedRow.id ? "bg-surface/70" : ""}`}
                       onClick={() => setSelectedRowId(row.id)}
                     >
                       <td className="px-4 py-4">
@@ -337,10 +431,14 @@ export function CsvImportWorkflow({ accounts }: { accounts: DemoChartOfAccount[]
                       <td className="px-4 py-4 text-xs text-text-muted">
                         <div>Dr {row.suggestedDebitAccountCode}</div>
                         <div className="mt-1">Cr {row.suggestedCreditAccountCode}</div>
+                        {row.promotedTransactionId ? <div className="mt-1 text-emerald-200">Promoted</div> : null}
                       </td>
                       <td className="px-4 py-4 text-text-primary">{formatPercent(row.confidence)}</td>
                       <td className="px-4 py-4">
-                        <AccountingStatusBadge label={row.status} tone={getRowTone(row.status)} className="capitalize" />
+                        <div className="flex flex-wrap gap-2">
+                          <AccountingStatusBadge label={row.status} tone={getRowTone(row.status)} className="capitalize" />
+                          {row.promotedTransactionId ? <AccountingStatusBadge label="promoted" tone="violet" /> : null}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -354,45 +452,44 @@ export function CsvImportWorkflow({ accounts }: { accounts: DemoChartOfAccount[]
         <div className="grid gap-4">
           <section className="rounded-2xl border border-border bg-surface-mid p-5">
             <div className="text-xs uppercase tracking-[0.2em] text-accent">Selected row detail</div>
-            {selectedRow ? (
-              <div className="mt-4 space-y-4 text-sm text-text-muted">
-                <div>
-                  <div className="font-medium text-text-primary">
-                    {selectedRow.values.vendor_name ?? selectedRow.values.employee_group ?? "Selected import row"}
-                  </div>
-                  <div className="mt-1 font-mono text-xs">
-                    {selectedRow.values.bank_reference ?? selectedRow.values.batch_reference ?? "No reference"}
-                  </div>
+            <div className="mt-4 space-y-4 text-sm text-text-muted">
+              <div>
+                <div className="font-medium text-text-primary">
+                  {selectedRow.values.vendor_name ?? selectedRow.values.employee_group ?? "Selected import row"}
                 </div>
-                <div className="grid gap-2">
-                  {Object.entries(selectedRow.values).map(([key, value]) => (
-                    <div key={key} className="flex items-start justify-between gap-4 rounded-xl border border-border bg-surface px-3 py-2">
-                      <span className="font-mono text-xs text-text-muted">{key}</span>
-                      <span className="text-right text-text-primary">{value || "(blank)"}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="rounded-xl border border-border bg-surface px-4 py-3">
-                  <div className="text-xs uppercase tracking-[0.2em] text-accent">Suggested posting</div>
-                  <div className="mt-2 text-text-primary">Debit {selectedRow.suggestedDebitAccountCode} / Credit {selectedRow.suggestedCreditAccountCode}</div>
-                  <div className="mt-1 text-xs">Source account: {selectedRow.sourceAccountName}</div>
-                </div>
-                <div>
-                  <div className="text-xs uppercase tracking-[0.2em] text-accent">Validation issues</div>
-                  {selectedRow.validationIssues.length === 0 ? (
-                    <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-emerald-200">
-                      Row is ready to advance to accounting review.
-                    </div>
-                  ) : (
-                    <ul className="mt-3 space-y-2">
-                      {selectedRow.validationIssues.map((issue) => (
-                        <li key={issue}>• {issue}</li>
-                      ))}
-                    </ul>
-                  )}
+                <div className="mt-1 font-mono text-xs">
+                  {selectedRow.values.bank_reference ?? selectedRow.values.batch_reference ?? "No reference"}
                 </div>
               </div>
-            ) : null}
+              <div className="grid gap-2">
+                {Object.entries(selectedRow.values).map(([key, value]) => (
+                  <div key={key} className="flex items-start justify-between gap-4 rounded-xl border border-border bg-surface px-3 py-2">
+                    <span className="font-mono text-xs text-text-muted">{key}</span>
+                    <span className="text-right text-text-primary">{value || "(blank)"}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-xl border border-border bg-surface px-4 py-3">
+                <div className="text-xs uppercase tracking-[0.2em] text-accent">Suggested posting</div>
+                <div className="mt-2 text-text-primary">Debit {selectedRow.suggestedDebitAccountCode} / Credit {selectedRow.suggestedCreditAccountCode}</div>
+                <div className="mt-1 text-xs">Source account: {selectedRow.sourceAccountName}</div>
+                {selectedRow.promotedAt ? <div className="mt-1 text-xs text-emerald-200">Promoted {selectedRow.promotedAt}</div> : null}
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-[0.2em] text-accent">Validation issues</div>
+                {selectedRow.validationIssues.length === 0 ? (
+                  <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-emerald-200">
+                    Row is ready to advance to accounting review.
+                  </div>
+                ) : (
+                  <ul className="mt-3 space-y-2">
+                    {selectedRow.validationIssues.map((issue) => (
+                      <li key={issue}>• {issue}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
           </section>
 
           <section className="rounded-2xl border border-border bg-surface-mid p-5">

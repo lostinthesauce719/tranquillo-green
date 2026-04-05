@@ -2,6 +2,7 @@ import { mutationGeneric, queryGeneric } from "convex/server";
 import { v } from "convex/values";
 import { californiaOperatorDemo, demoReportingPeriods, demoTransactions } from "../src/lib/demo/accounting";
 import { demoCashReconciliations } from "../src/lib/demo/accounting-operations";
+import { demoImportDatasets } from "../src/lib/demo/accounting-workflows";
 
 function transactionSourceFromDemo(source: (typeof demoTransactions)[number]["source"]) {
   switch (source) {
@@ -175,6 +176,111 @@ export const seedCaliforniaOperator = mutationGeneric({
       reportingPeriodIdsByLabel.set(period.label, periodId);
     }
 
+    const existingImportProfiles = await ctx.db
+      .query("importMappingProfiles")
+      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .collect();
+    const importProfileIdsByKey = new Map<string, any>();
+
+    for (const dataset of demoImportDatasets) {
+      for (const profile of dataset.profiles) {
+        const profileKey = `${dataset.source}:${profile.id}`;
+        const existingProfile = existingImportProfiles.find((record) => record.profileKey === profileKey);
+        const payload = {
+          companyId,
+          profileKey,
+          sourceSystem: dataset.source,
+          name: profile.name,
+          description: profile.description,
+          amountStrategy: profile.amountStrategy,
+          fieldMappings: profile.fieldMappings,
+          createdAt: existingProfile?.createdAt ?? Date.now(),
+          updatedAt: Date.now(),
+        };
+        const profileId = existingProfile?._id ?? (await ctx.db.insert("importMappingProfiles", payload));
+        if (existingProfile) {
+          await ctx.db.patch(existingProfile._id, payload);
+        }
+        importProfileIdsByKey.set(profileKey, profileId);
+      }
+    }
+
+    const existingImportJobs = await ctx.db
+      .query("importJobs")
+      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .collect();
+
+    for (const dataset of demoImportDatasets) {
+      const profile = dataset.profiles[0]!;
+      const profileKey = `${dataset.source}:${profile.id}`;
+      const existingJob = existingImportJobs.find((record) => record.externalRef === `import-job:${dataset.id}`);
+      const validationSummary = {
+        ready: dataset.rows.filter((row) => row.status === "ready").length,
+        warning: dataset.rows.filter((row) => row.status === "warning").length,
+        error: dataset.rows.filter((row) => row.status === "error").length,
+      };
+      const jobPayload = {
+        companyId,
+        periodId: reportingPeriodIdsByLabel.get(dataset.periodLabel),
+        importMappingProfileId: importProfileIdsByKey.get(profileKey),
+        sourceSystem: dataset.source,
+        sourceFileName: dataset.fileName,
+        sourceOriginalFileName: dataset.fileName,
+        sourceContentType: "text/csv",
+        sourceDelimiter: dataset.delimiter,
+        sourceFileSizeBytes: JSON.stringify(dataset.rows).length,
+        sourceChecksum: `${dataset.fileName}:${dataset.rows.length}`,
+        uploadedAt: Date.now(),
+        uploadedBy: "Seed script",
+        status: validationSummary.error > 0 ? "mapped" : "validated",
+        rowCount: dataset.rows.length,
+        promotedRowCount: 0,
+        validationSummary,
+        columns: dataset.columns,
+        notes: validationSummary.error > 0 ? `${validationSummary.error} staged row errors remain open.` : undefined,
+        externalRef: `import-job:${dataset.id}`,
+      };
+
+      const jobId = existingJob?._id ?? (await ctx.db.insert("importJobs", jobPayload));
+      if (existingJob) {
+        await ctx.db.patch(existingJob._id, jobPayload);
+      }
+
+      const existingRows = await ctx.db
+        .query("importJobRows")
+        .withIndex("by_job", (q) => q.eq("importJobId", jobId))
+        .collect();
+      for (const row of existingRows) {
+        await ctx.db.delete(row._id);
+      }
+
+      for (let index = 0; index < dataset.rows.length; index += 1) {
+        const row = dataset.rows[index]!;
+        await ctx.db.insert("importJobRows", {
+          importJobId: jobId,
+          rowNumber: index + 1,
+          rowKey: row.id,
+          rawValues: row.values,
+          normalizedValues: row.values,
+          transactionDate: row.values.booking_date ?? row.values.check_date ?? undefined,
+          postedDate: row.values.post_date ?? undefined,
+          description: row.values.vendor_name ?? row.values.employee_group ?? row.id,
+          reference: row.values.bank_reference ?? row.values.batch_reference ?? row.id,
+          amount: row.values.signed_amount ? Math.abs(Number(row.values.signed_amount)) : undefined,
+          debit: row.values.debit_amount ? Number(row.values.debit_amount) : undefined,
+          credit: row.values.credit_amount ? Number(row.values.credit_amount) : undefined,
+          locationName: row.values.entity ?? undefined,
+          memo: row.values.bank_memo ?? row.values.memo_text ?? undefined,
+          sourceAccountName: row.sourceAccountName,
+          suggestedDebitAccountCode: row.suggestedDebitAccountCode,
+          suggestedCreditAccountCode: row.suggestedCreditAccountCode,
+          confidence: row.confidence,
+          status: row.status,
+          validationIssues: row.validationIssues,
+        });
+      }
+    }
+
     const payees = Array.from(new Set(demoTransactions.map((transaction) => transaction.payee)));
     const existingCounterparties = await ctx.db
       .query("counterparties")
@@ -332,6 +438,9 @@ export const seedCaliforniaOperator = mutationGeneric({
       licensesSeeded: californiaOperatorDemo.licenses.length,
       accountsSeeded: californiaOperatorDemo.chartOfAccounts.length,
       reportingPeriodsSeeded: demoReportingPeriods.length,
+      importProfilesSeeded: demoImportDatasets.reduce((sum, dataset) => sum + dataset.profiles.length, 0),
+      importJobsSeeded: demoImportDatasets.length,
+      importRowsSeeded: demoImportDatasets.reduce((sum, dataset) => sum + dataset.rows.length, 0),
       transactionsSeeded: demoTransactions.length,
       transactionLinesSeeded: demoTransactions.length * 2,
       cashReconciliationsSeeded: demoCashReconciliations.length,

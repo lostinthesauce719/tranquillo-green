@@ -2,7 +2,7 @@ import Link from "next/link";
 import { TransactionPipelineBoard } from "@/components/accounting/transaction-pipeline-board";
 import { AppShell } from "@/components/shell/app-shell";
 import { MetricCard } from "@/components/ui/metric-card";
-import { buildDemoPipelineStages } from "@/lib/demo/accounting-close";
+import { loadImportWorkspace } from "@/lib/data/import-jobs";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -10,8 +10,9 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
 });
 
-export default function AccountingPipelinePage() {
-  const stages = buildDemoPipelineStages();
+export default async function AccountingPipelinePage() {
+  const importWorkspace = await loadImportWorkspace();
+  const stages = importWorkspace.pipelineStages;
   const imported = stages.find((stage) => stage.id === "imported");
   const needsReview = stages.find((stage) => stage.id === "needs_review");
   const ready = stages.find((stage) => stage.id === "ready_to_post");
@@ -21,7 +22,11 @@ export default function AccountingPipelinePage() {
   return (
     <AppShell
       title="Transaction pipeline"
-      description="Imported-to-posted accounting board for demo transaction operations. This route stays fully static-safe while showing ownership, blockers, review cues, and links into the underlying transaction detail workspaces."
+      description={
+        importWorkspace.source === "convex"
+          ? "Imported-to-posted accounting board powered by persisted import jobs and transactions when Convex is available, with the same demo-safe fallback pattern used elsewhere in accounting."
+          : "Imported-to-posted accounting board rendered from demo-safe fallback data because the persisted Convex runtime is unavailable."
+      }
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Imported rows" value={String(imported?.cards.length ?? 0)} detail={`${imported?.blockerCount ?? 0} imports still blocked before queue handoff`} />
@@ -34,10 +39,10 @@ export default function AccountingPipelinePage() {
         <section className="rounded-2xl border border-border bg-surface-mid p-5">
           <div className="text-xs uppercase tracking-[0.2em] text-accent">Operator handoff logic</div>
           <div className="mt-4 grid gap-3 md:grid-cols-4">
-            <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">Imports stage keeps mapping repairs and missing required fields out of the posting queue.</div>
-            <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">Review stage concentrates missing support, policy judgment, and reviewer assignment in one lane.</div>
-            <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">Ready-to-post stage acts like the release tray for bundled journals and transaction approvals.</div>
-            <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">Posted stage preserves proof that the transaction cleared review and can join the close binder.</div>
+            <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">Imports stage keeps mapping repairs and missing required fields out of the posting queue until jobs are promoted.</div>
+            <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">Review stage concentrates missing support, policy judgment, and promoted warning rows in one lane.</div>
+            <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">Ready-to-post stage acts like the release tray for import promotions that cleared validation without blockers.</div>
+            <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">Posted stage preserves proof that the promoted transaction cleared review and can join the close binder.</div>
           </div>
         </section>
 
@@ -58,7 +63,7 @@ export default function AccountingPipelinePage() {
       </div>
 
       <div className="mt-6">
-        <TransactionPipelineBoard stages={stages} />
+        <TransactionPipelineBoard stages={stages} source={importWorkspace.source} />
       </div>
     </AppShell>
   );

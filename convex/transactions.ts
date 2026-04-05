@@ -12,6 +12,8 @@ const transactionShape = {
   companyId: v.id("cannabisCompanies"),
   periodId: v.optional(v.id("reportingPeriods")),
   locationId: v.optional(v.id("cannabisLocations")),
+  importJobId: v.optional(v.id("importJobs")),
+  importRowId: v.optional(v.id("importJobRows")),
   transactionDate: v.string(),
   source: transactionSource,
   sourceLabel: v.optional(v.string()),
