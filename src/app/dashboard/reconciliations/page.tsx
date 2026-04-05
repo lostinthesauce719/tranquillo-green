@@ -2,7 +2,8 @@ import Link from "next/link";
 import { CashReconciliationWorkspace } from "@/components/accounting/cash-reconciliation-workspace";
 import { AppShell } from "@/components/shell/app-shell";
 import { MetricCard } from "@/components/ui/metric-card";
-import { demoCashReconciliations, getFeaturedCashReconciliation, getFeaturedCashReconciliationHref, summarizeCashReconciliations } from "@/lib/demo/accounting-operations";
+import { getFeaturedCashReconciliation, getFeaturedCashReconciliationHref, summarizeCashReconciliations } from "@/lib/demo/accounting-operations";
+import { loadAccountingWorkspace } from "@/lib/data/accounting-core";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -10,15 +11,16 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
 });
 
-export default function ReconciliationsPage() {
-  const summary = summarizeCashReconciliations(demoCashReconciliations);
-  const featuredReconciliation = getFeaturedCashReconciliation(demoCashReconciliations);
-  const featuredReconciliationHref = getFeaturedCashReconciliationHref(demoCashReconciliations);
+export default async function ReconciliationsPage() {
+  const workspace = await loadAccountingWorkspace();
+  const summary = summarizeCashReconciliations(workspace.cashReconciliations);
+  const featuredReconciliation = getFeaturedCashReconciliation(workspace.cashReconciliations);
+  const featuredReconciliationHref = getFeaturedCashReconciliationHref(workspace.cashReconciliations);
 
   return (
     <AppShell
       title="Reconciliations"
-      description="Cash reconciliation workspace for drawers, vault, armored clearing, and bank tie-out. The UI shows expected vs actual, variance investigation, and operator follow-up without any live service dependency."
+      description={`Cash reconciliation workspace for drawers, vault, armored clearing, and bank tie-out. The UI now prefers ${workspace.source === "convex" ? "persisted Convex reconciliation data" : "demo fallback data"} without requiring a live runtime for static builds.`}
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Balanced accounts" value={String(summary.balanced)} detail={`${summary.readyToPost} workspaces staged for review package`} />
@@ -57,7 +59,7 @@ export default function ReconciliationsPage() {
       </div>
 
       <div className="mt-6">
-        <CashReconciliationWorkspace items={demoCashReconciliations} />
+        <CashReconciliationWorkspace items={workspace.cashReconciliations} />
       </div>
     </AppShell>
   );

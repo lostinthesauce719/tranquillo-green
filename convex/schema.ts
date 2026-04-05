@@ -54,6 +54,7 @@ export default defineSchema({
     subcategory: v.optional(v.string()),
     isActive: v.boolean(),
     taxTreatment: v.union(v.literal("deductible"), v.literal("cogs"), v.literal("nondeductible")),
+    description: v.optional(v.string()),
   }).index("by_company", ["companyId"]).index("by_company_code", ["companyId", "code"]),
 
   counterparties: defineTable({
@@ -69,18 +70,41 @@ export default defineSchema({
     startDate: v.string(),
     endDate: v.string(),
     status: v.union(v.literal("open"), v.literal("review"), v.literal("closed")),
-  }).index("by_company", ["companyId"]),
+    closeOwner: v.optional(v.string()),
+    closeWindowDays: v.optional(v.number()),
+    lockedAt: v.optional(v.string()),
+    taskSummary: v.optional(
+      v.object({
+        completed: v.number(),
+        total: v.number(),
+      })
+    ),
+    blockers: v.optional(v.array(v.string())),
+    highlights: v.optional(v.array(v.string())),
+  }).index("by_company", ["companyId"]).index("by_company_label", ["companyId", "label"]),
 
   transactions: defineTable({
     companyId: v.id("cannabisCompanies"),
     periodId: v.optional(v.id("reportingPeriods")),
+    locationId: v.optional(v.id("cannabisLocations")),
     transactionDate: v.string(),
     source: v.union(v.literal("manual"), v.literal("csv_import"), v.literal("metrc_import"), v.literal("pos_import"), v.literal("system")),
+    sourceLabel: v.optional(v.string()),
     memo: v.optional(v.string()),
     status: v.union(v.literal("draft"), v.literal("posted"), v.literal("needs_review")),
+    workflowStatus: v.optional(v.union(v.literal("unposted"), v.literal("in_review"), v.literal("ready_to_post"), v.literal("posted"))),
+    reviewState: v.optional(v.union(v.literal("ready"), v.literal("needs_mapping"), v.literal("drafted"), v.literal("posted"))),
+    postedDate: v.optional(v.string()),
     counterpartyId: v.optional(v.id("counterparties")),
     externalRef: v.optional(v.string()),
-  }).index("by_company", ["companyId"]).index("by_company_date", ["companyId", "transactionDate"]),
+    reference: v.optional(v.string()),
+    amount: v.optional(v.number()),
+    direction: v.optional(v.union(v.literal("inflow"), v.literal("outflow"))),
+    activity: v.optional(v.union(v.literal("retail"), v.literal("manufacturing"), v.literal("distribution"), v.literal("admin"))),
+    journalHint: v.optional(v.string()),
+    readyForManualEntry: v.optional(v.boolean()),
+    needsReceipt: v.optional(v.boolean()),
+  }).index("by_company", ["companyId"]).index("by_company_date", ["companyId", "transactionDate"]).index("by_company_external_ref", ["companyId", "externalRef"]),
 
   transactionLines: defineTable({
     transactionId: v.id("transactions"),
@@ -145,7 +169,7 @@ export default defineSchema({
     name: v.string(),
     type: v.union(v.literal("drawer"), v.literal("vault"), v.literal("bank_clearing")),
     active: v.boolean(),
-  }).index("by_company", ["companyId"]),
+  }).index("by_company", ["companyId"]).index("by_company_name", ["companyId", "name"]),
 
   cashReconciliations: defineTable({
     companyId: v.id("cannabisCompanies"),
@@ -155,7 +179,54 @@ export default defineSchema({
     actualAmount: v.number(),
     varianceAmount: v.number(),
     status: v.union(v.literal("open"), v.literal("investigating"), v.literal("resolved")),
-  }).index("by_company", ["companyId"]).index("by_company_status", ["companyId", "status"]),
+    workflowStatus: v.optional(v.union(v.literal("balanced"), v.literal("investigating"), v.literal("exception"), v.literal("ready_to_post"))),
+    externalRef: v.optional(v.string()),
+    locationId: v.optional(v.id("cannabisLocations")),
+    accountType: v.optional(v.union(v.literal("drawer"), v.literal("vault"), v.literal("bank_clearing"), v.literal("bank"))),
+    lastCountedAt: v.optional(v.string()),
+    owner: v.optional(v.string()),
+    sourceContext: v.optional(v.array(v.string())),
+    sourceBreakdown: v.optional(
+      v.array(
+        v.object({
+          label: v.string(),
+          source: v.string(),
+          amount: v.number(),
+        })
+      )
+    ),
+    varianceDrivers: v.optional(
+      v.array(
+        v.object({
+          title: v.string(),
+          impactAmount: v.number(),
+          confidenceLabel: v.string(),
+          note: v.string(),
+        })
+      )
+    ),
+    investigationNotes: v.optional(v.array(v.string())),
+    relatedTransactionRefs: v.optional(
+      v.array(
+        v.object({
+          transactionRef: v.string(),
+          label: v.string(),
+          amount: v.number(),
+          note: v.string(),
+        })
+      )
+    ),
+    nextSteps: v.optional(v.array(v.string())),
+    actions: v.optional(
+      v.array(
+        v.object({
+          title: v.string(),
+          owner: v.string(),
+          status: v.union(v.literal("done"), v.literal("in_progress"), v.literal("todo")),
+        })
+      )
+    ),
+  }).index("by_company", ["companyId"]).index("by_company_status", ["companyId", "status"]).index("by_company_external_ref", ["companyId", "externalRef"]),
 
   taxProfiles: defineTable({
     companyId: v.id("cannabisCompanies"),

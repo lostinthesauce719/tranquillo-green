@@ -3,12 +3,8 @@ import { AppShell } from "@/components/shell/app-shell";
 import { ManualJournalEntryForm } from "@/components/accounting/manual-journal-entry-form";
 import { TransactionsTable } from "@/components/accounting/transactions-table";
 import { MetricCard } from "@/components/ui/metric-card";
-import {
-  demoChartOfAccounts,
-  demoReportingPeriods,
-  demoTransactions,
-  summarizeDemoTransactions,
-} from "@/lib/demo/accounting";
+import { summarizeDemoTransactions } from "@/lib/demo/accounting";
+import { loadAccountingWorkspace } from "@/lib/data/accounting-core";
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-US", {
@@ -18,14 +14,15 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-export default function AccountingTransactionsPage() {
-  const summary = summarizeDemoTransactions(demoTransactions);
-  const manualCandidates = demoTransactions.filter((transaction) => transaction.readyForManualEntry && transaction.status !== "posted");
+export default async function AccountingTransactionsPage() {
+  const workspace = await loadAccountingWorkspace();
+  const summary = summarizeDemoTransactions(workspace.transactions);
+  const manualCandidates = workspace.transactions.filter((transaction) => transaction.readyForManualEntry && transaction.status !== "posted");
 
   return (
     <AppShell
       title="Transactions"
-      description="Transaction review workspace for the Phase 1 MVP. Imported activity, suggested entry mappings, and the first manual journal flow all run on local demo data so the app remains safe to statically build."
+      description={`Transaction review workspace for the Phase 1 MVP. Imported activity now prefers ${workspace.source === "convex" ? "persisted Convex data" : "demo fallback data"} while the manual journal flow remains static-safe.`}
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Imported transactions" value={String(summary.total)} detail={`${summary.ready} ready, ${summary.posted} already posted`} />
@@ -54,13 +51,13 @@ export default function AccountingTransactionsPage() {
               <Link href="/dashboard/accounting/periods" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
                 View reporting periods
               </Link>
-              <Link href={`/dashboard/accounting/transactions/${demoTransactions[1]?.id ?? "txn_002"}`} className="rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-3 text-sm text-blue-100 transition hover:bg-blue-500/20">
+              <Link href={`/dashboard/accounting/transactions/${workspace.transactions[1]?.id ?? workspace.transactions[0]?.id ?? "txn_002"}`} className="rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-3 text-sm text-blue-100 transition hover:bg-blue-500/20">
                 Open sample approval detail
               </Link>
             </div>
           </div>
           <div className="mt-5">
-            <TransactionsTable transactions={demoTransactions} />
+            <TransactionsTable transactions={workspace.transactions} />
           </div>
         </section>
 
@@ -90,7 +87,7 @@ export default function AccountingTransactionsPage() {
             <ul className="mt-3 space-y-3 text-sm text-text-muted">
               <li>• No client-side Convex hook or NEXT_PUBLIC_CONVEX_URL is required.</li>
               <li>• Manual draft creation and persistence run entirely in browser state and local storage.</li>
-              <li>• Demo transactions already include realistic reference IDs, locations, and suggested mappings.</li>
+              <li>• Server loaders now prefer persisted Convex rows and fall back to the seeded demo story when no runtime is configured.</li>
               <li>• CSV import staging lives in its own route and stays local/demo-backed.</li>
             </ul>
           </section>
@@ -98,7 +95,7 @@ export default function AccountingTransactionsPage() {
       </div>
 
       <div className="mt-6">
-        <ManualJournalEntryForm accounts={demoChartOfAccounts} periods={demoReportingPeriods} />
+        <ManualJournalEntryForm accounts={workspace.chartOfAccounts} periods={workspace.reportingPeriods} />
       </div>
     </AppShell>
   );

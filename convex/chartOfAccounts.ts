@@ -53,6 +53,7 @@ export const create = mutationGeneric({
     subcategory: v.optional(v.string()),
     isActive: v.boolean(),
     taxTreatment,
+    description: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const existing = (
@@ -81,6 +82,7 @@ export const bulkUpsert = mutationGeneric({
         subcategory: v.optional(v.string()),
         isActive: v.boolean(),
         taxTreatment,
+        description: v.optional(v.string()),
       })
     ),
   },
@@ -102,6 +104,7 @@ export const bulkUpsert = mutationGeneric({
           subcategory: account.subcategory,
           isActive: account.isActive,
           taxTreatment: account.taxTreatment,
+          description: account.description,
         });
         results.push(existing._id);
         continue;
