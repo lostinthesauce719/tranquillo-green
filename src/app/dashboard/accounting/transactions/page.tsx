@@ -51,6 +51,9 @@ export default function AccountingTransactionsPage() {
               <Link href="/dashboard/accounting/periods" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
                 View reporting periods
               </Link>
+              <Link href={`/dashboard/accounting/transactions/${demoTransactions[1]?.id ?? "txn_002"}`} className="rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-3 text-sm text-blue-100 transition hover:bg-blue-500/20">
+                Open sample approval detail
+              </Link>
             </div>
           </div>
           <div className="mt-5">
@@ -64,9 +67,16 @@ export default function AccountingTransactionsPage() {
             <ul className="mt-4 space-y-3 text-sm text-text-muted">
               {manualCandidates.map((transaction) => (
                 <li key={transaction.id} className="rounded-xl border border-border bg-surface px-4 py-3">
-                  <div className="font-medium text-text-primary">{transaction.reference}</div>
-                  <div className="mt-1">{transaction.description}</div>
-                  <div className="mt-2 text-xs">Dr {transaction.suggestedDebitAccountCode} / Cr {transaction.suggestedCreditAccountCode}</div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="font-medium text-text-primary">{transaction.reference}</div>
+                      <div className="mt-1">{transaction.description}</div>
+                      <div className="mt-2 text-xs">Dr {transaction.suggestedDebitAccountCode} / Cr {transaction.suggestedCreditAccountCode}</div>
+                    </div>
+                    <Link href={`/dashboard/accounting/transactions/${transaction.id}`} className="rounded-lg border border-border px-3 py-2 text-xs text-text-primary transition hover:bg-surface-mid">
+                      Review
+                    </Link>
+                  </div>
                 </li>
               ))}
             </ul>

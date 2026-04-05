@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
 import { DemoTransaction } from "@/lib/demo/accounting";
 
@@ -65,7 +66,11 @@ export function TransactionsTable({ transactions }: { transactions: DemoTransact
                   <div className="font-medium capitalize text-text-primary">{transaction.source}</div>
                   <div className="mt-1 text-xs capitalize text-text-muted">{transaction.activity}</div>
                 </td>
-                <td className="px-4 py-4 font-mono text-xs text-text-muted">{transaction.reference}</td>
+                <td className="px-4 py-4 font-mono text-xs text-text-muted">
+                  <Link href={`/dashboard/accounting/transactions/${transaction.id}`} className="transition hover:text-text-primary hover:underline">
+                    {transaction.reference}
+                  </Link>
+                </td>
                 <td className="px-4 py-4">
                   <div className="font-medium text-text-primary">{transaction.payee}</div>
                   <div className="mt-1 max-w-md text-xs text-text-muted">{transaction.description}</div>

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AllocationReviewQueue } from "@/components/accounting/allocation-review-queue";
 import { AppShell } from "@/components/shell/app-shell";
 import { MetricCard } from "@/components/ui/metric-card";
@@ -41,13 +42,20 @@ export default function AllocationsPage() {
         </section>
 
         <section className="rounded-2xl border border-border bg-surface-mid p-5">
-          <div className="text-xs uppercase tracking-[0.2em] text-accent">Operator workflow</div>
-          <ol className="mt-4 space-y-3 text-sm text-text-muted">
-            <li>1. Review confidence, driver basis, and supporting policy before accepting the recommended split.</li>
-            <li>2. Check evidence completeness. Missing support downgrades the item into a hold state instead of silent posting.</li>
-            <li>3. Approve, request support, override the basis, or escalate to controller depending on threshold and policy memo.</li>
-            <li>4. Carry approved splits into close workpapers and preserve reviewer attribution for audit support.</li>
-          </ol>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-xs uppercase tracking-[0.2em] text-accent">Operator workflow</div>
+              <ol className="mt-4 space-y-3 text-sm text-text-muted">
+                <li>1. Review confidence, driver basis, and supporting policy before accepting the recommended split.</li>
+                <li>2. Check evidence completeness. Missing support downgrades the item into a hold state instead of silent posting.</li>
+                <li>3. Approve, request support, override the basis, or escalate to controller depending on threshold and policy memo.</li>
+                <li>4. Carry approved splits into close workpapers and preserve reviewer attribution for audit support.</li>
+              </ol>
+            </div>
+            <Link href="/dashboard/allocations/support-schedule" className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-4 py-3 text-sm text-violet-100 transition hover:bg-violet-500/20">
+              Open support schedule
+            </Link>
+          </div>
         </section>
       </div>
 
