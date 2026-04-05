@@ -296,6 +296,42 @@ export default defineSchema({
     companyId: v.id("cannabisCompanies"),
     periodId: v.optional(v.id("reportingPeriods")),
     importMappingProfileId: v.optional(v.id("importMappingProfiles")),
+    selectedProfileSnapshot: v.optional(v.object({
+      id: v.string(),
+      name: v.string(),
+      description: v.string(),
+      amountStrategy: v.union(v.literal("single_signed"), v.literal("split_debit_credit")),
+      fieldMappings: v.record(
+        v.string(),
+        v.union(
+          v.literal("date"),
+          v.literal("postedDate"),
+          v.literal("description"),
+          v.literal("reference"),
+          v.literal("amount"),
+          v.literal("debit"),
+          v.literal("credit"),
+          v.literal("location"),
+          v.literal("memo"),
+          v.literal("ignore")
+        )
+      ),
+    })),
+    effectiveMappingsSnapshot: v.optional(v.record(
+      v.string(),
+      v.union(
+        v.literal("date"),
+        v.literal("postedDate"),
+        v.literal("description"),
+        v.literal("reference"),
+        v.literal("amount"),
+        v.literal("debit"),
+        v.literal("credit"),
+        v.literal("location"),
+        v.literal("memo"),
+        v.literal("ignore")
+      )
+    )),
     sourceSystem: v.string(),
     sourceFileName: v.string(),
     sourceOriginalFileName: v.string(),

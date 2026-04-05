@@ -35,7 +35,7 @@ async function getConvexContext(companySlug: string) {
   const client = new ConvexHttpClient(url);
   const company = await withTimeout(client.query((anyApi as any).cannabisCompanies.getBySlug, { slug: companySlug }));
   if (!company) {
-    return null;
+    throw new Error(`Configured Convex backend could not find company ${companySlug}.`);
   }
 
   return { client, company };
@@ -69,11 +69,11 @@ export async function stageImportJob(
     };
   } catch (error) {
     return {
-      ok: true,
-      mode: "demo",
+      ok: false,
+      mode: "persisted",
       message: error instanceof Error
-        ? `Persisted import staging was unavailable (${error.message}). The workspace stayed in the demo-safe local path.`
-        : "Persisted import staging was unavailable. The workspace stayed in the demo-safe local path.",
+        ? `Persisted import staging failed (${error.message}).`
+        : "Persisted import staging failed.",
     };
   }
 }
@@ -111,12 +111,12 @@ export async function promoteImportJob(
     };
   } catch (error) {
     return {
-      ok: true,
-      mode: "demo",
+      ok: false,
+      mode: "persisted",
       message: error instanceof Error
-        ? `Persisted promotion path was unavailable (${error.message}). The pipeline remains on the demo-safe fallback path.`
-        : "Persisted promotion path was unavailable. The pipeline remains on the demo-safe fallback path.",
-      item: { jobId: payload.jobId, promotedCount: 0, skippedCount: 0 },
+        ? `Persisted promotion failed (${error.message}).`
+        : "Persisted promotion failed.",
+      item: { jobId: payload.jobId },
     };
   }
 }

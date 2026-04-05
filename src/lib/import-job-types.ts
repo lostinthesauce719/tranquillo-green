@@ -70,13 +70,24 @@ export type ImportJobPromotionSubmission = {
   jobId: string;
 };
 
-export type ImportJobWriteResult = {
-  ok: true;
-  mode: "persisted" | "demo";
-  message: string;
-  item?: {
-    jobId?: string;
-    promotedCount?: number;
-    skippedCount?: number;
-  };
-};
+export type ImportJobWriteResult =
+  | {
+      ok: true;
+      mode: "persisted" | "demo";
+      message: string;
+      item?: {
+        jobId?: string;
+        promotedCount?: number;
+        skippedCount?: number;
+      };
+    }
+  | {
+      ok: false;
+      mode: "persisted";
+      message: string;
+      item?: {
+        jobId?: string;
+        promotedCount?: number;
+        skippedCount?: number;
+      };
+    };

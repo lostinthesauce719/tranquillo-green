@@ -84,6 +84,55 @@ function isoDate(value: string | undefined) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
 }
 
+function deriveRowPromotion(row: {
+  amount?: number;
+  debit?: number;
+  credit?: number;
+}) {
+  const signedAmount = normalizeAmount(row.amount);
+  const debit = normalizeAmount(row.debit);
+  const credit = normalizeAmount(row.credit);
+
+  if (signedAmount !== 0) {
+    const absoluteAmount = Math.abs(signedAmount);
+    return {
+      amount: absoluteAmount,
+      direction: signedAmount >= 0 ? "inflow" : "outflow",
+      debitAmount: absoluteAmount,
+      creditAmount: absoluteAmount,
+    } as const;
+  }
+
+  if (debit > 0 && credit > 0) {
+    if (debit !== credit) {
+      return {
+        issue: `Split debit/credit import row is unbalanced (${debit.toFixed(2)} debit vs ${credit.toFixed(2)} credit)`,
+      } as const;
+    }
+
+    return {
+      amount: debit,
+      direction: "inflow",
+      debitAmount: debit,
+      creditAmount: credit,
+    } as const;
+  }
+
+  const derivedAmount = Math.max(debit, credit);
+  if (derivedAmount <= 0) {
+    return {
+      issue: "Row could not be promoted because no balanced amount was derived",
+    } as const;
+  }
+
+  return {
+    amount: derivedAmount,
+    direction: debit > 0 ? "inflow" : "outflow",
+    debitAmount: derivedAmount,
+    creditAmount: derivedAmount,
+  } as const;
+}
+
 function checksumForDataset(dataset: { fileName: string; periodLabel: string; source: string; rows: { id: string }[] }) {
   return `${dataset.fileName}:${dataset.periodLabel}:${dataset.source}:${dataset.rows.map((row) => row.id).join("|")}`;
 }
@@ -182,6 +231,7 @@ export const getWorkspaceBySlug = queryGeneric({
     for (const job of jobs) {
       const rows = await ctx.db.query("importJobRows").withIndex("by_job", (q) => q.eq("importJobId", job._id)).collect();
       const profile = job.importMappingProfileId ? await ctx.db.get(job.importMappingProfileId) : null;
+      const profileSnapshot = job.selectedProfileSnapshot ?? null;
       const profileOptions = mappingProfiles
         .filter((item) => item.sourceSystem === job.sourceSystem)
         .map((item) => ({
@@ -200,12 +250,15 @@ export const getWorkspaceBySlug = queryGeneric({
           fieldMappings: profile.fieldMappings,
         });
       }
+      if (profileSnapshot && !profileOptions.some((item) => item.id === profileSnapshot.id)) {
+        profileOptions.unshift(profileSnapshot);
+      }
 
       jobsWithRows.push({
         ...job,
         publicId: job.externalRef ?? job._id,
         periodLabel: job.periodId ? periodsById.get(job.periodId)?.label : undefined,
-        profile: profile
+        profile: profileSnapshot ?? (profile
           ? {
               id: profile.profileKey,
               name: profile.name,
@@ -213,7 +266,8 @@ export const getWorkspaceBySlug = queryGeneric({
               amountStrategy: profile.amountStrategy,
               fieldMappings: profile.fieldMappings,
             }
-          : null,
+          : null),
+        effectiveMappings: job.effectiveMappingsSnapshot ?? profileSnapshot?.fieldMappings ?? profile?.fieldMappings,
         availableProfiles: profileOptions,
         rows: rows
           .map((row) => ({
@@ -307,6 +361,14 @@ export const stageDemoImportJob = mutationGeneric({
       companyId: args.companyId,
       periodId: period?._id,
       importMappingProfileId: profileId,
+      selectedProfileSnapshot: {
+        id: args.dataset.selectedProfile.id,
+        name: args.dataset.selectedProfile.name,
+        description: args.dataset.selectedProfile.description,
+        amountStrategy: args.dataset.selectedProfile.amountStrategy,
+        fieldMappings: args.dataset.selectedProfile.fieldMappings,
+      },
+      effectiveMappingsSnapshot: args.dataset.effectiveMappings,
       sourceSystem: args.dataset.source,
       sourceFileName: args.dataset.fileName,
       sourceOriginalFileName: args.dataset.fileName,
@@ -345,7 +407,7 @@ export const stageDemoImportJob = mutationGeneric({
         postedDate: isoDate(row.normalizedValues.postedDate),
         description: row.normalizedValues.description || row.rawValues.vendor_name || row.rawValues.employee_group || row.rowKey,
         reference: row.normalizedValues.reference || row.rowKey,
-        amount: row.normalizedValues.amount ? Math.abs(parseNumber(row.normalizedValues.amount)) : undefined,
+        amount: row.normalizedValues.amount ? parseNumber(row.normalizedValues.amount) : undefined,
         debit: row.normalizedValues.debit ? parseNumber(row.normalizedValues.debit) : undefined,
         credit: row.normalizedValues.credit ? parseNumber(row.normalizedValues.credit) : undefined,
         locationName: row.normalizedValues.location || undefined,
@@ -430,11 +492,11 @@ export const promoteJobToTransactions = mutationGeneric({
         counterpartiesByName.set(description, counterpartyId);
       }
 
-      const amount = normalizeAmount(row.amount ?? Math.max(row.debit ?? 0, row.credit ?? 0));
-      if (amount <= 0) {
+      const promotion = deriveRowPromotion(row);
+      if ("issue" in promotion) {
         await ctx.db.patch(row._id, {
           status: "error",
-          validationIssues: dedupeStrings([...row.validationIssues, "Row could not be promoted because no balanced amount was derived"]),
+          validationIssues: dedupeStrings([...row.validationIssues, promotion.issue]),
         });
         skippedCount += 1;
         continue;
@@ -457,27 +519,25 @@ export const promoteJobToTransactions = mutationGeneric({
         counterpartyId,
         externalRef: transactionExternalRef,
         reference: row.reference,
-        amount,
-        direction: (row.amount ?? 0) >= 0 ? "inflow" : "outflow",
+        amount: promotion.amount,
+        direction: promotion.direction,
         activity: job.sourceSystem.toLowerCase().includes("payroll") ? "manufacturing" : "admin",
         journalHint: row.validationIssues.length > 0 ? row.validationIssues.join("; ") : `Promoted from import job ${job.sourceFileName}.`,
         readyForManualEntry: false,
         needsReceipt: row.status === "warning",
       });
 
-      const debit = normalizeAmount(row.debit ?? amount);
-      const credit = normalizeAmount(row.credit ?? amount);
       await ctx.db.insert("transactionLines", {
         transactionId,
         accountId: debitAccountId,
-        debit,
+        debit: promotion.debitAmount,
         locationId: row.locationName ? locationIdsByName.get(row.locationName) : undefined,
         memo: `Promoted debit leg for ${row.reference}`,
       });
       await ctx.db.insert("transactionLines", {
         transactionId,
         accountId: creditAccountId,
-        credit,
+        credit: promotion.creditAmount,
         locationId: row.locationName ? locationIdsByName.get(row.locationName) : undefined,
         memo: `Promoted credit leg for ${row.reference}`,
       });

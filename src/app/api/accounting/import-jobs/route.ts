@@ -12,10 +12,12 @@ export async function POST(request: Request) {
       | ({ action: "promote" } & ImportJobPromotionSubmission);
 
     if (payload.action === "promote") {
-      return NextResponse.json(await promoteImportJob(payload));
+      const result = await promoteImportJob(payload);
+      return NextResponse.json(result, { status: result.ok ? 200 : 502 });
     }
 
-    return NextResponse.json(await stageImportJob(payload));
+    const result = await stageImportJob(payload);
+    return NextResponse.json(result, { status: result.ok ? 200 : 502 });
   } catch (error) {
     return NextResponse.json(
       {
