@@ -111,8 +111,20 @@ function buildPeriodChecklistArea(currentPeriod: DemoReportingPeriod, allPeriods
   };
 }
 
-function buildImportsArea(datasets: ImportWorkspaceDataset[], fallback: DemoCloseArea): DemoCloseArea {
+function buildImportsArea(datasets: ImportWorkspaceDataset[], fallback: DemoCloseArea, options?: { missingPeriodContext?: boolean }): DemoCloseArea {
   if (datasets.length === 0) {
+    if (options?.missingPeriodContext) {
+      return {
+        ...fallback,
+        completionLabel: "Current live period context is unavailable",
+        readinessCue: "Import workspace is connected, but the dashboard could not align jobs to a persisted current period",
+        blocker: undefined,
+        nextAction: "Confirm the active reporting period before judging import readiness",
+        signoffLabel: "Waiting for persisted current-period context",
+        status: "watch",
+      };
+    }
+
     return {
       ...fallback,
       completionLabel: "0 persisted jobs linked to current period",
@@ -150,8 +162,20 @@ function buildImportsArea(datasets: ImportWorkspaceDataset[], fallback: DemoClos
   };
 }
 
-function buildTransactionArea(transactions: DemoTransaction[], fallback: DemoCloseArea): DemoCloseArea {
+function buildTransactionArea(transactions: DemoTransaction[], fallback: DemoCloseArea, options?: { missingPeriodContext?: boolean }): DemoCloseArea {
   if (transactions.length === 0) {
+    if (options?.missingPeriodContext) {
+      return {
+        ...fallback,
+        completionLabel: "Current live period context is unavailable",
+        readinessCue: "Transaction workflow cannot be scored until a persisted reporting period is identified",
+        blocker: undefined,
+        nextAction: "Confirm the active reporting period, then reopen posting readiness",
+        signoffLabel: "Waiting for current-period context",
+        status: "watch",
+      };
+    }
+
     return {
       ...fallback,
       completionLabel: "0 transactions linked to current period",
@@ -186,9 +210,21 @@ function buildTransactionArea(transactions: DemoTransaction[], fallback: DemoClo
   };
 }
 
-function buildCashRecArea(workspace: AccountingWorkspace, currentPeriodLabel: string, fallback: DemoCloseArea): DemoCloseArea {
+function buildCashRecArea(workspace: AccountingWorkspace, currentPeriodLabel: string, fallback: DemoCloseArea, options?: { missingPeriodContext?: boolean }): DemoCloseArea {
   const reconciliations = workspace.cashReconciliations.filter((item) => item.periodLabel === currentPeriodLabel);
   if (reconciliations.length === 0) {
+    if (options?.missingPeriodContext) {
+      return {
+        ...fallback,
+        completionLabel: "Current live period context is unavailable",
+        readinessCue: "Reconciliation health cannot be scored until the dashboard can align records to a persisted reporting period",
+        blocker: undefined,
+        nextAction: "Confirm the active reporting period before judging reconciliation readiness",
+        signoffLabel: "Waiting for current-period context",
+        status: "watch",
+      };
+    }
+
     return {
       ...fallback,
       completionLabel: "0 reconciliations linked to current period",
@@ -301,13 +337,13 @@ function mergeDashboardData(args: {
       ? buildPeriodChecklistArea(effectivePeriod, accountingWorkspace.reportingPeriods)
       : fallbackAreasById.get("period-checklist")!,
     importWorkspace.source === "convex"
-      ? buildImportsArea(currentPeriodDatasets, fallbackAreasById.get("imports")!)
+      ? buildImportsArea(currentPeriodDatasets, fallbackAreasById.get("imports")!, { missingPeriodContext: !effectivePeriod })
       : fallbackAreasById.get("imports")!,
-    accountingWorkspace.source === "convex" && effectivePeriod
-      ? buildTransactionArea(currentPeriodTransactions, fallbackAreasById.get("transaction-posting")!)
+    accountingWorkspace.source === "convex"
+      ? buildTransactionArea(currentPeriodTransactions, fallbackAreasById.get("transaction-posting")!, { missingPeriodContext: !effectivePeriod })
       : fallbackAreasById.get("transaction-posting")!,
-    accountingWorkspace.source === "convex" && effectivePeriod
-      ? buildCashRecArea(accountingWorkspace, effectivePeriod.label, fallbackAreasById.get("cash-recs")!)
+    accountingWorkspace.source === "convex"
+      ? buildCashRecArea(accountingWorkspace, effectivePeriod?.label ?? "", fallbackAreasById.get("cash-recs")!, { missingPeriodContext: !effectivePeriod })
       : fallbackAreasById.get("cash-recs")!,
     buildAllocationArea(fallbackAreasById.get("allocations")!),
     accountingWorkspace.source === "convex" && currentPeriodTransactions.length > 0
@@ -326,7 +362,9 @@ function mergeDashboardData(args: {
     accountingWorkspace.source === "convex" && currentPeriodTransactions.length > 0 ? "Support schedule completeness" : "",
   ].filter(Boolean);
   const fallbackAreas = areas.map((area) => area.label).filter((label) => !computedAreas.includes(label));
-  const source = computedAreas.length === areas.length ? "convex" : "mixed";
+  const unsupportedFallbackAreas = ["280E allocation review"];
+  const computedCoverage = computedAreas.length + fallbackAreas.filter((label) => unsupportedFallbackAreas.includes(label)).length;
+  const source = computedCoverage === areas.length ? "convex" : "mixed";
   const caveats = [
     accountingWorkspace.source === "convex"
       ? "Reporting periods, transactions, cash reconciliations, and support completeness use live Convex-backed accounting data when available."
@@ -353,7 +391,7 @@ function mergeDashboardData(args: {
     source,
     sourceSummary:
       source === "convex"
-        ? "Close readiness is fully computed from live Convex workflow state for this period."
+        ? "Close readiness is computed from live Convex workflow state for all currently persisted workflows, with only the unsupported allocation lane remaining on a declared demo fallback."
         : "Close readiness is computed from live Convex workflow state where persisted data exists, with targeted demo fallbacks for unsupported or unavailable workflows.",
     computedAreas,
     fallbackAreas,

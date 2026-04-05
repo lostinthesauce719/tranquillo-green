@@ -161,8 +161,12 @@ export function MonthEndCloseDashboard({ dashboard }: { dashboard: MonthEndClose
                 <Link href={area.routeHref} className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary transition hover:bg-surface-mid">
                   Open workspace
                 </Link>
-                <button className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm text-blue-100">Request signoff</button>
-                <button className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-muted">Add close note</button>
+                <Link href={area.routeHref} className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm text-blue-100 transition hover:bg-blue-500/20">
+                  Request signoff in workspace
+                </Link>
+                <div className="rounded-xl border border-dashed border-border px-3 py-2 text-sm text-text-muted">
+                  Notes stay lane-specific and are captured in the linked workspace.
+                </div>
               </div>
             </article>
           ))}
