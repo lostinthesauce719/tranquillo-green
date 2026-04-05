@@ -28,6 +28,16 @@ const workspaceLinks = [
     label: "CSV imports",
     detail: "Stage bank and payroll files, apply column mappings, and validate row-level posting suggestions locally.",
   },
+  {
+    href: "/dashboard/allocations",
+    label: "280E review queue",
+    detail: "Work deterministic deductible vs nondeductible allocation cases with policy support and reviewer actions.",
+  },
+  {
+    href: "/dashboard/reconciliations",
+    label: "Cash reconciliations",
+    detail: "Tie drawers, vault, armored clearing, and bank balances with variance investigation workflow.",
+  },
 ];
 
 export default function AccountingPage() {
