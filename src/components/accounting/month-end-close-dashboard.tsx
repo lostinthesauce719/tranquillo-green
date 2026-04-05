@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
-import type { DemoCloseArea, DemoCloseDashboard } from "@/lib/demo/accounting-close";
+import type { DemoCloseArea } from "@/lib/demo/accounting-close";
+import type { MonthEndCloseDashboardData } from "@/lib/data/accounting-close";
 
 function statusTone(status: DemoCloseArea["status"]) {
   switch (status) {
@@ -22,7 +23,7 @@ function progressWidth(area: DemoCloseArea) {
   return "22%";
 }
 
-export function MonthEndCloseDashboard({ dashboard }: { dashboard: DemoCloseDashboard }) {
+export function MonthEndCloseDashboard({ dashboard }: { dashboard: MonthEndCloseDashboardData }) {
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-border bg-surface-mid p-5">
@@ -31,13 +32,47 @@ export function MonthEndCloseDashboard({ dashboard }: { dashboard: DemoCloseDash
             <div className="text-xs uppercase tracking-[0.2em] text-accent">Controller command center</div>
             <h2 className="mt-2 text-2xl font-semibold">{dashboard.periodLabel} close readiness</h2>
             <p className="mt-2 max-w-3xl text-sm text-text-muted">
-              Static, operator-focused month-end dashboard that ties periods, imports, transaction posting, reconciliations, 280E review, and support schedules into one close view.
+              Computed month-end dashboard that ties reporting periods, imports, transaction posting, reconciliations, and support packet signals into one close view while preserving demo-safe fallbacks.
             </p>
           </div>
           <div className="rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-text-muted">
             <div>Approver: {dashboard.controller}</div>
             <div className="mt-1">{dashboard.targetLockDate}</div>
+            <div className="mt-1 capitalize">Source mode: {dashboard.source}</div>
           </div>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">
+          <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Data source summary</div>
+          <p className="mt-3 text-text-primary">{dashboard.sourceSummary}</p>
+          <div className="mt-4 grid gap-4 md:grid-cols-2">
+            <div>
+              <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Live-computed areas</div>
+              <ul className="mt-2 space-y-2">
+                {dashboard.computedAreas.map((area) => (
+                  <li key={area}>• {area}</li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Fallback areas</div>
+              <ul className="mt-2 space-y-2">
+                {dashboard.fallbackAreas.map((area) => (
+                  <li key={area}>• {area}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+          {dashboard.caveats.length > 0 ? (
+            <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-3 py-3 text-amber-100">
+              <div className="text-xs uppercase tracking-[0.2em]">Fallback and runtime caveats</div>
+              <ul className="mt-2 space-y-2 text-sm">
+                {dashboard.caveats.map((caveat) => (
+                  <li key={caveat}>• {caveat}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
 
         <div className="mt-5 grid gap-4 md:grid-cols-[0.8fr_1.2fr]">

@@ -2,10 +2,10 @@ import Link from "next/link";
 import { MonthEndCloseDashboard } from "@/components/accounting/month-end-close-dashboard";
 import { AppShell } from "@/components/shell/app-shell";
 import { MetricCard } from "@/components/ui/metric-card";
-import { buildDemoCloseDashboard } from "@/lib/demo/accounting-close";
+import { loadMonthEndCloseDashboard } from "@/lib/data/accounting-close";
 
-export default function AccountingClosePage() {
-  const dashboard = buildDemoCloseDashboard();
+export default async function AccountingClosePage() {
+  const dashboard = await loadMonthEndCloseDashboard();
   const blockedAreas = dashboard.areas.filter((area) => area.status === "blocked").length;
   const readyAreas = dashboard.areas.filter((area) => area.status === "ready").length;
   const watchAreas = dashboard.areas.filter((area) => area.status === "watch").length;
@@ -13,13 +13,13 @@ export default function AccountingClosePage() {
   return (
     <AppShell
       title="Month-end close"
-      description="Demo-backed close command center for the accounting operator or external CPA. It connects reporting periods, import readiness, transaction posting, cash recs, 280E review, and support schedule completeness without introducing live backend dependencies."
+      description="Month-end close command center that now computes readiness from live persisted reporting periods, import jobs, transaction workflow state, cash reconciliations, and support signals when backend data is available, while staying demo-safe for static builds and unsupported workflows."
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Close readiness" value={`${dashboard.readinessPercent}%`} detail={`${readyAreas} workflows ready for signoff`} />
         <MetricCard label="Critical blockers" value={String(dashboard.openBlockers.length)} detail={`${blockedAreas} workflow areas are currently blocked`} />
         <MetricCard label="Watch items" value={String(watchAreas)} detail="Lanes that still need reviewer follow-up before lock" />
-        <MetricCard label="Next actions" value={String(dashboard.nextActions.length)} detail="Top workflow nudges surfaced from the connected demo workspaces" />
+        <MetricCard label="Next actions" value={String(dashboard.nextActions.length)} detail="Top workflow nudges surfaced from the connected close workspaces" />
       </div>
 
       <div className="mt-6 grid gap-4 xl:grid-cols-[1.6fr_1fr]">
