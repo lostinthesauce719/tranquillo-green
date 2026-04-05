@@ -2,6 +2,22 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  /** Clerk-synced users with tenant role binding */
+  users: defineTable({
+    clerkId: v.string(),
+    email: v.string(),
+    name: v.optional(v.string()),
+    companyId: v.optional(v.id("cannabisCompanies")),
+    role: v.union(
+      v.literal("owner"),
+      v.literal("controller"),
+      v.literal("accountant"),
+      v.literal("viewer")
+    ),
+    status: v.union(v.literal("active"), v.literal("invited"), v.literal("deactivated")),
+    lastLoginAt: v.optional(v.number()),
+  }).index("by_clerk_id", ["clerkId"]).index("by_company", ["companyId"]).index("by_email", ["email"]),
+
   cannabisCompanies: defineTable({
     name: v.string(),
     slug: v.string(),
