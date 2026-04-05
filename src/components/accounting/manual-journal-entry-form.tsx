@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
-import { DemoChartOfAccount, DemoReportingPeriod } from "@/lib/demo/accounting";
+import { californiaOperatorDemo, DemoChartOfAccount, DemoReportingPeriod } from "@/lib/demo/accounting";
+import type { ManualJournalSubmission, WriteResult } from "@/lib/accounting-write-contracts";
 
 type JournalLine = {
   id: string;
@@ -80,6 +81,7 @@ export function ManualJournalEntryForm({
   const [message, setMessage] = useState<string | null>(null);
   const [recentDrafts, setRecentDrafts] = useState<SavedManualJournalDraft[]>([]);
   const [activeDraftId, setActiveDraftId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const draftPayload = useMemo<ManualJournalDraftPayload>(
     () => ({
@@ -264,14 +266,47 @@ export function ManualJournalEntryForm({
     setMessage(`Deleted local draft ${draftToDelete?.title ?? draftId}.`);
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!isBalanced) {
       setMessage("Draft not saved. Resolve validation issues and make sure debits equal credits.");
       return;
     }
 
-    setMessage(`Balanced local draft ready: ${reference} on ${entryDate} for ${formatCurrency(totals.debits)}. No backend call was made.`);
+    const payload: ManualJournalSubmission = {
+      companySlug: californiaOperatorDemo.company.slug,
+      entryDate,
+      periodLabel,
+      reference,
+      description,
+      lines: populatedLines.map((line) => ({
+        accountCode: line.accountCode,
+        direction: line.direction,
+        amount: Number(line.amount),
+        memo: line.memo,
+      })),
+    };
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("/api/accounting/manual-journal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = (await response.json()) as WriteResult<{ reference: string }> & { message?: string };
+      if (!response.ok) {
+        throw new Error(result.message ?? "Could not submit the manual journal.");
+      }
+
+      saveDraft();
+      setMessage(`${result.message} ${result.mode === "persisted" ? `Balanced entry total ${formatCurrency(totals.debits)} is now on the server-backed path.` : `Balanced entry total ${formatCurrency(totals.debits)} remains preserved in the demo-safe local draft flow.`}`);
+    } catch (error) {
+      saveDraft();
+      setMessage(error instanceof Error ? `${error.message} Draft checkpoint saved locally instead.` : "Could not reach the server-backed path. Draft checkpoint saved locally instead.");
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -281,7 +316,7 @@ export function ManualJournalEntryForm({
           <div className="text-xs uppercase tracking-[0.2em] text-accent">Static-safe first flow</div>
           <h2 className="mt-2 text-xl font-semibold">Manual journal entry draft</h2>
           <p className="mt-2 max-w-2xl text-sm text-text-muted">
-            Client-side journal prep with local draft persistence, recent draft recall, balance validation, and zero dependency on Convex during static generation.
+            Client-side journal prep now posts through a server-backed path when available and safely falls back to local draft persistence during static or demo-only runs.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -384,7 +419,7 @@ export function ManualJournalEntryForm({
             <div className="text-xs uppercase tracking-[0.2em] text-accent">Validation</div>
             {validationErrors.length === 0 ? (
               <div className="mt-3 rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
-                Entry is balanced and ready to save as a local draft.
+                Entry is balanced and ready for the persisted manual-journal path with a demo-safe fallback.
               </div>
             ) : (
               <ul className="mt-3 space-y-2 text-sm text-text-muted">
@@ -406,7 +441,7 @@ export function ManualJournalEntryForm({
                 Save to recent drafts
               </button>
               <div className="rounded-xl border border-border bg-background px-3 py-3 text-xs text-text-muted">
-                Working changes auto-save in local storage as you type. Recent drafts keep the last five named checkpoints on this browser.
+                Working changes auto-save in local storage as you type. Recent drafts keep the last five named checkpoints on this browser if the persisted path is unavailable.
               </div>
             </div>
             <div className="mt-4 space-y-3">
@@ -458,11 +493,11 @@ export function ManualJournalEntryForm({
                 })}
               </div>
               <div className="rounded-xl border border-border bg-background px-3 py-3 text-xs">
-                Local-only prototype: submit keeps the workflow static-build-safe and does not persist to Convex yet.
+                Submit now prefers a server-backed manual journal mutation and falls back to this local-safe checkpoint workflow when Convex is unavailable.
               </div>
             </div>
-            <button type="submit" className="mt-4 w-full rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-200 transition hover:bg-emerald-500/15">
-              Validate local draft
+            <button type="submit" disabled={isSubmitting} className="mt-4 w-full rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-200 transition hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-60">
+              {isSubmitting ? "Submitting draft..." : "Submit journal draft"}
             </button>
           </div>
         </div>

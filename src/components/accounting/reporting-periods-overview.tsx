@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { DemoReportingPeriod } from "@/lib/demo/accounting";
+import { californiaOperatorDemo, DemoReportingPeriod } from "@/lib/demo/accounting";
 import {
   DemoCloseChecklistItem,
   DemoCloseChecklistStatus,
@@ -9,6 +9,7 @@ import {
   DemoCloseWorkflow,
 } from "@/lib/demo/accounting-workflows";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
+import type { ReportingPeriodMutation, WriteResult } from "@/lib/accounting-write-contracts";
 
 type LocalWorkflowState = DemoCloseWorkflow & {
   checklist: DemoCloseChecklistItem[];
@@ -86,6 +87,39 @@ function computeTaskSummary(workflow: LocalWorkflowState) {
   };
 }
 
+function derivePeriodSnapshot(period: DemoReportingPeriod, workflow: LocalWorkflowState): DemoReportingPeriod {
+  return {
+    ...period,
+    status: computePeriodStatus(workflow),
+    blockers: computeBlockers(workflow),
+    taskSummary: computeTaskSummary(workflow),
+    lockedAt: workflow.reviewStatus === "locked" ? period.lockedAt ?? new Date("2026-05-06T17:00:00").toISOString().slice(0, 10) : undefined,
+  };
+}
+
+async function persistPeriod(period: DemoReportingPeriod, messageFallback: string) {
+  const payload: ReportingPeriodMutation = {
+    companySlug: californiaOperatorDemo.company.slug,
+    periodLabel: period.label,
+    status: period.status,
+    taskSummary: period.taskSummary,
+    blockers: period.blockers,
+    lockedAt: period.lockedAt,
+    highlights: period.highlights,
+  };
+
+  const response = await fetch("/api/accounting/reporting-periods", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const result = (await response.json()) as WriteResult<DemoReportingPeriod> & { message?: string };
+  if (!response.ok) {
+    throw new Error(result.message ?? messageFallback);
+  }
+  return result;
+}
+
 export function ReportingPeriodsOverview({
   periods,
   workflows,
@@ -97,124 +131,110 @@ export function ReportingPeriodsOverview({
     Object.fromEntries(workflows.map((workflow) => [workflow.periodLabel, { ...workflow, checklist: workflow.checklist.map((item) => ({ ...item })), reviewNotes: [...workflow.reviewNotes] }])),
   );
   const [messages, setMessages] = useState<Record<string, string | null>>({});
+  const [pendingPeriod, setPendingPeriod] = useState<string | null>(null);
 
   const renderedPeriods = useMemo(
     () => periods.map((period) => {
       const workflow = workflowState[period.label];
-      if (!workflow) {
-        return period;
-      }
-
-      return {
-        ...period,
-        status: computePeriodStatus(workflow),
-        blockers: computeBlockers(workflow),
-        taskSummary: computeTaskSummary(workflow),
-        lockedAt: workflow.reviewStatus === "locked" ? period.lockedAt ?? new Date("2026-05-06T17:00:00").toISOString().slice(0, 10) : undefined,
-      } satisfies DemoReportingPeriod;
+      return workflow ? derivePeriodSnapshot(period, workflow) : period;
     }),
     [periods, workflowState],
   );
 
-  function updateChecklistItem(periodLabel: string, itemId: string, nextStatus: DemoCloseChecklistStatus) {
-    setWorkflowState((current) => {
-      const workflow = current[periodLabel];
-      if (!workflow) {
-        return current;
-      }
+  async function applyWorkflowUpdate(periodLabel: string, updater: (workflow: LocalWorkflowState) => LocalWorkflowState, fallbackMessage: string) {
+    const currentWorkflow = workflowState[periodLabel];
+    const basePeriod = periods.find((period) => period.label === periodLabel);
+    if (!currentWorkflow || !basePeriod) {
+      return;
+    }
 
-      return {
+    const nextWorkflow = updater(currentWorkflow);
+    const nextPeriod = derivePeriodSnapshot(basePeriod, nextWorkflow);
+
+    setWorkflowState((current) => ({ ...current, [periodLabel]: nextWorkflow }));
+    setPendingPeriod(periodLabel);
+    try {
+      const result = await persistPeriod(nextPeriod, fallbackMessage);
+      setMessages((current) => ({ ...current, [periodLabel]: result.message }));
+    } catch (error) {
+      setMessages((current) => ({
         ...current,
-        [periodLabel]: {
-          ...workflow,
-          reviewStatus: workflow.reviewStatus === "locked" ? "approved" : workflow.reviewStatus,
-          checklist: workflow.checklist.map((item) => {
-            if (item.id !== itemId) {
-              return item;
-            }
-            return {
-              ...item,
-              status: nextStatus,
-              blocker: nextStatus === "blocked" ? item.blocker ?? "Waiting on supporting evidence or final reviewer sign-off." : undefined,
-            };
-          }),
-        },
-      };
-    });
-    setMessages((current) => ({ ...current, [periodLabel]: `Updated checklist item ${itemId} to ${nextStatus.replaceAll("_", " ")}.` }));
+        [periodLabel]: error instanceof Error ? error.message : fallbackMessage,
+      }));
+    } finally {
+      setPendingPeriod((current) => (current === periodLabel ? null : current));
+    }
+  }
+
+  function updateChecklistItem(periodLabel: string, itemId: string, nextStatus: DemoCloseChecklistStatus) {
+    void applyWorkflowUpdate(
+      periodLabel,
+      (workflow) => ({
+        ...workflow,
+        reviewStatus: workflow.reviewStatus === "locked" ? "approved" : workflow.reviewStatus,
+        reviewNotes: [`Checklist item ${itemId} updated to ${nextStatus.replaceAll("_", " ")} from the period workspace.`, ...workflow.reviewNotes],
+        checklist: workflow.checklist.map((item) => {
+          if (item.id !== itemId) {
+            return item;
+          }
+          return {
+            ...item,
+            status: nextStatus,
+            blocker: nextStatus === "blocked" ? item.blocker ?? "Waiting on supporting evidence or final reviewer sign-off." : undefined,
+          };
+        }),
+      }),
+      `Could not persist checklist change for ${periodLabel}. Local close state still updated safely.`,
+    );
   }
 
   function requestReview(periodLabel: string) {
-    setWorkflowState((current) => {
-      const workflow = current[periodLabel];
-      if (!workflow) {
-        return current;
-      }
-      return {
-        ...current,
-        [periodLabel]: {
-          ...workflow,
-          reviewStatus: "ready_for_review",
-          reviewNotes: [...workflow.reviewNotes, "Marked ready for reviewer walkthrough from the local close board."],
-        },
-      };
-    });
-    setMessages((current) => ({ ...current, [periodLabel]: "Period moved into review. No backend action was taken." }));
+    void applyWorkflowUpdate(
+      periodLabel,
+      (workflow) => ({
+        ...workflow,
+        reviewStatus: "ready_for_review",
+        reviewNotes: ["Marked ready for reviewer walkthrough from the close board.", ...workflow.reviewNotes],
+      }),
+      `Could not persist review request for ${periodLabel}. Local close state still updated safely.`,
+    );
   }
 
   function approvePeriod(periodLabel: string) {
-    setWorkflowState((current) => {
-      const workflow = current[periodLabel];
-      if (!workflow) {
-        return current;
-      }
-      return {
-        ...current,
-        [periodLabel]: {
-          ...workflow,
-          reviewStatus: "approved",
-          reviewNotes: [...workflow.reviewNotes, "Controller approval captured in local demo workflow."],
-        },
-      };
-    });
-    setMessages((current) => ({ ...current, [periodLabel]: "Approval captured. Period can now be locked if blockers are cleared." }));
+    void applyWorkflowUpdate(
+      periodLabel,
+      (workflow) => ({
+        ...workflow,
+        reviewStatus: "approved",
+        reviewNotes: ["Controller approval captured from the close board.", ...workflow.reviewNotes],
+      }),
+      `Could not persist approval for ${periodLabel}. Local close state still updated safely.`,
+    );
   }
 
   function lockPeriod(periodLabel: string) {
-    setWorkflowState((current) => {
-      const workflow = current[periodLabel];
-      if (!workflow) {
-        return current;
-      }
-      return {
-        ...current,
-        [periodLabel]: {
-          ...workflow,
-          reviewStatus: "locked",
-          checklist: workflow.checklist.map((item) => ({ ...item, status: item.status === "blocked" ? "in_progress" : item.status })),
-          reviewNotes: [...workflow.reviewNotes, "Period locked in the client-side review workflow."],
-        },
-      };
-    });
-    setMessages((current) => ({ ...current, [periodLabel]: "Period locked locally. Journals would become read-only in a future connected workflow." }));
+    void applyWorkflowUpdate(
+      periodLabel,
+      (workflow) => ({
+        ...workflow,
+        reviewStatus: "locked",
+        checklist: workflow.checklist.map((item) => ({ ...item, status: item.status === "blocked" ? "in_progress" : item.status })),
+        reviewNotes: ["Period locked from the close board using the persisted workflow path when available.", ...workflow.reviewNotes],
+      }),
+      `Could not persist period lock for ${periodLabel}. Local close state still updated safely.`,
+    );
   }
 
   function reopenPeriod(periodLabel: string) {
-    setWorkflowState((current) => {
-      const workflow = current[periodLabel];
-      if (!workflow) {
-        return current;
-      }
-      return {
-        ...current,
-        [periodLabel]: {
-          ...workflow,
-          reviewStatus: "draft",
-          reviewNotes: [...workflow.reviewNotes, "Period reopened locally for checklist updates and journal follow-up."],
-        },
-      };
-    });
-    setMessages((current) => ({ ...current, [periodLabel]: "Period reopened for local close work." }));
+    void applyWorkflowUpdate(
+      periodLabel,
+      (workflow) => ({
+        ...workflow,
+        reviewStatus: "draft",
+        reviewNotes: ["Period reopened for checklist updates and manual journal follow-up.", ...workflow.reviewNotes],
+      }),
+      `Could not persist reopen action for ${periodLabel}. Local close state still updated safely.`,
+    );
   }
 
   return (
@@ -226,6 +246,7 @@ export function ReportingPeriodsOverview({
         const blockers = workflow ? computeBlockers(workflow) : period.blockers;
         const canApprove = blockers.length === 0 && workflow?.reviewStatus === "ready_for_review";
         const canLock = blockers.length === 0 && Boolean(workflow) && ["approved", "ready_for_review"].includes(workflow?.reviewStatus ?? "draft");
+        const isPending = pendingPeriod === period.label;
 
         return (
           <section key={period.label} className="rounded-2xl border border-border bg-surface-mid p-5">
@@ -236,6 +257,7 @@ export function ReportingPeriodsOverview({
                   <AccountingStatusBadge label={period.status.toUpperCase()} tone={getStatusTone(period.status)} />
                   {workflow ? <AccountingStatusBadge label={workflow.reviewStatus.replaceAll("_", " ")} tone={getReviewTone(workflow.reviewStatus)} className="capitalize" /> : null}
                   {blockers.length > 0 ? <AccountingStatusBadge label={`${blockers.length} blockers`} tone="rose" /> : null}
+                  {isPending ? <AccountingStatusBadge label="syncing" tone="blue" /> : null}
                 </div>
                 <p className="mt-2 text-sm text-text-muted">{formatRange(period.startDate, period.endDate)} • Owner: {period.closeOwner} • Target close in {period.closeWindowDays} days</p>
               </div>
@@ -270,16 +292,16 @@ export function ReportingPeriodsOverview({
                           {item.blocker ? <div className="mt-2 text-xs text-rose-200">Blocker: {item.blocker}</div> : null}
                         </div>
                         <div className="flex flex-wrap gap-2">
-                          <button type="button" onClick={() => updateChecklistItem(period.label, item.id, "todo")} className="rounded-lg border border-border px-3 py-2 text-xs text-text-muted transition hover:text-text-primary">
+                          <button type="button" disabled={isPending} onClick={() => updateChecklistItem(period.label, item.id, "todo")} className="rounded-lg border border-border px-3 py-2 text-xs text-text-muted transition hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50">
                             To do
                           </button>
-                          <button type="button" onClick={() => updateChecklistItem(period.label, item.id, "in_progress")} className="rounded-lg border border-border px-3 py-2 text-xs text-text-primary transition hover:bg-surface-mid">
+                          <button type="button" disabled={isPending} onClick={() => updateChecklistItem(period.label, item.id, "in_progress")} className="rounded-lg border border-border px-3 py-2 text-xs text-text-primary transition hover:bg-surface-mid disabled:cursor-not-allowed disabled:opacity-50">
                             In progress
                           </button>
-                          <button type="button" onClick={() => updateChecklistItem(period.label, item.id, "done")} className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200 transition hover:bg-emerald-500/15">
+                          <button type="button" disabled={isPending} onClick={() => updateChecklistItem(period.label, item.id, "done")} className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200 transition hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-50">
                             Done
                           </button>
-                          <button type="button" onClick={() => updateChecklistItem(period.label, item.id, "blocked")} className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-200 transition hover:bg-rose-500/15">
+                          <button type="button" disabled={isPending} onClick={() => updateChecklistItem(period.label, item.id, "blocked")} className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-200 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-50">
                             Blocked
                           </button>
                         </div>
@@ -299,16 +321,16 @@ export function ReportingPeriodsOverview({
                         <div className="mt-1">Approver: {workflow.approver}</div>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <button type="button" onClick={() => requestReview(period.label)} className="rounded-lg border border-border px-3 py-2 text-xs text-text-primary transition hover:bg-surface-mid">
+                        <button type="button" disabled={isPending} onClick={() => requestReview(period.label)} className="rounded-lg border border-border px-3 py-2 text-xs text-text-primary transition hover:bg-surface-mid disabled:cursor-not-allowed disabled:opacity-50">
                           Mark ready for review
                         </button>
-                        <button type="button" onClick={() => approvePeriod(period.label)} disabled={!canApprove} className="rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-xs text-blue-200 transition enabled:hover:bg-blue-500/15 disabled:cursor-not-allowed disabled:opacity-50">
+                        <button type="button" onClick={() => approvePeriod(period.label)} disabled={!canApprove || isPending} className="rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-xs text-blue-200 transition enabled:hover:bg-blue-500/15 disabled:cursor-not-allowed disabled:opacity-50">
                           Approve close
                         </button>
-                        <button type="button" onClick={() => lockPeriod(period.label)} disabled={!canLock} className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200 transition enabled:hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-50">
+                        <button type="button" onClick={() => lockPeriod(period.label)} disabled={!canLock || isPending} className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200 transition enabled:hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-50">
                           Lock period
                         </button>
-                        <button type="button" onClick={() => reopenPeriod(period.label)} className="rounded-lg border border-border px-3 py-2 text-xs text-text-muted transition hover:text-text-primary">
+                        <button type="button" disabled={isPending} onClick={() => reopenPeriod(period.label)} className="rounded-lg border border-border px-3 py-2 text-xs text-text-muted transition hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50">
                           Reopen
                         </button>
                       </div>

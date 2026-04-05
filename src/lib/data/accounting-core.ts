@@ -308,14 +308,16 @@ export async function loadTransactionPageData(id: string) {
 
 export async function loadReconciliationPageData(id: string) {
   const workspace = await loadAccountingWorkspace();
-  const item = workspace.cashReconciliations.find((entry) => entry.id === id) ?? getDemoCashReconciliation(id);
+  const workspaceItem = workspace.cashReconciliations.find((entry) => entry.id === id);
+  const demoItem = workspaceItem ? null : getDemoCashReconciliation(id);
+  const item = workspaceItem ?? demoItem;
 
   if (!item) {
     return null;
   }
 
   return {
-    source: workspace.source,
+    source: workspaceItem ? workspace.source : "demo",
     item,
   };
 }

@@ -63,6 +63,32 @@ const reconciliationShape = {
   ),
 };
 
+function normalizeAmount(value: number) {
+  return Number(value.toFixed(2));
+}
+
+function validateReconciliationArgs(args: {
+  companyId: string;
+  periodId?: string;
+  cashAccountId: string;
+  expectedAmount: number;
+  actualAmount: number;
+  varianceAmount: number;
+  sourceBreakdown?: { amount: number }[];
+}) {
+  const expectedVariance = normalizeAmount(args.actualAmount - args.expectedAmount);
+  if (normalizeAmount(args.varianceAmount) !== expectedVariance) {
+    throw new Error("Reconciliation variance must equal actual minus expected.");
+  }
+  if (args.sourceBreakdown && args.sourceBreakdown.length > 0) {
+    const breakdownTotal = normalizeAmount(args.sourceBreakdown.reduce((sum, item) => sum + item.amount, 0));
+    const expectedTotal = normalizeAmount(args.expectedAmount + args.actualAmount);
+    if (breakdownTotal !== expectedTotal) {
+      throw new Error("Reconciliation source breakdown must tie to expected plus actual balances.");
+    }
+  }
+}
+
 export const listByCompany = queryGeneric({
   args: {
     companyId: v.id("cannabisCompanies"),
@@ -87,6 +113,25 @@ export const getByExternalRef = queryGeneric({
 export const upsert = mutationGeneric({
   args: reconciliationShape,
   handler: async (ctx, args) => {
+    validateReconciliationArgs(args);
+
+    const cashAccount = await ctx.db.get(args.cashAccountId);
+    if (!cashAccount || cashAccount.companyId !== args.companyId) {
+      throw new Error("Reconciliation cash account must belong to the same company.");
+    }
+    if (args.periodId) {
+      const period = await ctx.db.get(args.periodId);
+      if (!period || period.companyId !== args.companyId) {
+        throw new Error("Reconciliation period must belong to the same company.");
+      }
+    }
+    if (args.locationId) {
+      const location = await ctx.db.get(args.locationId);
+      if (!location || location.companyId !== args.companyId) {
+        throw new Error("Reconciliation location must belong to the same company.");
+      }
+    }
+
     const existing = args.externalRef
       ? (
           await ctx.db.query("cashReconciliations").withIndex("by_company", (q) => q.eq("companyId", args.companyId)).collect()
@@ -99,5 +144,40 @@ export const upsert = mutationGeneric({
     }
 
     return await ctx.db.insert("cashReconciliations", args);
+  },
+});
+
+export const updateWorkflowState = mutationGeneric({
+  args: {
+    reconciliationId: v.id("cashReconciliations"),
+    status: reconciliationStatus,
+    workflowStatus: workflowStatus,
+    sourceContext: v.array(v.string()),
+    investigationNotes: v.array(v.string()),
+    nextSteps: v.array(v.string()),
+    actions: v.array(
+      v.object({
+        title: v.string(),
+        owner: v.string(),
+        status: actionStatus,
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const reconciliation = await ctx.db.get(args.reconciliationId);
+    if (!reconciliation) {
+      throw new Error("Reconciliation not found.");
+    }
+
+    await ctx.db.patch(args.reconciliationId, {
+      status: args.status,
+      workflowStatus: args.workflowStatus,
+      sourceContext: args.sourceContext,
+      investigationNotes: args.investigationNotes,
+      nextSteps: args.nextSteps,
+      actions: args.actions,
+    });
+
+    return await ctx.db.get(args.reconciliationId);
   },
 });

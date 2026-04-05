@@ -1,21 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
+import { californiaOperatorDemo } from "@/lib/demo/accounting";
 import type { DemoCashReconciliationItem } from "@/lib/demo/accounting-operations";
+import type { ReconciliationMutation, WriteResult } from "@/lib/accounting-write-contracts";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
   maximumFractionDigits: 2,
 });
-
-type DemoActionState = {
-  noteCount: number;
-  varianceCaseOpen: boolean;
-  reviewQueued: boolean;
-};
 
 function accountTypeLabel(type: DemoCashReconciliationItem["accountType"]) {
   switch (type) {
@@ -54,30 +50,50 @@ function actionTone(status: DemoCashReconciliationItem["actions"][number]["statu
   }
 }
 
-function createInitialDemoState(items: DemoCashReconciliationItem[]) {
-  return items.reduce<Record<string, DemoActionState>>((state, item) => {
-    state[item.id] = {
-      noteCount: 0,
-      varianceCaseOpen: item.status === "exception" || item.status === "investigating",
-      reviewQueued: item.status === "ready_to_post",
+export function CashReconciliationWorkspace({ items }: { items: DemoCashReconciliationItem[] }) {
+  const [workspaceItems, setWorkspaceItems] = useState(items);
+  const [messages, setMessages] = useState<Record<string, string | null>>({});
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
+
+  async function runAction(itemId: string, action: ReconciliationMutation["action"]) {
+    const payload: ReconciliationMutation = {
+      companySlug: californiaOperatorDemo.company.slug,
+      reconciliationId: itemId,
+      action,
     };
 
-    return state;
-  }, {});
-}
+    setPendingKey(`${itemId}:${action}`);
+    try {
+      const response = await fetch("/api/accounting/reconciliations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = (await response.json()) as WriteResult<DemoCashReconciliationItem> & { message?: string };
+      if (!response.ok || !result.item) {
+        throw new Error(result.message ?? "Could not update reconciliation state.");
+      }
 
-export function CashReconciliationWorkspace({ items }: { items: DemoCashReconciliationItem[] }) {
-  const initialState = useMemo(() => createInitialDemoState(items), [items]);
-  const [demoState, setDemoState] = useState<Record<string, DemoActionState>>(initialState);
+      setWorkspaceItems((current) => current.map((item) => (item.id === itemId ? result.item! : item)));
+      setMessages((current) => ({ ...current, [itemId]: result.message }));
+    } catch (error) {
+      setMessages((current) => ({
+        ...current,
+        [itemId]: error instanceof Error ? error.message : "Could not update reconciliation state.",
+      }));
+    } finally {
+      setPendingKey((current) => (current?.startsWith(`${itemId}:`) ? null : current));
+    }
+  }
 
   return (
     <div className="space-y-4">
-      {items.map((item) => {
+      {workspaceItems.map((item) => {
         const varianceTone = item.varianceAmount === 0 ? "text-emerald-200" : item.varianceAmount < 0 ? "text-rose-200" : "text-amber-200";
-        const cardState = demoState[item.id] ?? initialState[item.id];
-        const reviewLabel = cardState.reviewQueued ? "Queued for demo review" : "Not yet queued for review";
-        const varianceLabel = cardState.varianceCaseOpen ? "Demo variance case open" : "No demo variance case opened";
-        const noteLabel = `${cardState.noteCount} demo note${cardState.noteCount === 1 ? "" : "s"} logged`;
+        const noteLabel = `${item.investigationNotes.length} investigation note${item.investigationNotes.length === 1 ? "" : "s"}`;
+        const varianceLabel = item.status === "exception" || item.status === "investigating" ? "Variance case open" : "No variance case open";
+        const reviewLabel = item.status === "ready_to_post" ? "Queued for review" : "Not yet queued for review";
+        const isPending = pendingKey?.startsWith(`${item.id}:`) ?? false;
 
         return (
           <section key={item.id} className="rounded-2xl border border-border bg-surface-mid p-5">
@@ -90,6 +106,7 @@ export function CashReconciliationWorkspace({ items }: { items: DemoCashReconcil
               <div className="flex flex-wrap gap-2">
                 <AccountingStatusBadge label={item.status.replaceAll("_", " ")} tone={statusTone(item.status)} />
                 <AccountingStatusBadge label={accountTypeLabel(item.accountType)} tone="slate" />
+                {isPending ? <AccountingStatusBadge label="syncing" tone="blue" /> : null}
               </div>
             </div>
 
@@ -134,9 +151,9 @@ export function CashReconciliationWorkspace({ items }: { items: DemoCashReconcil
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Action queue</div>
-                      <p className="mt-2 text-sm text-text-muted">Demo controls update only local UI state so QA can see what logging, case opening, and review routing would look like without touching a live reconciliation service.</p>
+                      <p className="mt-2 text-sm text-text-muted">Reconciliation controls now prefer persisted server-backed mutations and safely fall back to demo-safe local behavior when Convex is unavailable.</p>
                     </div>
-                    <AccountingStatusBadge label="Demo state only" tone="slate" />
+                    <AccountingStatusBadge label="Server-backed with safe fallback" tone="slate" />
                   </div>
                   <div className="mt-3 space-y-3">
                     {item.actions.map((action) => (
@@ -159,53 +176,33 @@ export function CashReconciliationWorkspace({ items }: { items: DemoCashReconcil
                   <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                     <button
                       type="button"
-                      onClick={() => {
-                        setDemoState((current) => ({
-                          ...current,
-                          [item.id]: {
-                            ...(current[item.id] ?? initialState[item.id]),
-                            noteCount: (current[item.id]?.noteCount ?? initialState[item.id].noteCount) + 1,
-                          },
-                        }));
-                      }}
-                      className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary transition hover:bg-surface"
+                      disabled={isPending}
+                      onClick={() => void runAction(item.id, "log_note")}
+                      className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary transition hover:bg-surface disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      Log demo note
+                      Log note
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        setDemoState((current) => ({
-                          ...current,
-                          [item.id]: {
-                            ...(current[item.id] ?? initialState[item.id]),
-                            varianceCaseOpen: !(current[item.id]?.varianceCaseOpen ?? initialState[item.id].varianceCaseOpen),
-                          },
-                        }));
-                      }}
-                      className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100 transition hover:bg-amber-500/20"
+                      disabled={isPending}
+                      onClick={() => void runAction(item.id, "toggle_case")}
+                      className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-100 transition hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {cardState.varianceCaseOpen ? "Close demo variance case" : "Open demo variance case"}
+                      {item.status === "exception" || item.status === "investigating" ? "Close variance case" : "Open variance case"}
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        setDemoState((current) => ({
-                          ...current,
-                          [item.id]: {
-                            ...(current[item.id] ?? initialState[item.id]),
-                            reviewQueued: !(current[item.id]?.reviewQueued ?? initialState[item.id].reviewQueued),
-                          },
-                        }));
-                      }}
-                      className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm text-blue-100 transition hover:bg-blue-500/20"
+                      disabled={isPending}
+                      onClick={() => void runAction(item.id, "toggle_review")}
+                      className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm text-blue-100 transition hover:bg-blue-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {cardState.reviewQueued ? "Remove from demo review queue" : "Mark ready for demo review"}
+                      {item.status === "ready_to_post" ? "Remove from review queue" : "Mark ready for review"}
                     </button>
                     <Link href={`/dashboard/reconciliations/${item.id}`} className="rounded-xl border border-border bg-surface px-3 py-2 text-center text-sm text-text-primary transition hover:bg-surface/70">
                       Open detail
                     </Link>
                   </div>
+                  {messages[item.id] ? <div className="mt-4 text-sm text-text-muted">{messages[item.id]}</div> : null}
                 </div>
               </div>
             </div>
