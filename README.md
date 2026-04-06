@@ -1,5 +1,37 @@
 # Tranquillo Green
 
+Cannabis accounting, compliance, and operations platform.
+
+## Quick Start
+
+```bash
+npm install
+cp .env.local.example .env.local
+# Edit .env.local with your keys (see below)
+npm run dev
+```
+
+## Environment Variables
+
+Create `.env.local` in the project root:
+
+```
+# Clerk — https://dashboard.clerk.com
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_Z3JhbmQtd2FsbGFieS0yNy5jbGVyay5hY2NvdW50cy5kZXYk
+CLERK_SECRET_KEY=sk_test_vMgw5Ws4GTJn7UFUvxQxaPW5FyyRNQRmDTrQMfJi3Z
+
+# Clerk routes
+NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
+NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
+NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard
+NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard
+
+# Convex
+NEXT_PUBLIC_CONVEX_URL=https://wandering-seahorse-373.convex.cloud
+```
+
+---
+
 Cannabis accounting, compliance, and operations platform under Tranquillo Labs.
 
 Current repo status:
