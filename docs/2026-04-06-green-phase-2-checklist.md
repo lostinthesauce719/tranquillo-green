@@ -26,6 +26,14 @@ Status key: [ ] not started  [~] in progress  [x] done
 - [x] Document local seed flow in README
 
 ## 4) Verification
+
+Local steps (run on your machine where Convex CLI can authenticate):
+1) `npx convex dev`
+2) `npm run dev`
+3) `curl -X POST http://localhost:3000/api/accounting/seed -H "Content-Type: application/json" -d "{}"`
+4) Visit `/dashboard/accounting` and confirm it shows "Persisted Convex source"
+5) Toggle a reporting period status, submit a manual journal, and log a reconciliation note; refresh to confirm persistence
+
 - [ ] Convex seed runs and returns summary
 - [ ] Accounting dashboard pulls seeded data
 - [ ] Period status change persists across refresh
