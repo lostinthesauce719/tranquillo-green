@@ -4,7 +4,7 @@ import { v } from "convex/values";
 export default defineSchema({
   /** Clerk-synced users with tenant role binding */
   users: defineTable({
-    clerkId: v.string(),
+    clerkId: v.optional(v.string()),
     email: v.string(),
     name: v.optional(v.string()),
     companyId: v.optional(v.id("cannabisCompanies")),
