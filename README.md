@@ -64,6 +64,16 @@ npm run dev
 npm run build
 ```
 
+## Seed Convex demo org (optional)
+If NEXT_PUBLIC_CONVEX_URL is set, you can seed the demo company used by the accounting workspace:
+
+```bash
+# From the running app
+curl -X POST http://localhost:3000/api/accounting/seed -H "Content-Type: application/json" -d "{}"
+```
+
+The response includes a summary of seeded records (accounts, periods, transactions, reconciliations, import jobs).
+
 ## Key Docs
 - `docs/2026-04-04-green-schema-and-route-map.md`
 - `docs/2026-04-04-green-phase-1-implementation-plan.md`

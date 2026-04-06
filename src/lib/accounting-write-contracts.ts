@@ -39,3 +39,25 @@ export type WriteResult<T> = {
   message: string;
   item?: T;
 };
+
+export type SeedSummary = {
+  companyId: string;
+  companySlug: string;
+  locationsSeeded: number;
+  licensesSeeded: number;
+  accountsSeeded: number;
+  reportingPeriodsSeeded: number;
+  importProfilesSeeded: number;
+  importJobsSeeded: number;
+  importRowsSeeded: number;
+  transactionsSeeded: number;
+  transactionLinesSeeded: number;
+  cashReconciliationsSeeded: number;
+};
+
+export type SeedResult = {
+  ok: true;
+  mode: "persisted" | "demo";
+  message: string;
+  summary?: SeedSummary;
+};
