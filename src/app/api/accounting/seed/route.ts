@@ -8,7 +8,7 @@ const SeedRequestSchema = z.object({
 }).optional();
 
 export async function POST(request: Request) {
-  const { userId } = await auth();
+  const { userId } = auth();
   if (!userId) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }

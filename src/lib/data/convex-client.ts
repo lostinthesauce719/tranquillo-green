@@ -33,7 +33,7 @@ export function getConvexClient(): ConvexHttpClient | null {
 
 export async function getClerkConvexToken(): Promise<string | null> {
   try {
-    const authState = await auth();
+    const authState = auth();
     if (!authState.userId) {
       return null;
     }
