@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
-import { moduleLinks } from "@/lib/navigation";
+import { moduleLinks, type NavLink } from "@/lib/navigation";
 import { useTenantMaybe } from "@/lib/auth/tenant-context";
 import { ROLE_LABELS, canAccess, type TenantRole } from "@/lib/auth/roles";
 
@@ -12,6 +12,20 @@ const roleBadgeColor: Record<TenantRole, string> = {
   accountant: "bg-emerald-500/20 text-emerald-300",
   viewer: "bg-neutral-500/20 text-neutral-300",
 };
+
+const SECTION_ORDER = ["Core", "Workflows", "Operations", "Handoff", "System"];
+
+function groupBySection(links: NavLink[]): { section: string; links: NavLink[] }[] {
+  const map = new Map<string, NavLink[]>();
+  for (const link of links) {
+    const arr = map.get(link.section) ?? [];
+    arr.push(link);
+    map.set(link.section, arr);
+  }
+  return SECTION_ORDER
+    .filter((s) => map.has(s))
+    .map((s) => ({ section: s, links: map.get(s)! }));
+}
 
 export function AppShell({
   title,
@@ -27,6 +41,8 @@ export function AppShell({
   const visibleLinks = tenant
     ? moduleLinks.filter((l) => canAccess(role, l.href))
     : moduleLinks;
+
+  const sections = groupBySection(visibleLinks);
 
   return (
     <div className="min-h-screen bg-background text-text-primary">
@@ -59,24 +75,30 @@ export function AppShell({
               CA-first accounting and compliance OS for cannabis operators.
             </p>
           </div>
-          <nav className="space-y-2">
-            {visibleLinks.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="block rounded-xl border border-transparent px-3 py-2 text-sm text-text-muted transition hover:border-border hover:bg-surface-mid hover:text-text-primary"
-              >
-                {item.label}
-              </Link>
+          <nav>
+            {sections.map((group) => (
+              <div key={group.section}>
+                <div className="text-[10px] uppercase tracking-[0.25em] text-text-muted/50 mt-4 mb-1 px-3">
+                  {group.section}
+                </div>
+                <div className="space-y-0.5">
+                  {group.links.map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="block rounded-xl border border-transparent px-3 py-2 text-sm text-text-muted transition hover:border-border hover:bg-surface-mid hover:text-text-primary"
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              </div>
             ))}
           </nav>
         </aside>
         <main className="flex-1 rounded-3xl border border-border bg-surface/90 p-6 shadow-2xl shadow-black/20">
           <header className="mb-8 flex flex-col gap-3 border-b border-border pb-6">
-            <div className="flex items-center justify-between">
-              <div className="text-xs uppercase tracking-[0.3em] text-accent">
-                Phase 1 Scaffold
-              </div>
+            <div className="flex items-center justify-end">
               {tenant && (
                 <div className="text-xs text-text-muted">
                   {tenant.companyName} &middot;{" "}

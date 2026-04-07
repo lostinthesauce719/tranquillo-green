@@ -1,18 +1,24 @@
-export const moduleLinks = [
-  { href: "/dashboard", label: "Overview" },
-  { href: "/dashboard/accounting", label: "Accounting" },
-  { href: "/dashboard/accounting/close", label: "Month-End Close" },
-  { href: "/dashboard/accounting/periods", label: "Reporting Periods" },
-  { href: "/dashboard/accounting/pipeline", label: "Transaction Pipeline" },
-  { href: "/dashboard/accounting/transactions", label: "Transactions" },
-  { href: "/dashboard/accounting/imports", label: "Imports" },
-  { href: "/dashboard/allocations", label: "280E Allocations" },
-  { href: "/dashboard/allocations/history", label: "Allocation History" },
-  { href: "/dashboard/allocations/support-schedule", label: "280E Support Schedule" },
-  { href: "/dashboard/inventory", label: "Inventory" },
-  { href: "/dashboard/compliance", label: "Compliance" },
-  { href: "/dashboard/reconciliations", label: "Reconciliations" },
-  { href: "/dashboard/exports", label: "CPA Export Center" },
-  { href: "/dashboard/automation", label: "Automation" },
-  { href: "/dashboard/settings", label: "Settings" },
+export type NavLink = {
+  href: string;
+  label: string;
+  section: string;
+};
+
+export const moduleLinks: NavLink[] = [
+  { href: "/dashboard", label: "Overview", section: "Core" },
+  { href: "/dashboard/accounting", label: "Accounting", section: "Core" },
+  { href: "/dashboard/accounting/close", label: "Month-End Close", section: "Core" },
+  { href: "/dashboard/accounting/periods", label: "Reporting Periods", section: "Core" },
+  { href: "/dashboard/accounting/pipeline", label: "Transaction Pipeline", section: "Workflows" },
+  { href: "/dashboard/accounting/transactions", label: "Transactions", section: "Workflows" },
+  { href: "/dashboard/accounting/imports", label: "Imports", section: "Workflows" },
+  { href: "/dashboard/allocations", label: "280E Allocations", section: "Workflows" },
+  { href: "/dashboard/allocations/history", label: "Allocation History", section: "Workflows" },
+  { href: "/dashboard/allocations/support-schedule", label: "280E Support Schedule", section: "Workflows" },
+  { href: "/dashboard/inventory", label: "Inventory", section: "Operations" },
+  { href: "/dashboard/compliance", label: "Compliance", section: "Operations" },
+  { href: "/dashboard/reconciliations", label: "Reconciliations", section: "Operations" },
+  { href: "/dashboard/exports", label: "CPA Export Center", section: "Handoff" },
+  { href: "/dashboard/automation", label: "Automation", section: "Handoff" },
+  { href: "/dashboard/settings", label: "Settings", section: "System" },
 ];
