@@ -9,23 +9,7 @@ import { demoImportDatasets } from "@/lib/demo/accounting-workflows";
 import type { DemoTransaction } from "@/lib/demo/accounting";
 import { DEMO_COMPANY_SLUG, loadAccountingWorkspace } from "@/lib/data/accounting-core";
 import type { ImportWorkspace, ImportWorkspaceDataset, ImportWorkspaceRow } from "@/lib/import-job-types";
-
-function getConvexUrl() {
-  const url = process.env.NEXT_PUBLIC_CONVEX_URL?.trim();
-  if (!url || !/^https?:\/\//.test(url)) {
-    return null;
-  }
-  return url;
-}
-
-async function withTimeout<T>(promise: Promise<T>, timeoutMs = 5000): Promise<T> {
-  return await Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      setTimeout(() => reject(new Error(`Timed out after ${timeoutMs}ms`)), timeoutMs);
-    }),
-  ]);
-}
+import { getConvexUrl, withTimeout } from "@/lib/data/convex-client";
 
 function rowAmount(row: DemoImportRow | ImportWorkspaceRow) {
   return Math.abs(Number(row.values.signed_amount || row.values.debit_amount || row.values.credit_amount || 0));

@@ -1,30 +1,13 @@
 import "server-only";
 
-import { ConvexHttpClient } from "convex/browser";
 import { anyApi } from "convex/server";
 import type { SeedResult, SeedSummary } from "@/lib/accounting-write-contracts";
 import { DEMO_COMPANY_SLUG } from "@/lib/data/accounting-core";
-
-function getConvexUrl() {
-  const url = process.env.NEXT_PUBLIC_CONVEX_URL?.trim();
-  if (!url || !/^https?:\/\//.test(url)) {
-    return null;
-  }
-  return url;
-}
-
-async function withTimeout<T>(promise: Promise<T>, timeoutMs = 5000): Promise<T> {
-  return await Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      setTimeout(() => reject(new Error(`Timed out after ${timeoutMs}ms`)), timeoutMs);
-    }),
-  ]);
-}
+import { getConvexClient, withTimeout } from "@/lib/data/convex-client";
 
 export async function seedDemoCompany(slug?: string): Promise<SeedResult> {
-  const url = getConvexUrl();
-  if (!url) {
+  const client = getConvexClient();
+  if (!client) {
     return {
       ok: true,
       mode: "demo",
@@ -33,7 +16,6 @@ export async function seedDemoCompany(slug?: string): Promise<SeedResult> {
   }
 
   try {
-    const client = new ConvexHttpClient(url);
     const summary = (await withTimeout(
       client.mutation((anyApi as any).seed.seedCaliforniaOperator, { slug: slug ?? DEMO_COMPANY_SLUG }),
     )) as SeedSummary;

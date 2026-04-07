@@ -2,6 +2,7 @@ import "server-only";
 
 import { ConvexHttpClient } from "convex/browser";
 import { anyApi } from "convex/server";
+import { getConvexUrl, withTimeout } from "@/lib/data/convex-client";
 import {
   californiaOperatorDemo,
   demoChartOfAccounts,
@@ -40,24 +41,6 @@ function buildDemoWorkspace(): AccountingWorkspace {
     transactions: demoTransactions,
     cashReconciliations: demoCashReconciliations,
   };
-}
-
-function getConvexUrl() {
-  const url = process.env.NEXT_PUBLIC_CONVEX_URL?.trim();
-  if (!url) {
-    return null;
-  }
-
-  return /^https?:\/\//.test(url) ? url : null;
-}
-
-async function withTimeout<T>(promise: Promise<T>, timeoutMs = 5000): Promise<T> {
-  return await Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      setTimeout(() => reject(new Error(`Timed out after ${timeoutMs}ms`)), timeoutMs);
-    }),
-  ]);
 }
 
 function toDemoAccount(account: any): DemoChartOfAccount {

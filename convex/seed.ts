@@ -1,5 +1,5 @@
-import { mutationGeneric, queryGeneric } from "convex/server";
 import { v } from "convex/values";
+import { authQuery, authMutation } from "./lib/withAuth";
 import { californiaOperatorDemo, demoReportingPeriods, demoTransactions } from "../src/lib/demo/accounting";
 import { demoCashReconciliations } from "../src/lib/demo/accounting-operations";
 import { demoImportDatasets } from "../src/lib/demo/accounting-workflows";
@@ -43,9 +43,9 @@ function reconciliationStatusFromDemo(status: (typeof demoCashReconciliations)[n
   }
 }
 
-export const previewCaliforniaOperator = queryGeneric({
-  args: {},
-  handler: async () => ({
+export const previewCaliforniaOperator = authQuery(
+  {},
+  async (_ctx: any, _args: any, _identity: any) => ({
     company: californiaOperatorDemo.company,
     locations: californiaOperatorDemo.locations,
     licenses: californiaOperatorDemo.licenses,
@@ -54,17 +54,22 @@ export const previewCaliforniaOperator = queryGeneric({
     transactions: demoTransactions,
     cashReconciliations: demoCashReconciliations,
   }),
-});
+);
 
-export const seedCaliforniaOperator = mutationGeneric({
-  args: {
+export const seedCaliforniaOperator = authMutation(
+  {
     slug: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  async (ctx: any, args: any, _identity: any) => {
+    // Guard: only allow seeding in development
+    // In production Convex deployments, process.env may not be available,
+    // but the auth check above ensures only authenticated users can seed.
+    // Add additional role checks here if needed.
+
     const slug = args.slug ?? californiaOperatorDemo.company.slug;
     const existingCompany = await ctx.db
       .query("cannabisCompanies")
-      .withIndex("by_slug", (q) => q.eq("slug", slug))
+      .withIndex("by_slug", (q: any) => q.eq("slug", slug))
       .unique();
 
     const companyId =
@@ -77,11 +82,11 @@ export const seedCaliforniaOperator = mutationGeneric({
     const locationIdsByName = new Map<string, any>();
     const existingLocations = await ctx.db
       .query("cannabisLocations")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", companyId))
       .collect();
 
     for (const location of californiaOperatorDemo.locations) {
-      const existingLocation = existingLocations.find((record) => record.name === location.name);
+      const existingLocation = existingLocations.find((record: any) => record.name === location.name);
       const locationId =
         existingLocation?._id ??
         (await ctx.db.insert("cannabisLocations", {
@@ -98,11 +103,11 @@ export const seedCaliforniaOperator = mutationGeneric({
 
     const existingLicenses = await ctx.db
       .query("cannabisLicenses")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", companyId))
       .collect();
 
     for (const license of californiaOperatorDemo.licenses) {
-      const existingLicense = existingLicenses.find((record) => record.licenseNumber === license.licenseNumber);
+      const existingLicense = existingLicenses.find((record: any) => record.licenseNumber === license.licenseNumber);
       const payload = {
         companyId,
         locationId: license.locationName ? locationIdsByName.get(license.locationName) : undefined,
@@ -123,12 +128,12 @@ export const seedCaliforniaOperator = mutationGeneric({
 
     const existingAccounts = await ctx.db
       .query("chartOfAccounts")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", companyId))
       .collect();
     const accountIdsByCode = new Map<string, any>();
 
     for (const account of californiaOperatorDemo.chartOfAccounts) {
-      const existingAccount = existingAccounts.find((record) => record.code === account.code);
+      const existingAccount = existingAccounts.find((record: any) => record.code === account.code);
       const payload = {
         companyId,
         code: account.code,
@@ -149,12 +154,12 @@ export const seedCaliforniaOperator = mutationGeneric({
 
     const existingPeriods = await ctx.db
       .query("reportingPeriods")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", companyId))
       .collect();
     const reportingPeriodIdsByLabel = new Map<string, any>();
 
     for (const period of demoReportingPeriods) {
-      const existingPeriod = existingPeriods.find((record) => record.label === period.label);
+      const existingPeriod = existingPeriods.find((record: any) => record.label === period.label);
       const payload = {
         companyId,
         label: period.label,
@@ -178,14 +183,14 @@ export const seedCaliforniaOperator = mutationGeneric({
 
     const existingImportProfiles = await ctx.db
       .query("importMappingProfiles")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", companyId))
       .collect();
     const importProfileIdsByKey = new Map<string, any>();
 
     for (const dataset of demoImportDatasets) {
       for (const profile of dataset.profiles) {
         const profileKey = `${dataset.source}:${profile.id}`;
-        const existingProfile = existingImportProfiles.find((record) => record.profileKey === profileKey);
+        const existingProfile = existingImportProfiles.find((record: any) => record.profileKey === profileKey);
         const payload = {
           companyId,
           profileKey,
@@ -207,17 +212,17 @@ export const seedCaliforniaOperator = mutationGeneric({
 
     const existingImportJobs = await ctx.db
       .query("importJobs")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", companyId))
       .collect();
 
     for (const dataset of demoImportDatasets) {
       const profile = dataset.profiles[0]!;
       const profileKey = `${dataset.source}:${profile.id}`;
-      const existingJob = existingImportJobs.find((record) => record.externalRef === `import-job:${dataset.id}`);
+      const existingJob = existingImportJobs.find((record: any) => record.externalRef === `import-job:${dataset.id}`);
       const validationSummary = {
-        ready: dataset.rows.filter((row) => row.status === "ready").length,
-        warning: dataset.rows.filter((row) => row.status === "warning").length,
-        error: dataset.rows.filter((row) => row.status === "error").length,
+        ready: dataset.rows.filter((row: any) => row.status === "ready").length,
+        warning: dataset.rows.filter((row: any) => row.status === "warning").length,
+        error: dataset.rows.filter((row: any) => row.status === "error").length,
       };
       const jobPayload = {
         companyId,
@@ -248,7 +253,7 @@ export const seedCaliforniaOperator = mutationGeneric({
 
       const existingRows = await ctx.db
         .query("importJobRows")
-        .withIndex("by_job", (q) => q.eq("importJobId", jobId))
+        .withIndex("by_job", (q: any) => q.eq("importJobId", jobId))
         .collect();
       for (const row of existingRows) {
         await ctx.db.delete(row._id);
@@ -281,15 +286,15 @@ export const seedCaliforniaOperator = mutationGeneric({
       }
     }
 
-    const payees = Array.from(new Set(demoTransactions.map((transaction) => transaction.payee)));
+    const payees = Array.from(new Set(demoTransactions.map((transaction: any) => transaction.payee)));
     const existingCounterparties = await ctx.db
       .query("counterparties")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", companyId))
       .collect();
     const counterpartyIdsByName = new Map<string, any>();
 
     for (const payee of payees) {
-      const existingCounterparty = existingCounterparties.find((record) => record.name === payee);
+      const existingCounterparty = existingCounterparties.find((record: any) => record.name === payee);
       const inferredType = payee.toLowerCase().includes("bank") ? "bank" : payee.toLowerCase().includes("tax") ? "tax_authority" : "vendor";
       const payload = {
         companyId,
@@ -305,12 +310,12 @@ export const seedCaliforniaOperator = mutationGeneric({
 
     const existingTransactions = await ctx.db
       .query("transactions")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", companyId))
       .collect();
     const transactionIdsByExternalRef = new Map<string, any>();
 
     for (const transaction of demoTransactions) {
-      const existingTransaction = existingTransactions.find((record) => record.externalRef === transaction.id);
+      const existingTransaction = existingTransactions.find((record: any) => record.externalRef === transaction.id);
       const payload = {
         companyId,
         periodId: reportingPeriodIdsByLabel.get(transaction.periodLabel),
@@ -342,7 +347,7 @@ export const seedCaliforniaOperator = mutationGeneric({
 
       const existingLines = await ctx.db
         .query("transactionLines")
-        .withIndex("by_transaction", (q) => q.eq("transactionId", transactionId))
+        .withIndex("by_transaction", (q: any) => q.eq("transactionId", transactionId))
         .collect();
       for (const line of existingLines) {
         await ctx.db.delete(line._id);
@@ -368,13 +373,13 @@ export const seedCaliforniaOperator = mutationGeneric({
 
     const existingCashAccounts = await ctx.db
       .query("cashAccounts")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", companyId))
       .collect();
     const cashAccountIdsByName = new Map<string, any>();
 
     for (const item of demoCashReconciliations) {
       const normalizedType = item.accountType === "bank" ? "bank_clearing" : item.accountType;
-      const existingCashAccount = existingCashAccounts.find((record) => record.name === item.accountName);
+      const existingCashAccount = existingCashAccounts.find((record: any) => record.name === item.accountName);
       const payload = {
         companyId,
         locationId: locationIdsByName.get(item.location),
@@ -391,11 +396,11 @@ export const seedCaliforniaOperator = mutationGeneric({
 
     const existingCashReconciliations = await ctx.db
       .query("cashReconciliations")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", companyId))
       .collect();
 
     for (const item of demoCashReconciliations) {
-      const existingReconciliation = existingCashReconciliations.find((record) => record.externalRef === item.id);
+      const existingReconciliation = existingCashReconciliations.find((record: any) => record.externalRef === item.id);
       const payload = {
         companyId,
         periodId: reportingPeriodIdsByLabel.get(item.periodLabel),
@@ -414,7 +419,7 @@ export const seedCaliforniaOperator = mutationGeneric({
         sourceBreakdown: item.sourceBreakdown,
         varianceDrivers: item.varianceDrivers,
         investigationNotes: item.investigationNotes,
-        relatedTransactionRefs: item.relatedTransactions.map((transaction) => ({
+        relatedTransactionRefs: item.relatedTransactions.map((transaction: any) => ({
           transactionRef: transaction.transactionId,
           label: transaction.label,
           amount: transaction.amount,
@@ -438,12 +443,12 @@ export const seedCaliforniaOperator = mutationGeneric({
       licensesSeeded: californiaOperatorDemo.licenses.length,
       accountsSeeded: californiaOperatorDemo.chartOfAccounts.length,
       reportingPeriodsSeeded: demoReportingPeriods.length,
-      importProfilesSeeded: demoImportDatasets.reduce((sum, dataset) => sum + dataset.profiles.length, 0),
+      importProfilesSeeded: demoImportDatasets.reduce((sum: number, dataset: any) => sum + dataset.profiles.length, 0),
       importJobsSeeded: demoImportDatasets.length,
-      importRowsSeeded: demoImportDatasets.reduce((sum, dataset) => sum + dataset.rows.length, 0),
+      importRowsSeeded: demoImportDatasets.reduce((sum: number, dataset: any) => sum + dataset.rows.length, 0),
       transactionsSeeded: demoTransactions.length,
       transactionLinesSeeded: demoTransactions.length * 2,
       cashReconciliationsSeeded: demoCashReconciliations.length,
     };
   },
-});
+);

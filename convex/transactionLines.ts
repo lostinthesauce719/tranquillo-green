@@ -1,20 +1,20 @@
-import { mutationGeneric, queryGeneric } from "convex/server";
 import { v } from "convex/values";
+import { authQuery, authMutation } from "./lib/withAuth";
 
-export const listByTransaction = queryGeneric({
-  args: {
+export const listByTransaction = authQuery(
+  {
     transactionId: v.id("transactions"),
   },
-  handler: async (ctx, args) => {
+  async (ctx: any, args: any, _identity: any) => {
     return await ctx.db
       .query("transactionLines")
-      .withIndex("by_transaction", (q) => q.eq("transactionId", args.transactionId))
+      .withIndex("by_transaction", (q: any) => q.eq("transactionId", args.transactionId))
       .collect();
   },
-});
+);
 
-export const replaceForTransaction = mutationGeneric({
-  args: {
+export const replaceForTransaction = authMutation(
+  {
     transactionId: v.id("transactions"),
     lines: v.array(
       v.object({
@@ -27,10 +27,10 @@ export const replaceForTransaction = mutationGeneric({
       })
     ),
   },
-  handler: async (ctx, args) => {
+  async (ctx: any, args: any, _identity: any) => {
     const existing = await ctx.db
       .query("transactionLines")
-      .withIndex("by_transaction", (q) => q.eq("transactionId", args.transactionId))
+      .withIndex("by_transaction", (q: any) => q.eq("transactionId", args.transactionId))
       .collect();
 
     for (const line of existing) {
@@ -48,4 +48,4 @@ export const replaceForTransaction = mutationGeneric({
 
     return insertedIds;
   },
-});
+);

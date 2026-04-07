@@ -1,6 +1,5 @@
 import "server-only";
 
-import { ConvexHttpClient } from "convex/browser";
 import { anyApi } from "convex/server";
 import type { DemoCashReconciliationItem } from "@/lib/demo/accounting-operations";
 import type { DemoReportingPeriod } from "@/lib/demo/accounting";
@@ -11,31 +10,14 @@ import type {
   WriteResult,
 } from "@/lib/accounting-write-contracts";
 import { DEMO_COMPANY_SLUG, loadAccountingWorkspace } from "@/lib/data/accounting-core";
-
-function getConvexUrl() {
-  const url = process.env.NEXT_PUBLIC_CONVEX_URL?.trim();
-  if (!url || !/^https?:\/\//.test(url)) {
-    return null;
-  }
-  return url;
-}
-
-async function withTimeout<T>(promise: Promise<T>, timeoutMs = 5000): Promise<T> {
-  return await Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      setTimeout(() => reject(new Error(`Timed out after ${timeoutMs}ms`)), timeoutMs);
-    }),
-  ]);
-}
+import { getConvexClient, withTimeout } from "@/lib/data/convex-client";
 
 async function getConvexContext(companySlug: string) {
-  const url = getConvexUrl();
-  if (!url) {
+  const client = getConvexClient();
+  if (!client) {
     return null;
   }
 
-  const client = new ConvexHttpClient(url);
   const [company, workspace] = await Promise.all([
     withTimeout(client.query((anyApi as any).cannabisCompanies.getBySlug, { slug: companySlug })),
     withTimeout(client.query((anyApi as any).accountingCore.getWorkspaceBySlug, { slug: companySlug })),
