@@ -1,8 +1,7 @@
 import "server-only";
 
-import { ConvexHttpClient } from "convex/browser";
 import { anyApi } from "convex/server";
-import { getConvexUrl, withTimeout } from "@/lib/data/convex-client";
+import { getAuthenticatedConvexClient, withTimeout } from "@/lib/data/convex-client";
 import {
   californiaOperatorDemo,
   demoChartOfAccounts,
@@ -151,12 +150,11 @@ function toDemoReconciliation(reconciliation: any): DemoCashReconciliationItem {
 }
 
 async function loadConvexWorkspace(slug: string): Promise<AccountingWorkspace | null> {
-  const url = getConvexUrl();
-  if (!url) {
+  const client = await getAuthenticatedConvexClient();
+  if (!client) {
     return null;
   }
 
-  const client = new ConvexHttpClient(url);
   const result = await withTimeout(client.query((anyApi as any).accountingCore.getWorkspaceBySlug, { slug }));
   if (!result) {
     return null;

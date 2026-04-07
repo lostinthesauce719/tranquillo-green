@@ -1,6 +1,5 @@
 import "server-only";
 
-import { ConvexHttpClient } from "convex/browser";
 import { anyApi } from "convex/server";
 import type { DemoPipelineCard, DemoPipelineStage, DemoPipelineStageId } from "@/lib/demo/accounting-close";
 import { buildDemoPipelineStages } from "@/lib/demo/accounting-close";
@@ -9,7 +8,7 @@ import { demoImportDatasets } from "@/lib/demo/accounting-workflows";
 import type { DemoTransaction } from "@/lib/demo/accounting";
 import { DEMO_COMPANY_SLUG, loadAccountingWorkspace } from "@/lib/data/accounting-core";
 import type { ImportWorkspace, ImportWorkspaceDataset, ImportWorkspaceRow } from "@/lib/import-job-types";
-import { getConvexUrl, withTimeout } from "@/lib/data/convex-client";
+import { getAuthenticatedConvexClient, withTimeout } from "@/lib/data/convex-client";
 
 function rowAmount(row: DemoImportRow | ImportWorkspaceRow) {
   return Math.abs(Number(row.values.signed_amount || row.values.debit_amount || row.values.credit_amount || 0));
@@ -200,12 +199,11 @@ function formatTimestamp(timestamp: number) {
 }
 
 async function loadConvexImportWorkspace(slug: string): Promise<ImportWorkspace | null> {
-  const url = getConvexUrl();
-  if (!url) {
+  const client = await getAuthenticatedConvexClient();
+  if (!client) {
     return null;
   }
 
-  const client = new ConvexHttpClient(url);
   const [importsResult, accountingWorkspace] = await Promise.all([
     withTimeout(client.query((anyApi as any).importJobs.getWorkspaceBySlug, { slug })),
     loadAccountingWorkspace(slug),

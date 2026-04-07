@@ -1,6 +1,9 @@
 import { currentUser } from "@clerk/nextjs/server";
+import { anyApi } from "convex/server";
 import { redirect } from "next/navigation";
 import { TenantShell } from "@/components/shell/tenant-shell";
+import { DEMO_COMPANY_SLUG } from "@/lib/data/accounting-core";
+import { getAuthenticatedConvexClient } from "@/lib/data/convex-client";
 
 export const dynamic = "force-dynamic";
 
@@ -12,15 +15,21 @@ export default async function DashboardLayout({
   const user = await currentUser();
   if (!user) redirect("/sign-in");
 
-  // Extract tenant info from Clerk metadata
-  // In production: user.publicMetadata.companyId, user.publicMetadata.role
-  // For now: use demo defaults so the app works without Clerk being configured
+  try {
+    const client = await getAuthenticatedConvexClient();
+    if (client) {
+      await client.mutation((anyApi as any).users.getOrCreateUser, {});
+    }
+  } catch {
+    // User sync is best-effort; the dashboard should still render.
+  }
+
   const companySlug =
-    (user.publicMetadata?.companySlug as string) || "demo-dispensary";
+    (user.publicMetadata?.companySlug as string) || DEMO_COMPANY_SLUG;
   const companyName =
-    (user.publicMetadata?.companyName as string) || "Demo Dispensary";
+    (user.publicMetadata?.companyName as string) || "Golden State Greens, LLC";
   const companyId =
-    (user.publicMetadata?.companyId as string) || "demo";
+    (user.publicMetadata?.companyId as string) || DEMO_COMPANY_SLUG;
   const role =
     (user.publicMetadata?.role as string) || "owner";
 

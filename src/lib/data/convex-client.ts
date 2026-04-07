@@ -1,7 +1,10 @@
 import "server-only";
 
+import { auth } from "@clerk/nextjs/server";
 import { ConvexHttpClient } from "convex/browser";
 import { anyApi } from "convex/server";
+
+const CONVEX_JWT_TEMPLATE = process.env.CLERK_CONVEX_JWT_TEMPLATE?.trim() || "convex";
 
 export function getConvexUrl(): string | null {
   const url = process.env.NEXT_PUBLIC_CONVEX_URL?.trim();
@@ -28,8 +31,36 @@ export function getConvexClient(): ConvexHttpClient | null {
   return new ConvexHttpClient(url);
 }
 
-export async function getConvexContext(companySlug: string) {
+export async function getClerkConvexToken(): Promise<string | null> {
+  try {
+    const authState = await auth();
+    if (!authState.userId) {
+      return null;
+    }
+
+    return (await authState.getToken({ template: CONVEX_JWT_TEMPLATE })) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function getAuthenticatedConvexClient(): Promise<ConvexHttpClient | null> {
   const client = getConvexClient();
+  if (!client) {
+    return null;
+  }
+
+  const token = await getClerkConvexToken();
+  if (!token) {
+    return null;
+  }
+
+  client.setAuth(token);
+  return client;
+}
+
+export async function getConvexContext(companySlug: string) {
+  const client = await getAuthenticatedConvexClient();
   if (!client) {
     return null;
   }

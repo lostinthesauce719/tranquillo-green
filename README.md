@@ -28,6 +28,10 @@ NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/dashboard
 
 # Convex
 NEXT_PUBLIC_CONVEX_URL=https://wandering-seahorse-373.convex.cloud
+
+# Clerk -> Convex auth bridge
+CLERK_CONVEX_JWT_TEMPLATE=convex
+CLERK_JWT_ISSUER_DOMAIN=https://grand-wallaby-27.clerk.accounts.dev
 ```
 
 ---
@@ -63,6 +67,19 @@ npm install
 npm run dev
 npm run build
 ```
+
+## Clerk -> Convex setup
+Before persisted accounting reads/writes will work, create a Clerk JWT template named `convex`.
+
+Clerk dashboard steps:
+1. Go to JWT Templates
+2. Create template named `convex`
+3. Audience / application ID: `convex`
+4. Use your Clerk issuer domain (for this project: `https://grand-wallaby-27.clerk.accounts.dev`)
+
+Then ensure `.env.local` includes:
+- `CLERK_CONVEX_JWT_TEMPLATE=convex`
+- `CLERK_JWT_ISSUER_DOMAIN=https://grand-wallaby-27.clerk.accounts.dev`
 
 ## Seed Convex demo org (optional)
 If NEXT_PUBLIC_CONVEX_URL is set, you can seed the demo company used by the accounting workspace:

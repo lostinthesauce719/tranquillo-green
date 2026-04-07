@@ -3,10 +3,10 @@ import "server-only";
 import { anyApi } from "convex/server";
 import type { SeedResult, SeedSummary } from "@/lib/accounting-write-contracts";
 import { DEMO_COMPANY_SLUG } from "@/lib/data/accounting-core";
-import { getConvexClient, withTimeout } from "@/lib/data/convex-client";
+import { getAuthenticatedConvexClient, withTimeout } from "@/lib/data/convex-client";
 
 export async function seedDemoCompany(slug?: string): Promise<SeedResult> {
-  const client = getConvexClient();
+  const client = await getAuthenticatedConvexClient();
   if (!client) {
     return {
       ok: true,

@@ -10,10 +10,10 @@ import type {
   WriteResult,
 } from "@/lib/accounting-write-contracts";
 import { DEMO_COMPANY_SLUG, loadAccountingWorkspace } from "@/lib/data/accounting-core";
-import { getConvexClient, withTimeout } from "@/lib/data/convex-client";
+import { getAuthenticatedConvexClient, withTimeout } from "@/lib/data/convex-client";
 
 async function getConvexContext(companySlug: string) {
-  const client = getConvexClient();
+  const client = await getAuthenticatedConvexClient();
   if (!client) {
     return null;
   }
