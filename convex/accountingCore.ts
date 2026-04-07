@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { authQuery } from "./lib/withAuth";
+import { authQuery, requireCompanyAccessBySlug } from "./lib/withAuth";
 
 function sortByName<T extends { name: string }>(items: T[]) {
   return [...items].sort((a, b) => a.name.localeCompare(b.name));
@@ -13,11 +13,8 @@ export const getWorkspaceBySlug = authQuery(
   {
     slug: v.string(),
   },
-  async (ctx: any, args: any, _identity: any) => {
-    const company = await ctx.db
-      .query("cannabisCompanies")
-      .withIndex("by_slug", (q: any) => q.eq("slug", args.slug))
-      .unique();
+  async (ctx: any, args: any, identity: any) => {
+    const company = await requireCompanyAccessBySlug(ctx, identity, args.slug);
 
     if (!company) {
       return null;

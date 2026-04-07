@@ -46,7 +46,7 @@ export function TransactionPipelineBoard({
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-border bg-surface-mid px-4 py-3 text-sm text-text-muted">
-        Pipeline source: {source === "convex" ? "persisted import-job + transaction backend" : "demo-safe fallback data"}
+        Pipeline source: {source === "convex" ? "persisted import-job + transaction backend with live promotion state" : "demo-safe fallback data with no persisted writes"}
       </div>
       <div className="grid gap-4 xl:grid-cols-4">
         {stages.map((stage) => (

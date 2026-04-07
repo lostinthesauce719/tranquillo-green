@@ -45,6 +45,19 @@ function getAvailableTargetFields(amountStrategy: "single_signed" | "split_debit
     : ["date", "postedDate", "description", "reference", "amount", "location", "memo", "ignore"];
 }
 
+function profilePersistenceMeta(mode: ImportWorkspace["datasets"][number]["profilePersistence"]) {
+  switch (mode) {
+    case "demo_only":
+      return { label: "Demo-only profile", tone: "slate" as const };
+    case "saved":
+      return { label: "Saved profile", tone: "emerald" as const };
+    case "snapshot_only":
+      return { label: "Snapshot only", tone: "amber" as const };
+    case "saved_with_overrides":
+      return { label: "Saved + overridden", tone: "violet" as const };
+  }
+}
+
 export function CsvImportWorkflow({
   accounts,
   companySlug,
@@ -86,6 +99,7 @@ export function CsvImportWorkflow({
   }
 
   const selectedProfile = dataset.profiles.find((profile) => profile.id === selectedProfileId) ?? dataset.profiles[0]!;
+  const profileMeta = profilePersistenceMeta(dataset.profilePersistence);
   const availableTargets = getAvailableTargetFields(selectedProfile.amountStrategy);
   const effectiveMappings = dataset.columns.reduce<Record<string, DemoImportTargetField>>((acc, column) => {
     acc[column.key] = mappingOverrides[column.key] ?? selectedProfile.fieldMappings[column.key] ?? column.suggestedTarget;
@@ -215,14 +229,12 @@ export function CsvImportWorkflow({
       <section className="rounded-2xl border border-border bg-surface-mid p-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">
-              {workspace.source === "convex" ? "Persisted import-job flow" : "Static-safe import flow"}
-            </div>
+            <div className="text-xs uppercase tracking-[0.2em] text-accent">{workspace.sourceLabel}</div>
             <h2 className="mt-2 text-xl font-semibold">CSV import mapping workspace</h2>
             <p className="mt-2 max-w-3xl text-sm text-text-muted">
-              This workflow now prefers the persisted import-job backend for mapping profiles, validation results,
-              and row promotion into transactions, while preserving the demo-safe fallback path when Convex is unavailable.
+              {workspace.sourceDetail}
             </p>
+            {workspace.fallbackReason ? <div className="mt-2 text-xs text-amber-200">Fallback reason: {workspace.fallbackReason}</div> : null}
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="grid gap-2 text-sm">
@@ -272,8 +284,10 @@ export function CsvImportWorkflow({
             <div className="mt-3 flex flex-wrap gap-2">
               <AccountingStatusBadge label={dataset.backendMode} tone={dataset.backendMode === "persisted" ? "violet" : "slate"} />
               <AccountingStatusBadge label={dataset.persistedStatus.replaceAll("_", " ")} tone={dataset.persistedStatus === "promoted" ? "emerald" : dataset.persistedStatus === "mapped" ? "amber" : "blue"} className="capitalize" />
+              <AccountingStatusBadge label={profileMeta.label} tone={profileMeta.tone} />
             </div>
             <div className="mt-1">Promoted {dataset.promotedRowCount} / {dataset.rows.length} rows</div>
+            {dataset.persistedStatusReason ? <div className="mt-1 text-xs">{dataset.persistedStatusReason}</div> : null}
           </div>
           <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">
             <div className="text-xs uppercase tracking-[0.2em] text-accent">Validation summary</div>
@@ -366,6 +380,7 @@ export function CsvImportWorkflow({
           ) : (
             <AccountingStatusBadge label={`Amount issue: ${amountStrategyFieldIssues.join(", ")}`} tone="amber" />
           )}
+          {dataset.selectedProfileName ? <AccountingStatusBadge label={`Selected profile ${dataset.selectedProfileName}`} tone="slate" /> : null}
           <AccountingStatusBadge label={`Delimiter ${dataset.delimiter}`} tone="slate" />
           {dataset.sourceFileSizeBytes ? <AccountingStatusBadge label={`${dataset.sourceFileSizeBytes} bytes`} tone="slate" /> : null}
         </div>

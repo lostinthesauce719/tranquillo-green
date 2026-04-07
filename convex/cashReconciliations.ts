@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { authQuery, authMutation } from "./lib/withAuth";
+import { authQuery, authMutation, requireCompanyAccessById } from "./lib/withAuth";
 
 const reconciliationStatus = v.union(v.literal("open"), v.literal("investigating"), v.literal("resolved"));
 const workflowStatus = v.union(v.literal("balanced"), v.literal("investigating"), v.literal("exception"), v.literal("ready_to_post"));
@@ -93,7 +93,9 @@ export const listByCompany = authQuery(
   {
     companyId: v.id("cannabisCompanies"),
   },
-  async (ctx: any, args: any, _identity: any) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     return await ctx.db.query("cashReconciliations").withIndex("by_company", (q: any) => q.eq("companyId", args.companyId)).collect();
   },
 );
@@ -103,7 +105,9 @@ export const getByExternalRef = authQuery(
     companyId: v.id("cannabisCompanies"),
     externalRef: v.string(),
   },
-  async (ctx: any, args: any, _identity: any) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     // Use by_company_external_ref index instead of collect+find
     return (
       await ctx.db
@@ -118,7 +122,9 @@ export const getByExternalRef = authQuery(
 
 export const upsert = authMutation(
   reconciliationShape,
-  async (ctx: any, args: any, _identity: any) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     validateReconciliationArgs(args);
 
     const cashAccount = await ctx.db.get(args.cashAccountId);
@@ -173,11 +179,12 @@ export const updateWorkflowState = authMutation(
       })
     ),
   },
-  async (ctx: any, args: any, _identity: any) => {
+  async (ctx: any, args: any, identity: any) => {
     const reconciliation = await ctx.db.get(args.reconciliationId);
     if (!reconciliation) {
       throw new Error("Reconciliation not found.");
     }
+    await requireCompanyAccessById(ctx, identity, reconciliation.companyId);
 
     await ctx.db.patch(args.reconciliationId, {
       status: args.status,

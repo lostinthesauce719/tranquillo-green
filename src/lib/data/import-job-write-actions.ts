@@ -32,7 +32,7 @@ export async function stageImportJob(
     return {
       ok: true,
       mode: "persisted",
-      message: `Persisted import job ${payload.dataset.fileName} with ${payload.dataset.rows.length} staged rows and saved mapping profile ${payload.dataset.selectedProfile.name}.`,
+      message: `Persisted import job ${payload.dataset.fileName} with ${payload.dataset.rows.length} staged rows, saved mapping profile ${payload.dataset.selectedProfile.name}, and refreshed persisted validation state.`,
       item: { jobId: job?._id },
     };
   } catch (error) {
@@ -70,7 +70,7 @@ export async function promoteImportJob(
     return {
       ok: true,
       mode: "persisted",
-      message: `Promoted ${result.promotedCount} import row${result.promotedCount === 1 ? "" : "s"} into persisted transactions and skipped ${result.skippedCount}.`,
+      message: `Promoted ${result.promotedCount} import row${result.promotedCount === 1 ? "" : "s"} into persisted transactions, skipped ${result.skippedCount}, and set the import job to ${String(result.status).replaceAll("_", " ")}.`,
       item: {
         jobId: payload.jobId,
         promotedCount: result.promotedCount,

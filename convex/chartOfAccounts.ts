@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { authQuery, authMutation } from "./lib/withAuth";
+import { authQuery, authMutation, requireCompanyAccessById } from "./lib/withAuth";
 
 const accountCategory = v.union(
   v.literal("asset"),
@@ -17,7 +17,9 @@ export const listByCompany = authQuery(
     companyId: v.id("cannabisCompanies"),
     activeOnly: v.optional(v.boolean()),
   },
-  async (ctx: any, args: any, _identity: any) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     const accounts = await ctx.db
       .query("chartOfAccounts")
       .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))
@@ -34,7 +36,9 @@ export const getByCode = authQuery(
     companyId: v.id("cannabisCompanies"),
     code: v.string(),
   },
-  async (ctx: any, args: any, _identity: any) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     // Use by_company_code index instead of collect+find
     return (
       await ctx.db
@@ -58,7 +62,9 @@ export const create = authMutation(
     taxTreatment,
     description: v.optional(v.string()),
   },
-  async (ctx: any, args: any, _identity: any) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     // Use by_company_code index instead of collect+find
     const existing = await ctx.db
       .query("chartOfAccounts")
@@ -90,7 +96,9 @@ export const bulkUpsert = authMutation(
       })
     ),
   },
-  async (ctx: any, args: any, _identity: any) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     const results = [] as string[];
 
     const existingAccounts = await ctx.db

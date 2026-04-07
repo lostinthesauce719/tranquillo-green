@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { authQuery, authMutation } from "./lib/withAuth";
+import { authQuery, authMutation, requireCompanyAccessById } from "./lib/withAuth";
 
 const transactionSource = v.union(v.literal("manual"), v.literal("csv_import"), v.literal("metrc_import"), v.literal("pos_import"), v.literal("system"));
 const transactionStatus = v.union(v.literal("draft"), v.literal("posted"), v.literal("needs_review"));
@@ -47,7 +47,9 @@ export const listByCompany = authQuery(
   {
     companyId: v.id("cannabisCompanies"),
   },
-  async (ctx: any, args: any, _identity: any) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     return await ctx.db
       .query("transactions")
       .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))
@@ -60,7 +62,9 @@ export const getByExternalRef = authQuery(
     companyId: v.id("cannabisCompanies"),
     externalRef: v.string(),
   },
-  async (ctx: any, args: any, _identity: any) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     // Use by_company_external_ref index instead of collect+find
     return (
       await ctx.db
@@ -75,7 +79,9 @@ export const getByExternalRef = authQuery(
 
 export const upsert = authMutation(
   transactionShape,
-  async (ctx: any, args: any, _identity: any) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     ensureIsoDate(args.transactionDate, "Transaction date");
     if (args.postedDate) {
       ensureIsoDate(args.postedDate, "Posted date");
@@ -139,7 +145,9 @@ export const createManualJournal = authMutation(
       })
     ),
   },
-  async (ctx: any, args: any, _identity: any) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     ensureIsoDate(args.transactionDate, "Transaction date");
 
     if (!args.memo.trim()) {

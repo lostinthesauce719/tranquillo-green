@@ -20,22 +20,25 @@ export default async function AccountingImportsPage() {
     0,
   );
   const promotedRows = importWorkspace.datasets.reduce((sum, dataset) => sum + dataset.promotedRowCount, 0);
+  const persistedJobs = importWorkspace.datasets.filter((dataset) => dataset.backendMode === "persisted").length;
 
   return (
     <AppShell
       title="Imports"
-      description={
-        importWorkspace.source === "convex"
-          ? "CSV imports now load from the persisted import-job backend when Convex is available, while still falling back safely to demo data during static builds and disconnected runtime."
-          : "CSV import mapping and validation workspace running on the demo-safe fallback path because the persisted Convex import backend is unavailable in this runtime."
-      }
+      description={importWorkspace.sourceDetail}
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label={importWorkspace.source === "convex" ? "Persisted jobs" : "Demo files"} value={String(importWorkspace.datasets.length)} detail="Bank and payroll source formats staged for review" />
+        <MetricCard label={importWorkspace.source === "convex" ? "Persisted jobs" : "Demo files"} value={String(importWorkspace.datasets.length)} detail={importWorkspace.source === "convex" ? `${persistedJobs} jobs are loading from Convex persistence` : "Bank and payroll source formats staged for review"} />
         <MetricCard label="Rows previewed" value={String(totalRows)} detail="Total staged transactions across current imports" />
         <MetricCard label="Warnings" value={String(warningRows)} detail="Rows that need support or accounting review before post" />
         <MetricCard label="Promoted rows" value={String(promotedRows)} detail={`${errorRows} blocked row${errorRows === 1 ? "" : "s"} still need repair`} />
       </div>
+
+      {importWorkspace.fallbackReason ? (
+        <section className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100">
+          Demo fallback active: {importWorkspace.fallbackReason}
+        </section>
+      ) : null}
 
       <div className="mt-6 grid gap-4 xl:grid-cols-[1.7fr_1fr]">
         <section className="rounded-2xl border border-border bg-surface-mid p-5">

@@ -19,10 +19,13 @@ function mapDemoDataset(dataset: DemoImportDataset): ImportWorkspaceDataset {
     ...dataset,
     backendMode: "demo",
     persistedStatus: "validated",
+    persistedStatusReason: "Demo dataset ships prevalidated so operators can review mapping and promotion behavior without writing to Convex.",
     promotedRowCount: 0,
     promotionReadyCount: dataset.rows.filter((row) => row.status !== "error").length,
     blockedRowCount: dataset.rows.filter((row) => row.status === "error").length,
     appliedProfileId: dataset.profiles[0]?.id ?? "",
+    profilePersistence: "demo_only",
+    selectedProfileName: dataset.profiles[0]?.name,
     sourceFileSizeBytes: undefined,
     sourceContentType: "text/csv",
     sourceChecksum: undefined,
@@ -198,6 +201,38 @@ function formatTimestamp(timestamp: number) {
   return new Date(timestamp).toISOString().slice(0, 16).replace("T", " ");
 }
 
+function persistedStatusReason(job: any) {
+  if (job.status === "uploaded") {
+    return job.notes || "Import file was captured, but required mappings still need review before validation can complete.";
+  }
+  if (job.status === "mapped") {
+    return job.notes || "Mapping profile is saved, but one or more rows still have blocking validation issues.";
+  }
+  if (job.status === "validated") {
+    return "Mappings and row validation are complete. Eligible rows can be promoted into the transaction review queue.";
+  }
+  if (job.status === "partially_promoted") {
+    return "At least one row has already been promoted, but additional eligible or blocked rows still remain on the import job.";
+  }
+  if (job.status === "promoted") {
+    return "All eligible rows were promoted into persisted transactions.";
+  }
+  return job.notes || "Import job needs operator attention before it can advance.";
+}
+
+function profilePersistence(job: any): ImportWorkspaceDataset["profilePersistence"] {
+  const hasPersistedProfile = Boolean(job.importMappingProfileId);
+  const selectedMappings = JSON.stringify(job.profile?.fieldMappings ?? {});
+  const effectiveMappings = JSON.stringify(job.effectiveMappings ?? {});
+  if (!hasPersistedProfile) {
+    return "snapshot_only";
+  }
+  if (selectedMappings !== effectiveMappings) {
+    return "saved_with_overrides";
+  }
+  return "saved";
+}
+
 async function loadConvexImportWorkspace(slug: string): Promise<ImportWorkspace | null> {
   const client = await getAuthenticatedConvexClient();
   if (!client) {
@@ -218,10 +253,13 @@ async function loadConvexImportWorkspace(slug: string): Promise<ImportWorkspace 
     jobId: job._id,
     backendMode: "persisted",
     persistedStatus: job.status,
+    persistedStatusReason: persistedStatusReason(job),
     promotedRowCount: job.promotedRowCount ?? 0,
     promotionReadyCount: job.rows.filter((row: any) => row.status !== "error" && !row.promotedTransactionId).length,
     blockedRowCount: job.rows.filter((row: any) => row.status === "error").length,
     appliedProfileId: job.profile?.id ?? "",
+    profilePersistence: profilePersistence(job),
+    selectedProfileName: job.profile?.name,
     fileName: job.sourceFileName,
     source: job.sourceSystem,
     periodLabel: job.periodLabel ?? accountingWorkspace.reportingPeriods[0]?.label ?? "Current period",
@@ -249,6 +287,8 @@ async function loadConvexImportWorkspace(slug: string): Promise<ImportWorkspace 
 
   return {
     source: "convex",
+    sourceLabel: "Persisted Convex import workspace",
+    sourceDetail: "Import jobs, mapping profiles, validation results, and promotion state are loading from Convex for this company.",
     datasets,
     pipelineStages: buildPipelineStages(datasets, accountingWorkspace.transactions),
   };
@@ -259,6 +299,9 @@ export async function loadImportWorkspace(slug = DEMO_COMPANY_SLUG): Promise<Imp
     return (
       (await loadConvexImportWorkspace(slug)) ?? {
         source: "demo",
+        sourceLabel: "Demo fallback import workspace",
+        sourceDetail: "This runtime could not reach the persisted import-job backend, so the workspace is rendering seeded demo datasets only.",
+        fallbackReason: "No authenticated Convex client was available for import workspace queries.",
         datasets: demoImportDatasets.map(mapDemoDataset),
         pipelineStages: buildDemoPipelineStages(),
       }
@@ -266,6 +309,9 @@ export async function loadImportWorkspace(slug = DEMO_COMPANY_SLUG): Promise<Imp
   } catch {
     return {
       source: "demo",
+      sourceLabel: "Demo fallback import workspace",
+      sourceDetail: "This runtime could not reach the persisted import-job backend, so the workspace is rendering seeded demo datasets only.",
+      fallbackReason: "Import workspace query failed and was downgraded to demo data.",
       datasets: demoImportDatasets.map(mapDemoDataset),
       pipelineStages: buildDemoPipelineStages(),
     };

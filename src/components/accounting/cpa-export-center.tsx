@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
+import type { ExportPacketMutation, WriteResult } from "@/lib/accounting-write-contracts";
 import type {
   DemoAutomationAgent,
   DemoExportBundle,
@@ -72,21 +73,29 @@ function toggleValue(list: string[], value: string) {
 }
 
 export function CpaExportCenter({
+  companySlug,
+  historySource,
   bundles,
   checklist,
   history,
+  auditTrail,
   agents,
   featuredReconciliationHref,
 }: {
+  companySlug: string;
+  historySource: "demo" | "convex";
   bundles: DemoExportBundle[];
   checklist: DemoPacketChecklistItem[];
   history: DemoGenerationHistoryItem[];
+  auditTrail: DemoGenerationHistoryItem[];
   agents: DemoAutomationAgent[];
   featuredReconciliationHref: string;
 }) {
   const fallbackBundle = bundles[0];
   const [builderState, setBuilderState] = useState<BuilderState>(() => buildInitialState(fallbackBundle, checklist));
   const [demoHistory, setDemoHistory] = useState(history);
+  const [buildMessage, setBuildMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const selectedBundle = bundles.find((bundle) => bundle.id === builderState.selectedBundleId) ?? fallbackBundle;
   const selectedChecklistItems = checklist.filter((item) => builderState.selectedChecklistTitles.includes(item.title));
@@ -107,6 +116,56 @@ export function CpaExportCenter({
     [builderState],
   );
 
+  async function persistPacketBuild() {
+    const action = selectedChecklistStatuses.has("missing") ? "Held export packet" : "Generated bundle";
+    const detail = `Prepared ${selectedBundle.name} with ${builderState.selectedSchedules.length} sections in ${builderState.selectedFormats.length} output format${builderState.selectedFormats.length === 1 ? "" : "s"} using ${builderState.coverMemoMode.replaceAll("_", " ")} framing.`;
+    const payload: ExportPacketMutation = {
+      companySlug,
+      bundleId: selectedBundle.id,
+      bundleName: selectedBundle.name,
+      periodLabel: selectedBundle.periodLabel,
+      recipient: selectedBundle.recipient,
+      owner: selectedBundle.owner,
+      status: selectedChecklistStatuses.has("missing") ? "held" : "generated",
+      selectedFormats: builderState.selectedFormats,
+      selectedSchedules: builderState.selectedSchedules,
+      selectedChecklistTitles: builderState.selectedChecklistTitles,
+      coverMemoMode: builderState.coverMemoMode,
+      includeDeliveryNotes: builderState.includeDeliveryNotes,
+      detail,
+      blockers: selectedBundle.blockers,
+    };
+
+    setIsSaving(true);
+    try {
+      const response = await fetch("/api/accounting/export-packets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = (await response.json()) as WriteResult<DemoGenerationHistoryItem> & { message?: string };
+      if (!response.ok || !result.item) {
+        throw new Error(result.message ?? "Could not save export packet history.");
+      }
+
+      setBuilderState((current) => ({ ...current, buildCount: current.buildCount + 1 }));
+      setDemoHistory((current) => [result.item!, ...current]);
+      setBuildMessage(result.message ?? `${action} for ${selectedBundle.name}.`);
+    } catch (error) {
+      const fallbackEntry: DemoGenerationHistoryItem = {
+        timestampLabel: `Demo build #${builderState.buildCount + 1}`,
+        actor: selectedBundle.owner,
+        action,
+        detail,
+      };
+      setBuilderState((current) => ({ ...current, buildCount: current.buildCount + 1 }));
+      setDemoHistory((current) => [fallbackEntry, ...current]);
+      setBuildMessage(error instanceof Error ? error.message : "Could not save export packet history.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
@@ -118,7 +177,7 @@ export function CpaExportCenter({
               <p className="mt-2 text-sm text-text-muted">Static packet builder with demo controls for selecting bundle sections, export formats, memo style, and readiness attachments before generating a mock handoff event.</p>
             </div>
             <div className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-muted">
-              Demo-backed generation only
+              {historySource === "convex" ? "Persisted packet history enabled" : "Demo-backed generation only"}
             </div>
           </div>
 
@@ -257,27 +316,16 @@ export function CpaExportCenter({
                     </label>
                     <button
                       type="button"
+                      disabled={isSaving}
                       onClick={() => {
-                        const eventTime = `Demo build #${builderState.buildCount + 1}`;
-                        setBuilderState((current) => ({
-                          ...current,
-                          buildCount: current.buildCount + 1,
-                        }));
-                        setDemoHistory((current) => [
-                          {
-                            timestampLabel: eventTime,
-                            actor: "Packet builder",
-                            action: `Assembled ${selectedBundle.name}`,
-                            detail: `Prepared ${builderState.selectedSchedules.length} sections in ${builderState.selectedFormats.length} output formats with ${builderState.coverMemoMode.replaceAll("_", " ")} framing.`,
-                          },
-                          ...current,
-                        ]);
+                        void persistPacketBuild();
                       }}
-                      className="rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-3 text-sm text-violet-100 transition hover:bg-violet-500/20"
+                      className="rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-3 text-sm text-violet-100 transition hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      Assemble demo packet
+                      {isSaving ? "Saving packet history..." : historySource === "convex" ? "Assemble + persist packet" : "Assemble demo packet"}
                     </button>
                   </div>
+                  {buildMessage ? <div className="mt-4 text-sm text-text-muted">{buildMessage}</div> : null}
                 </div>
               </div>
             </section>
@@ -371,21 +419,45 @@ export function CpaExportCenter({
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <div className="rounded-2xl border border-border bg-surface-mid p-5">
-          <div className="text-xs uppercase tracking-[0.2em] text-accent">Generation history</div>
-          <div className="mt-4 space-y-3">
-            {demoHistory.map((entry) => (
-              <div key={`${entry.timestampLabel}-${entry.action}`} className="rounded-2xl border border-border bg-surface p-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="font-medium">{entry.action}</div>
-                    <div className="mt-1 text-sm text-text-muted">{entry.actor}</div>
+        <div className="space-y-6">
+          <div className="rounded-2xl border border-border bg-surface-mid p-5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-xs uppercase tracking-[0.2em] text-accent">Generation history</div>
+              <AccountingStatusBadge label={historySource === "convex" ? "persisted" : "demo"} tone={historySource === "convex" ? "emerald" : "slate"} className="capitalize" />
+            </div>
+            <div className="mt-4 space-y-3">
+              {demoHistory.map((entry) => (
+                <div key={`${entry.timestampLabel}-${entry.action}`} className="rounded-2xl border border-border bg-surface p-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="font-medium">{entry.action}</div>
+                      <div className="mt-1 text-sm text-text-muted">{entry.actor}</div>
+                    </div>
+                    <div className="text-sm text-text-muted">{entry.timestampLabel}</div>
                   </div>
-                  <div className="text-sm text-text-muted">{entry.timestampLabel}</div>
+                  <p className="mt-3 text-sm text-text-muted">{entry.detail}</p>
                 </div>
-                <p className="mt-3 text-sm text-text-muted">{entry.detail}</p>
-              </div>
-            ))}
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-surface-mid p-5">
+            <div className="text-xs uppercase tracking-[0.2em] text-accent">Accounting audit trail</div>
+            <p className="mt-2 text-sm text-text-muted">Recent persisted close, reconciliation, and packet events surfaced alongside the export center when available.</p>
+            <div className="mt-4 space-y-3">
+              {auditTrail.length > 0 ? auditTrail.map((entry) => (
+                <div key={`${entry.timestampLabel}-${entry.action}-${entry.actor}`} className="rounded-2xl border border-border bg-surface p-4">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <div className="font-medium">{entry.action}</div>
+                      <div className="mt-1 text-sm text-text-muted">{entry.actor}</div>
+                    </div>
+                    <div className="text-sm text-text-muted">{entry.timestampLabel}</div>
+                  </div>
+                  <p className="mt-3 text-sm text-text-muted">{entry.detail}</p>
+                </div>
+              )) : <div className="rounded-2xl border border-dashed border-border bg-surface px-4 py-4 text-sm text-text-muted">No persisted accounting audit events have been recorded yet for this tenant.</div>}
+            </div>
           </div>
         </div>
 

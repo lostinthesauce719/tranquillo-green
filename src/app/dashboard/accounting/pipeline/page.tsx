@@ -22,11 +22,7 @@ export default async function AccountingPipelinePage() {
   return (
     <AppShell
       title="Transaction pipeline"
-      description={
-        importWorkspace.source === "convex"
-          ? "Imported-to-posted accounting board powered by persisted import jobs and transactions when Convex is available, with the same demo-safe fallback pattern used elsewhere in accounting."
-          : "Imported-to-posted accounting board rendered from demo-safe fallback data because the persisted Convex runtime is unavailable."
-      }
+      description={importWorkspace.sourceDetail}
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Imported rows" value={String(imported?.cards.length ?? 0)} detail={`${imported?.blockerCount ?? 0} imports still blocked before queue handoff`} />
@@ -34,6 +30,12 @@ export default async function AccountingPipelinePage() {
         <MetricCard label="Ready to post" value={String(ready?.cards.length ?? 0)} detail={currencyFormatter.format(ready?.totalAmount ?? 0)} />
         <MetricCard label="Posted" value={String(posted?.cards.length ?? 0)} detail={`${totalBlockers} total blockers tracked across the pipeline`} />
       </div>
+
+      {importWorkspace.fallbackReason ? (
+        <section className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100">
+          Demo fallback active: {importWorkspace.fallbackReason}
+        </section>
+      ) : null}
 
       <div className="mt-6 grid gap-4 xl:grid-cols-[1.5fr_1fr]">
         <section className="rounded-2xl border border-border bg-surface-mid p-5">

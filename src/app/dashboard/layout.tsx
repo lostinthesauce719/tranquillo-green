@@ -15,23 +15,49 @@ export default async function DashboardLayout({
   const user = await currentUser();
   if (!user) redirect("/sign-in");
 
+  let persistedTenant:
+    | {
+        companyId: string;
+        companySlug: string;
+        companyName: string;
+        role: "owner" | "controller" | "accountant" | "viewer";
+      }
+    | null = null;
+
   try {
     const client = await getAuthenticatedConvexClient();
     if (client) {
       await client.mutation((anyApi as any).users.getOrCreateUser, {});
+      const tenant = await client.query((anyApi as any).users.getCurrentTenant, {});
+      if (tenant?.company?._id) {
+        persistedTenant = {
+          companyId: tenant.company._id,
+          companySlug: tenant.company.slug,
+          companyName: tenant.company.name,
+          role: (tenant.user?.role ?? "viewer") as "owner" | "controller" | "accountant" | "viewer",
+        };
+      }
     }
   } catch {
     // User sync is best-effort; the dashboard should still render.
   }
 
   const companySlug =
-    (user.publicMetadata?.companySlug as string) || DEMO_COMPANY_SLUG;
+    persistedTenant?.companySlug ||
+    (user.publicMetadata?.companySlug as string) ||
+    DEMO_COMPANY_SLUG;
   const companyName =
-    (user.publicMetadata?.companyName as string) || "Golden State Greens, LLC";
+    persistedTenant?.companyName ||
+    (user.publicMetadata?.companyName as string) ||
+    "Golden State Greens, LLC";
   const companyId =
-    (user.publicMetadata?.companyId as string) || DEMO_COMPANY_SLUG;
+    persistedTenant?.companyId ||
+    (user.publicMetadata?.companyId as string) ||
+    DEMO_COMPANY_SLUG;
   const role =
-    (user.publicMetadata?.role as string) || "owner";
+    persistedTenant?.role ||
+    (user.publicMetadata?.role as "owner" | "controller" | "accountant" | "viewer") ||
+    "owner";
 
   return (
     <TenantShell
@@ -39,7 +65,7 @@ export default async function DashboardLayout({
         companyId,
         companySlug,
         companyName,
-        role: role as "owner" | "controller" | "accountant" | "viewer",
+        role,
       }}
     >
       {children}

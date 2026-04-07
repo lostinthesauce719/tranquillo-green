@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { authQuery, authMutation } from "./lib/withAuth";
+import { authQuery, authMutation, requireCompanyAccessById } from "./lib/withAuth";
 
 const periodStatus = v.union(v.literal("open"), v.literal("review"), v.literal("closed"));
 
@@ -25,7 +25,9 @@ export const listByCompany = authQuery(
   {
     companyId: v.id("cannabisCompanies"),
   },
-  async (ctx: any, args: any, _identity: any) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     const periods = await ctx.db
       .query("reportingPeriods")
       .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))
@@ -39,7 +41,9 @@ export const getCurrentPeriod = authQuery(
   {
     companyId: v.id("cannabisCompanies"),
   },
-  async (ctx: any, args: any, _identity: any) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     const periods = await ctx.db
       .query("reportingPeriods")
       .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))
@@ -56,7 +60,9 @@ export const getByLabel = authQuery(
     companyId: v.id("cannabisCompanies"),
     label: v.string(),
   },
-  async (ctx: any, args: any, _identity: any) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     // Use by_company_label index instead of collect+find
     return (
       await ctx.db
@@ -88,7 +94,9 @@ export const create = authMutation(
     blockers: v.optional(v.array(v.string())),
     highlights: v.optional(v.array(v.string())),
   },
-  async (ctx: any, args: any, _identity: any) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     ensureIsoDate(args.startDate, "Reporting period start date");
     ensureIsoDate(args.endDate, "Reporting period end date");
     if (args.startDate > args.endDate) {
@@ -121,11 +129,12 @@ export const updateStatus = authMutation(
     periodId: v.id("reportingPeriods"),
     status: periodStatus,
   },
-  async (ctx: any, args: any, _identity: any) => {
+  async (ctx: any, args: any, identity: any) => {
     const period = await ctx.db.get(args.periodId);
     if (!period) {
       throw new Error("Reporting period not found.");
     }
+    await requireCompanyAccessById(ctx, identity, period.companyId);
     await ctx.db.patch(args.periodId, { status: args.status });
     return await ctx.db.get(args.periodId);
   },
@@ -143,11 +152,12 @@ export const updateWorkflowState = authMutation(
     lockedAt: v.optional(v.string()),
     highlights: v.optional(v.array(v.string())),
   },
-  async (ctx: any, args: any, _identity: any) => {
+  async (ctx: any, args: any, identity: any) => {
     const period = await ctx.db.get(args.periodId);
     if (!period) {
       throw new Error("Reporting period not found.");
     }
+    await requireCompanyAccessById(ctx, identity, period.companyId);
     validateTaskSummary(args.taskSummary);
     if (args.lockedAt) {
       ensureIsoDate(args.lockedAt, "Reporting period lock date");

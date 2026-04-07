@@ -1,9 +1,15 @@
 import { v } from "convex/values";
-import { authQuery, authMutation } from "./lib/withAuth";
+import { authQuery, authMutation, getCurrentUserRecord, requireCompanyAccessById, requireCompanyAccessBySlug } from "./lib/withAuth";
 
 export const list = authQuery(
   {},
-  async (ctx: any, _args: any, _identity: any) => {
+  async (ctx: any, _args: any, identity: any) => {
+    const user = await getCurrentUserRecord(ctx, identity);
+    if (user?.companyId) {
+      const company = await ctx.db.get(user.companyId);
+      return company ? [company] : [];
+    }
+
     return await ctx.db.query("cannabisCompanies").collect();
   },
 );
@@ -12,11 +18,8 @@ export const getBySlug = authQuery(
   {
     slug: v.string(),
   },
-  async (ctx: any, args: any, _identity: any) => {
-    return await ctx.db
-      .query("cannabisCompanies")
-      .withIndex("by_slug", (q: any) => q.eq("slug", args.slug))
-      .unique();
+  async (ctx: any, args: any, identity: any) => {
+    return await requireCompanyAccessBySlug(ctx, identity, args.slug);
   },
 );
 
@@ -36,7 +39,12 @@ export const create = authMutation(
     defaultAccountingMethod: v.union(v.literal("cash"), v.literal("accrual")),
     status: v.union(v.literal("onboarding"), v.literal("active"), v.literal("inactive")),
   },
-  async (ctx: any, args: any, _identity: any) => {
+  async (ctx: any, args: any, identity: any) => {
+    const user = await getCurrentUserRecord(ctx, identity);
+    if (user?.companyId) {
+      throw new Error("Authenticated users can only create data inside their assigned company.");
+    }
+
     const existing = await ctx.db
       .query("cannabisCompanies")
       .withIndex("by_slug", (q: any) => q.eq("slug", args.slug))
@@ -55,7 +63,9 @@ export const updateStatus = authMutation(
     companyId: v.id("cannabisCompanies"),
     status: v.union(v.literal("onboarding"), v.literal("active"), v.literal("inactive")),
   },
-  async (ctx: any, args: any, _identity: any) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     await ctx.db.patch(args.companyId, {
       status: args.status,
     });

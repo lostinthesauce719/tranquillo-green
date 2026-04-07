@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { authQuery, authMutation } from "./lib/withAuth";
+import { authQuery, authMutation, requireCompanyAccessById, requireCompanyAccessBySlug } from "./lib/withAuth";
 
 const importAmountStrategy = v.union(v.literal("single_signed"), v.literal("split_debit_credit"));
 const importRowStatus = v.union(v.literal("ready"), v.literal("warning"), v.literal("error"));
@@ -214,8 +214,8 @@ export const getWorkspaceBySlug = authQuery(
   {
     slug: v.string(),
   },
-  async (ctx: any, args: any, _identity: any) => {
-    const company = await ctx.db.query("cannabisCompanies").withIndex("by_slug", (q: any) => q.eq("slug", args.slug)).unique();
+  async (ctx: any, args: any, identity: any) => {
+    const company = await requireCompanyAccessBySlug(ctx, identity, args.slug);
     if (!company) {
       return null;
     }
@@ -305,7 +305,9 @@ export const stageDemoImportJob = authMutation(
     companyId: v.id("cannabisCompanies"),
     dataset: stageDatasetValidator,
   },
-  async (ctx: any, args: any, _identity: any) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     const company = await ctx.db.get(args.companyId);
     if (!company) {
       throw new Error("Company not found.");
@@ -378,7 +380,7 @@ export const stageDemoImportJob = authMutation(
       };
     });
 
-    const jobStatus = validationSummary.error > 0 ? "mapped" : "validated";
+    const jobStatus = mappingIssues.length > 0 ? "uploaded" : validationSummary.error > 0 ? "mapped" : "validated";
     const jobPayload = {
       companyId: args.companyId,
       periodId: period?._id,
@@ -452,7 +454,9 @@ export const promoteJobToTransactions = authMutation(
     companyId: v.id("cannabisCompanies"),
     jobId: v.id("importJobs"),
   },
-  async (ctx: any, args: any, _identity: any) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     const job = await ctx.db.get(args.jobId);
     if (!job || job.companyId !== args.companyId) {
       throw new Error("Import job not found.");
@@ -576,20 +580,24 @@ export const promoteJobToTransactions = authMutation(
     }
 
     const refreshedRows = await ctx.db.query("importJobRows").withIndex("by_job", (q: any) => q.eq("importJobId", args.jobId)).collect();
+    const promotedRowCount = refreshedRows.filter((row: any) => Boolean(row.promotedTransactionId)).length;
+    const promotableRowCount = refreshedRows.filter((row: any) => row.status !== "error").length;
     const unpromotedEligibleCount = refreshedRows.filter((row: any) => row.status !== "error" && !row.promotedTransactionId).length;
     const blockedCount = refreshedRows.filter((row: any) => row.status === "error").length;
-    const nextStatus = promotedCount === 0
+    const nextStatus = promotedRowCount === 0
       ? blockedCount > 0
         ? "mapped"
-        : job.status
-      : unpromotedEligibleCount === 0
+        : "validated"
+      : promotedRowCount >= promotableRowCount
         ? blockedCount > 0
           ? "partially_promoted"
           : "promoted"
-        : "partially_promoted";
+        : unpromotedEligibleCount > 0 || blockedCount > 0
+          ? "partially_promoted"
+          : "validated";
 
     await ctx.db.patch(job._id, {
-      promotedRowCount: refreshedRows.filter((row: any) => Boolean(row.promotedTransactionId)).length,
+      promotedRowCount,
       status: nextStatus,
       validationSummary: {
         ready: refreshedRows.filter((row: any) => row.status === "ready").length,
