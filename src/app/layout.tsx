@@ -7,6 +7,8 @@ export const metadata: Metadata = {
   description: "Cannabis accounting, compliance, and operations platform.",
 };
 
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
