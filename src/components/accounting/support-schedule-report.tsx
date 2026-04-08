@@ -149,7 +149,7 @@ export function SupportScheduleReport({ report }: { report: DemoSupportScheduleR
             </thead>
             <tbody className="divide-y divide-border">
               {report.lineItems.map((row) => (
-                <tr key={row.scheduleId} className="align-top transition hover:bg-surface/60">
+                <tr id={row.scheduleId} key={row.scheduleId} className="align-top scroll-mt-24 transition hover:bg-surface/60">
                   <td className="px-4 py-4">
                     <div className="font-medium text-text-primary">{row.scheduleId} · {row.accountCode} {row.accountName}</div>
                     <div className="mt-1 text-xs text-text-muted">{row.periodLabel} • {row.location}</div>

@@ -39,10 +39,11 @@ CLERK_JWT_ISSUER_DOMAIN=https://grand-wallaby-27.clerk.accounts.dev
 Cannabis accounting, compliance, and operations platform under Tranquillo Labs.
 
 Current repo status:
-- Phase 1 scaffold for the accounting/compliance MVP
+- Strong demo-backed workflow shell for cannabis accounting / close
+- Strategic execution roadmap now organized around defensible decisions, guided certainty, imports, visible trust, transparent automation, and CPA leverage
 - Exact schema plan and route map documented in `docs/`
 - Static dashboard shell and module pages scaffolded
-- Convex schema skeleton for cannabis domain tables
+- Partial Convex-backed accounting persistence is in place
 
 ## MVP Focus
 California-first accounting/compliance wedge:
@@ -92,5 +93,8 @@ curl -X POST http://localhost:3000/api/accounting/seed -H "Content-Type: applica
 The response includes a summary of seeded records (accounts, periods, transactions, reconciliations, import jobs).
 
 ## Key Docs
+- `docs/2026-04-04-green-phased-execution-roadmap.md`
+- `docs/2026-04-06-green-phase-2-checklist.md`
+- `docs/2026-04-04-github-backlog.md`
 - `docs/2026-04-04-green-schema-and-route-map.md`
 - `docs/2026-04-04-green-phase-1-implementation-plan.md`

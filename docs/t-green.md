@@ -1,83 +1,62 @@
 # T-Green — History + Memory
 
-Last updated: 2026-04-06
+Last updated: 2026-04-08
 
 ## Snapshot
 - Repo: Tranquillo Green (cannabis accounting/compliance)
-- Current state: Phase 1 demo MVP shell mostly complete
-- Demo-grade MVP estimate: ~60%
-- Real deployable product estimate: ~30–35%
+- Current state: strong demo-backed workflow shell with partial persisted accounting core
+- Workflow shell / demo UX: ~85%
+- Real deployable product readiness: ~15-20%
+- Strategic build order now centers on trusted accounting execution, not generic phase progression
 
-## Phase Status (from roadmap)
-- Phase 1 (Demo MVP shell): 90%
-- Phase 2 (Persistent accounting core): 15%
-- Phase 3 (Import + review pipeline): 10%
-- Phase 4 (Close engine + auditability): 20%
-- Phase 5 (Auth + multi-tenant): 10%
-- Phase 6 (Production hardening + automation): 5%
+## Strategic roadmap order
+1. Defensible Decisions
+2. Guided Certainty
+3. Mess In -> Order Out imports
+4. Visible Trust
+5. Transparent Automation
+6. CPA Leverage
+7. Broader decision intelligence
 
-## Phase 1 — Remaining
-- Broader browser QA pass across all routes
-- Tighten weak placeholder modules or hide them
-- Refresh README/docs to match actual shipped flows
+## Current emphasis by pillar
+### Defensible Decisions
+- Core Convex persistence for companies, chart of accounts, periods, transactions, and reconciliations is in place
+- Accounting workspace prefers Convex-backed data when configured
+- Manual journals, period status changes, and reconciliation actions can persist
+- Remaining work: remove lingering demo-state dependencies, add stronger decision metadata, verify end-to-end seeded story
 
-## Phase 2 — Persistent accounting core (remaining)
-- Cannabis companies persistence in Convex
-- Chart of accounts persistence
-- Reporting periods persistence
-- Transactions + transactionLines persistence
-- Cash reconciliations persistence
-- Seed backend demo org matching current UI story
-- Ensure all accounting pages load from Convex (no demo constants)
-- Persist period status changes
-- Persist reconciliation state
+### Guided Certainty
+- UI shell exists for dashboard, queues, review, and close flows
+- Remaining work: compute readiness from live state, formalize review-state transitions, persist overrides and signoff history
 
-## Phase 3 — Real import + review pipeline (remaining)
-- ImportJob model + source file metadata
-- Mapping profile persistence
-- Row-level validation results
-- Promote imported rows into transactions
-- Posting state transitions: imported → needs review → ready → posted
-- Reopenable import jobs
-- Review queue derived from stored records
-- Transaction detail pages reflect live posting state
+### Mess In -> Order Out imports
+- Import and review UX story exists
+- Remaining work: persist import jobs, mappings, validation results, review workflow, posting transitions, and lineage
 
-## Phase 4 — Live close engine + auditability (remaining)
-- Computed close dashboard readiness from live data
-- Persistent reviewer decisions + override history
-- Support evidence metadata / attachments registry
-- Packet generation history persistence
-- Export bundle records
-- Close signoff actions + history
-- Support schedule ties to persisted source records
+### Visible Trust
+- Trust surfaces are implied in exports / close workflows but not yet systematized
+- Remaining work: evidence registry, packet history, export provenance, audit timelines, support traceability
 
-## Phase 5 — Multi-user, tenant-aware, deploy credible (remaining)
-- Clerk auth flows
-- Company/org boundary in app shell
-- Role-aware views (owner, accountant, controller)
-- Protected routes
-- Seeded multi-tenant demo story
-- Authenticated app shell
-- User role affects visible actions
-- Company data isolated by tenant
+### Transparent Automation
+- Automation control surface exists but is largely descriptive
+- Remaining work: real scheduled / triggered jobs, run history, visible outputs, review boundaries
 
-## Phase 6 — Production hardening + live automation (remaining)
-- Deployment-ready env setup
-- CI for lint/typecheck/build
-- Broader browser QA + bugfix sweep
-- Real scheduled/triggered automation jobs or service stubs
-- Finish or hide shallow modules: Inventory, Compliance, Settings
-- Demo/deploy package + operator walkthrough
+### CPA Leverage
+- Export center and packet builder demo story exist
+- Remaining work: auth, tenancy, role-aware views, persisted packet outputs, CPA-facing handoff credibility
 
-## Recommended build order
-1. Persistent accounting core
-2. Real import jobs and posting pipeline
-3. Computed close engine
-4. Auth + tenant boundaries
-5. Persistent audit trail + packet generation history
-6. Production hardening + automation jobs
+### Broader decision intelligence
+- Explicitly deferred until trust foundation is materially complete
 
-## Notes
-- Phase 1 doc: docs/2026-04-04-green-phase-1-implementation-plan.md
+## Immediate priorities
+1. Finish Defensible Decisions foundation
+2. Turn Guided Certainty into live review logic
+3. Make Mess In -> Order Out a real import pipeline
+4. Add Visible Trust artifacts and history
+5. Only then deepen automation and CPA leverage
+
+## Key docs
 - Roadmap: docs/2026-04-04-green-phased-execution-roadmap.md
+- Execution checklist: docs/2026-04-06-green-phase-2-checklist.md
 - Backlog: docs/2026-04-04-github-backlog.md
+- Schema / routes: docs/2026-04-04-green-schema-and-route-map.md

@@ -12,6 +12,11 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
 
 export default function AllocationHistoryPage() {
   const summary = summarizeAllocationHistory(demoAllocationReviewQueue);
+  const supportGapCount = demoAllocationReviewQueue.reduce(
+    (sum, item) => sum + item.supportLinks.filter((link) => link.status === "missing").length,
+    0,
+  );
+  const similarDecisionCount = demoAllocationReviewQueue.reduce((sum, item) => sum + item.similarDecisions.length, 0);
 
   return (
     <AppShell
@@ -21,8 +26,8 @@ export default function AllocationHistoryPage() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Items with history" value={String(summary.itemCount)} detail="Recommendation, override, and approval events preserved" />
         <MetricCard label="Manual overrides" value={String(summary.overrideCount)} detail="Events where deductible treatment changed after review" />
-        <MetricCard label="Policy exceptions" value={String(summary.policyExceptionCount)} detail="Controller memo-backed exception decisions" />
-        <MetricCard label="Deductible shift tracked" value={currencyFormatter.format(summary.totalShiftAmount)} detail={`${summary.supportRequestCount} support request events remain in audit trail`} />
+        <MetricCard label="Support gaps preserved" value={String(supportGapCount)} detail={`${summary.supportRequestCount} support request events remain in audit trail`} />
+        <MetricCard label="Prior comparables surfaced" value={String(similarDecisionCount)} detail={`${summary.policyExceptionCount} controller memo-backed exception decisions`} />
       </div>
 
       <div className="mt-6 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
