@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
 import type { DemoAllocationReviewItem } from "@/lib/demo/accounting-operations";
 
@@ -44,6 +45,24 @@ function priorityTone(priority: DemoAllocationReviewItem["priority"]) {
   }
 }
 
+function confidenceTone(confidence: number) {
+  if (confidence >= 0.9) return "emerald" as const;
+  if (confidence >= 0.7) return "blue" as const;
+  if (confidence >= 0.5) return "amber" as const;
+  return "rose" as const;
+}
+
+function supportTone(status: DemoAllocationReviewItem["supportLinks"][number]["status"]) {
+  switch (status) {
+    case "linked":
+      return "emerald" as const;
+    case "needs_refresh":
+      return "amber" as const;
+    case "missing":
+      return "rose" as const;
+  }
+}
+
 function actionLabel(action: DemoAllocationReviewItem["recommendedAction"]) {
   switch (action) {
     case "approve_split":
@@ -64,19 +83,20 @@ export function AllocationReviewQueue({ items }: { items: DemoAllocationReviewIt
         const total = item.deductibleAmount + item.nondeductibleAmount;
         const deductibleShare = total === 0 ? 0 : (item.deductibleAmount / total) * 100;
         const nondeductibleShare = 100 - deductibleShare;
+        const latestEvent = item.overrideHistory[item.overrideHistory.length - 1];
 
         return (
           <section key={item.id} className="rounded-2xl border border-border bg-surface-mid p-5">
             <div className="flex flex-col gap-4 border-b border-border pb-4 xl:flex-row xl:items-start xl:justify-between">
               <div>
-                <div className="text-xs uppercase tracking-[0.2em] text-accent">{item.periodLabel} • {item.location}</div>
+                <div className="text-xs uppercase tracking-[0.2em] text-accent">{item.periodLabel} • {item.location} • {item.id}</div>
                 <h2 className="mt-2 text-xl font-semibold">{item.accountCode} · {item.accountName}</h2>
                 <p className="mt-2 text-sm text-text-muted">{item.vendor} — {item.memo}</p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <AccountingStatusBadge label={item.reviewStatus.replaceAll("_", " ")} tone={statusTone(item.reviewStatus)} />
                 <AccountingStatusBadge label={`${item.priority} priority`} tone={priorityTone(item.priority)} />
-                <AccountingStatusBadge label={`${Math.round(item.confidence * 100)}% confidence`} tone="slate" />
+                <AccountingStatusBadge label={`${Math.round(item.confidence * 100)}% confidence`} tone={confidenceTone(item.confidence)} />
               </div>
             </div>
 
@@ -84,14 +104,24 @@ export function AllocationReviewQueue({ items }: { items: DemoAllocationReviewIt
               <div className="space-y-4">
                 <div className="grid gap-3 md:grid-cols-2">
                   <div className="rounded-2xl border border-border bg-surface p-4">
-                    <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Allocation basis</div>
-                    <div className="mt-2 font-medium">{basisLabel(item.basis)}</div>
-                    <div className="mt-1 text-sm text-text-muted">{item.driverLabel}: {item.driverValue}</div>
+                    <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Why this item is flagged</div>
+                    <div className="mt-2 font-medium">{basisLabel(item.basis)} review required</div>
+                    <p className="mt-2 text-sm text-text-muted">{item.flagReason}</p>
                   </div>
                   <div className="rounded-2xl border border-border bg-surface p-4">
                     <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Assigned reviewer</div>
                     <div className="mt-2 font-medium">{item.reviewer}</div>
                     <div className="mt-1 text-sm text-text-muted">{item.dueLabel}</div>
+                    <div className="mt-1 text-sm text-text-muted">Last touched {item.lastReviewedAt}</div>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-surface p-4">
+                  <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Decision needed</div>
+                  <div className="mt-2 font-medium">{actionLabel(item.recommendedAction)}</div>
+                  <p className="mt-2 text-sm text-text-muted">{item.decisionRequired}</p>
+                  <div className="mt-4 rounded-xl border border-accent/20 bg-accent/5 p-3 text-sm text-text-primary">
+                    If accepted: {item.acceptedOutcome}
                   </div>
                 </div>
 
@@ -99,15 +129,32 @@ export function AllocationReviewQueue({ items }: { items: DemoAllocationReviewIt
                   <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Policy + method</div>
                   <div className="mt-2 font-medium">{item.policyName}</div>
                   <p className="mt-2 text-sm text-text-muted">{item.policyMethod}</p>
+                  <div className="mt-4 text-sm text-text-muted">{item.driverLabel}: {item.driverValue}</div>
                 </div>
 
                 <div className="rounded-2xl border border-border bg-surface p-4">
-                  <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Supporting evidence</div>
-                  <ul className="mt-3 space-y-2 text-sm text-text-muted">
-                    {item.supportingEvidence.map((evidence) => (
-                      <li key={evidence}>• {evidence}</li>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Linked support and evidence</div>
+                    <Link href="/dashboard/allocations/support-schedule" className="text-xs text-accent transition hover:text-accent/80">
+                      Open support schedule
+                    </Link>
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    {item.supportLinks.map((link) => (
+                      <div key={link.label} className="rounded-xl border border-border bg-background p-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <div className="font-medium text-text-primary">{link.label}</div>
+                            <div className="mt-1 text-sm text-text-muted">{link.documentType}</div>
+                          </div>
+                          <AccountingStatusBadge label={link.status.replaceAll("_", " ")} tone={supportTone(link.status)} className="capitalize" />
+                        </div>
+                        <Link href={link.href} className="mt-3 inline-flex text-xs text-accent transition hover:text-accent/80">
+                          Open linked support
+                        </Link>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
               </div>
 
@@ -138,10 +185,54 @@ export function AllocationReviewQueue({ items }: { items: DemoAllocationReviewIt
                 </div>
 
                 <div className="rounded-2xl border border-border bg-surface p-4">
-                  <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Operator workflow</div>
-                  <div className="mt-3 rounded-xl border border-accent/20 bg-accent/5 px-3 py-3 text-sm text-text-primary">
-                    Recommended next action: {actionLabel(item.recommendedAction)}
+                  <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Tax impact preview</div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-100">
+                      Accepted deductible delta: {currencyFormatter.format(item.taxImpactPreview.acceptedDeductibleDelta)}
+                    </div>
+                    <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-sm text-rose-100">
+                      Accepted 280E-limited delta: {currencyFormatter.format(item.taxImpactPreview.acceptedNondeductibleDelta)}
+                    </div>
                   </div>
+                  <div className="mt-3 text-sm text-text-muted">{item.taxImpactPreview.returnLine}</div>
+                  <p className="mt-2 text-sm text-text-muted">{item.taxImpactPreview.note}</p>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-surface p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Prior similar decisions</div>
+                    <Link href="/dashboard/allocations/history" className="text-xs text-accent transition hover:text-accent/80">
+                      Open override history
+                    </Link>
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    {item.similarDecisions.map((decision) => (
+                      <div key={decision.id} className="rounded-xl border border-border bg-background p-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="font-medium text-text-primary">{decision.periodLabel}</div>
+                          <AccountingStatusBadge label={`${Math.round(decision.deductiblePercent * 100)}% deductible`} tone="slate" />
+                        </div>
+                        <div className="mt-2 text-sm text-text-primary">{decision.outcome}</div>
+                        <p className="mt-2 text-sm text-text-muted">{decision.note}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-surface p-4">
+                  <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Override timeline and reviewer notes</div>
+                  {latestEvent ? (
+                    <div className="mt-3 rounded-xl border border-border bg-background p-3">
+                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <div className="font-medium text-text-primary">{latestEvent.actor} · {latestEvent.role}</div>
+                          <div className="mt-1 text-sm text-text-muted">{latestEvent.timestampLabel}</div>
+                        </div>
+                        <AccountingStatusBadge label={latestEvent.decisionType.replaceAll("_", " ")} tone="blue" />
+                      </div>
+                      <p className="mt-3 text-sm text-text-muted">{latestEvent.reason}</p>
+                    </div>
+                  ) : null}
                   <ul className="mt-3 space-y-2 text-sm text-text-muted">
                     {item.notes.map((note) => (
                       <li key={note}>• {note}</li>

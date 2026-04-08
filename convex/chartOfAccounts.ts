@@ -1,5 +1,5 @@
-import { mutationGeneric, queryGeneric } from "convex/server";
 import { v } from "convex/values";
+import { authQuery, authMutation, requireCompanyAccessById } from "./lib/withAuth";
 
 const accountCategory = v.union(
   v.literal("asset"),
@@ -12,40 +12,47 @@ const accountCategory = v.union(
 
 const taxTreatment = v.union(v.literal("deductible"), v.literal("cogs"), v.literal("nondeductible"));
 
-export const listByCompany = queryGeneric({
-  args: {
+export const listByCompany = authQuery(
+  {
     companyId: v.id("cannabisCompanies"),
     activeOnly: v.optional(v.boolean()),
   },
-  handler: async (ctx, args) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     const accounts = await ctx.db
       .query("chartOfAccounts")
-      .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))
       .collect();
 
     return accounts
-      .filter((account) => (args.activeOnly ? account.isActive : true))
-      .sort((a, b) => a.code.localeCompare(b.code));
+      .filter((account: any) => (args.activeOnly ? account.isActive : true))
+      .sort((a: any, b: any) => a.code.localeCompare(b.code));
   },
-});
+);
 
-export const getByCode = queryGeneric({
-  args: {
+export const getByCode = authQuery(
+  {
     companyId: v.id("cannabisCompanies"),
     code: v.string(),
   },
-  handler: async (ctx, args) => {
-    const accounts = await ctx.db
-      .query("chartOfAccounts")
-      .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
-      .collect();
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
 
-    return accounts.find((account) => account.code === args.code) ?? null;
+    // Use by_company_code index instead of collect+find
+    return (
+      await ctx.db
+        .query("chartOfAccounts")
+        .withIndex("by_company_code", (q: any) =>
+          q.eq("companyId", args.companyId).eq("code", args.code)
+        )
+        .unique()
+    ) ?? null;
   },
-});
+);
 
-export const create = mutationGeneric({
-  args: {
+export const create = authMutation(
+  {
     companyId: v.id("cannabisCompanies"),
     code: v.string(),
     name: v.string(),
@@ -55,13 +62,16 @@ export const create = mutationGeneric({
     taxTreatment,
     description: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
-    const existing = (
-      await ctx.db
-        .query("chartOfAccounts")
-        .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
-        .collect()
-    ).find((account) => account.code === args.code);
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
+    // Use by_company_code index instead of collect+find
+    const existing = await ctx.db
+      .query("chartOfAccounts")
+      .withIndex("by_company_code", (q: any) =>
+        q.eq("companyId", args.companyId).eq("code", args.code)
+      )
+      .unique();
 
     if (existing) {
       return existing._id;
@@ -69,10 +79,10 @@ export const create = mutationGeneric({
 
     return await ctx.db.insert("chartOfAccounts", args);
   },
-});
+);
 
-export const bulkUpsert = mutationGeneric({
-  args: {
+export const bulkUpsert = authMutation(
+  {
     companyId: v.id("cannabisCompanies"),
     accounts: v.array(
       v.object({
@@ -86,16 +96,18 @@ export const bulkUpsert = mutationGeneric({
       })
     ),
   },
-  handler: async (ctx, args) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     const results = [] as string[];
 
     const existingAccounts = await ctx.db
       .query("chartOfAccounts")
-      .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))
       .collect();
 
     for (const account of args.accounts) {
-      const existing = existingAccounts.find((record) => record.code === account.code);
+      const existing = existingAccounts.find((record: any) => record.code === account.code);
 
       if (existing) {
         await ctx.db.patch(existing._id, {
@@ -119,4 +131,4 @@ export const bulkUpsert = mutationGeneric({
 
     return results;
   },
-});
+);

@@ -100,13 +100,11 @@ export function CashReconciliationWorkspace({ items }: { items: DemoCashReconcil
             <div className="flex flex-col gap-4 border-b border-border pb-4 xl:flex-row xl:items-start xl:justify-between">
               <div>
                 <div className="text-xs uppercase tracking-[0.2em] text-accent">{item.periodLabel} • {item.location}</div>
-                <h2 className="mt-2 text-xl font-semibold">{item.accountName}</h2>
-                <p className="mt-2 text-sm text-text-muted">{accountTypeLabel(item.accountType)} workspace owned by {item.owner}. Last counted {item.lastCountedAt}.</p>
+                <h2 className="mt-1.5 text-lg font-semibold">{item.accountName}</h2>
+                <p className="mt-1 text-sm text-text-muted/60">{accountTypeLabel(item.accountType)} · {item.owner} · {item.lastCountedAt}</p>
               </div>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 <AccountingStatusBadge label={item.status.replaceAll("_", " ")} tone={statusTone(item.status)} />
-                <AccountingStatusBadge label={accountTypeLabel(item.accountType)} tone="slate" />
-                {isPending ? <AccountingStatusBadge label="syncing" tone="blue" /> : null}
               </div>
             </div>
 
@@ -147,31 +145,25 @@ export function CashReconciliationWorkspace({ items }: { items: DemoCashReconcil
                   </ul>
                 </div>
 
-                <div className="rounded-2xl border border-border bg-surface p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                      <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Action queue</div>
-                      <p className="mt-2 text-sm text-text-muted">Reconciliation controls now prefer persisted server-backed mutations and safely fall back to demo-safe local behavior when Convex is unavailable.</p>
-                    </div>
-                    <AccountingStatusBadge label="Server-backed with safe fallback" tone="slate" />
-                  </div>
+                <div className="rounded-2xl border border-border bg-surface p-5">
+                  <div className="text-[11px] uppercase tracking-[0.15em] text-text-muted/50">Actions</div>
                   <div className="mt-3 space-y-3">
                     {item.actions.map((action) => (
                       <div key={`${item.id}-${action.title}`} className="rounded-xl border border-border bg-background px-3 py-3">
                         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <div>
-                            <div className="font-medium">{action.title}</div>
-                            <div className="mt-1 text-sm text-text-muted">Owner: {action.owner}</div>
+                            <div className="text-sm font-medium">{action.title}</div>
+                            <div className="mt-0.5 text-xs text-text-muted/50">{action.owner}</div>
                           </div>
                           <AccountingStatusBadge label={action.status.replaceAll("_", " ")} tone={actionTone(action.status)} />
                         </div>
                       </div>
                     ))}
                   </div>
-                  <div className="mt-4 grid gap-3 md:grid-cols-3">
-                    <div className="rounded-xl border border-border bg-background px-3 py-3 text-sm text-text-muted">{noteLabel}</div>
-                    <div className="rounded-xl border border-border bg-background px-3 py-3 text-sm text-text-muted">{varianceLabel}</div>
-                    <div className="rounded-xl border border-border bg-background px-3 py-3 text-sm text-text-muted">{reviewLabel}</div>
+                  <div className="mt-4 flex flex-wrap gap-4 text-xs text-text-muted/40">
+                    <span>{noteLabel}</span>
+                    <span>{varianceLabel}</span>
+                    <span>{reviewLabel}</span>
                   </div>
                   <div className="mt-4 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                     <button

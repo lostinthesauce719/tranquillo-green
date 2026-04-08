@@ -1,6 +1,5 @@
 import "server-only";
 
-import { ConvexHttpClient } from "convex/browser";
 import { anyApi } from "convex/server";
 import { DEMO_COMPANY_SLUG } from "@/lib/data/accounting-core";
 import type {
@@ -8,38 +7,7 @@ import type {
   ImportJobStageSubmission,
   ImportJobWriteResult,
 } from "@/lib/import-job-types";
-
-function getConvexUrl() {
-  const url = process.env.NEXT_PUBLIC_CONVEX_URL?.trim();
-  if (!url || !/^https?:\/\//.test(url)) {
-    return null;
-  }
-  return url;
-}
-
-async function withTimeout<T>(promise: Promise<T>, timeoutMs = 5000): Promise<T> {
-  return await Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      setTimeout(() => reject(new Error(`Timed out after ${timeoutMs}ms`)), timeoutMs);
-    }),
-  ]);
-}
-
-async function getConvexContext(companySlug: string) {
-  const url = getConvexUrl();
-  if (!url) {
-    return null;
-  }
-
-  const client = new ConvexHttpClient(url);
-  const company = await withTimeout(client.query((anyApi as any).cannabisCompanies.getBySlug, { slug: companySlug }));
-  if (!company) {
-    throw new Error(`Configured Convex backend could not find company ${companySlug}.`);
-  }
-
-  return { client, company };
-}
+import { getConvexContext, withTimeout } from "@/lib/data/convex-client";
 
 export async function stageImportJob(
   payload: ImportJobStageSubmission,
@@ -64,7 +32,7 @@ export async function stageImportJob(
     return {
       ok: true,
       mode: "persisted",
-      message: `Persisted import job ${payload.dataset.fileName} with ${payload.dataset.rows.length} staged rows and saved mapping profile ${payload.dataset.selectedProfile.name}.`,
+      message: `Persisted import job ${payload.dataset.fileName} with ${payload.dataset.rows.length} staged rows, saved mapping profile ${payload.dataset.selectedProfile.name}, and refreshed persisted validation state.`,
       item: { jobId: job?._id },
     };
   } catch (error) {
@@ -102,7 +70,7 @@ export async function promoteImportJob(
     return {
       ok: true,
       mode: "persisted",
-      message: `Promoted ${result.promotedCount} import row${result.promotedCount === 1 ? "" : "s"} into persisted transactions and skipped ${result.skippedCount}.`,
+      message: `Promoted ${result.promotedCount} import row${result.promotedCount === 1 ? "" : "s"} into persisted transactions, skipped ${result.skippedCount}, and set the import job to ${String(result.status).replaceAll("_", " ")}.`,
       item: {
         jobId: payload.jobId,
         promotedCount: result.promotedCount,

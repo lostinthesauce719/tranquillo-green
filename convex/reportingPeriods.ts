@@ -1,5 +1,5 @@
-import { mutationGeneric, queryGeneric } from "convex/server";
 import { v } from "convex/values";
+import { authQuery, authMutation, requireCompanyAccessById } from "./lib/withAuth";
 
 const periodStatus = v.union(v.literal("open"), v.literal("review"), v.literal("closed"));
 
@@ -21,50 +21,62 @@ function validateTaskSummary(taskSummary?: { completed: number; total: number })
   }
 }
 
-export const listByCompany = queryGeneric({
-  args: {
+export const listByCompany = authQuery(
+  {
     companyId: v.id("cannabisCompanies"),
   },
-  handler: async (ctx, args) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     const periods = await ctx.db
       .query("reportingPeriods")
-      .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))
       .collect();
 
-    return periods.sort((a, b) => a.startDate.localeCompare(b.startDate));
+    return periods.sort((a: any, b: any) => a.startDate.localeCompare(b.startDate));
   },
-});
+);
 
-export const getCurrentPeriod = queryGeneric({
-  args: {
+export const getCurrentPeriod = authQuery(
+  {
     companyId: v.id("cannabisCompanies"),
   },
-  handler: async (ctx, args) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     const periods = await ctx.db
       .query("reportingPeriods")
-      .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))
       .collect();
 
     return periods
-      .sort((a, b) => b.startDate.localeCompare(a.startDate))
-      .find((period) => period.status === "open" || period.status === "review") ?? null;
+      .sort((a: any, b: any) => b.startDate.localeCompare(a.startDate))
+      .find((period: any) => period.status === "open" || period.status === "review") ?? null;
   },
-});
+);
 
-export const getByLabel = queryGeneric({
-  args: {
+export const getByLabel = authQuery(
+  {
     companyId: v.id("cannabisCompanies"),
     label: v.string(),
   },
-  handler: async (ctx, args) => {
-    return (
-      await ctx.db.query("reportingPeriods").withIndex("by_company", (q) => q.eq("companyId", args.companyId)).collect()
-    ).find((period) => period.label === args.label) ?? null;
-  },
-});
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
 
-export const create = mutationGeneric({
-  args: {
+    // Use by_company_label index instead of collect+find
+    return (
+      await ctx.db
+        .query("reportingPeriods")
+        .withIndex("by_company_label", (q: any) =>
+          q.eq("companyId", args.companyId).eq("label", args.label)
+        )
+        .unique()
+    ) ?? null;
+  },
+);
+
+export const create = authMutation(
+  {
     companyId: v.id("cannabisCompanies"),
     label: v.string(),
     startDate: v.string(),
@@ -82,7 +94,9 @@ export const create = mutationGeneric({
     blockers: v.optional(v.array(v.string())),
     highlights: v.optional(v.array(v.string())),
   },
-  handler: async (ctx, args) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     ensureIsoDate(args.startDate, "Reporting period start date");
     ensureIsoDate(args.endDate, "Reporting period end date");
     if (args.startDate > args.endDate) {
@@ -93,9 +107,13 @@ export const create = mutationGeneric({
     }
     validateTaskSummary(args.taskSummary);
 
-    const existing = (
-      await ctx.db.query("reportingPeriods").withIndex("by_company", (q) => q.eq("companyId", args.companyId)).collect()
-    ).find((period) => period.label === args.label);
+    // Use by_company_label index instead of collect+find
+    const existing = await ctx.db
+      .query("reportingPeriods")
+      .withIndex("by_company_label", (q: any) =>
+        q.eq("companyId", args.companyId).eq("label", args.label)
+      )
+      .unique();
 
     if (existing) {
       await ctx.db.patch(existing._id, args);
@@ -104,25 +122,26 @@ export const create = mutationGeneric({
 
     return await ctx.db.insert("reportingPeriods", args);
   },
-});
+);
 
-export const updateStatus = mutationGeneric({
-  args: {
+export const updateStatus = authMutation(
+  {
     periodId: v.id("reportingPeriods"),
     status: periodStatus,
   },
-  handler: async (ctx, args) => {
+  async (ctx: any, args: any, identity: any) => {
     const period = await ctx.db.get(args.periodId);
     if (!period) {
       throw new Error("Reporting period not found.");
     }
+    await requireCompanyAccessById(ctx, identity, period.companyId);
     await ctx.db.patch(args.periodId, { status: args.status });
     return await ctx.db.get(args.periodId);
   },
-});
+);
 
-export const updateWorkflowState = mutationGeneric({
-  args: {
+export const updateWorkflowState = authMutation(
+  {
     periodId: v.id("reportingPeriods"),
     status: periodStatus,
     taskSummary: v.object({
@@ -133,11 +152,12 @@ export const updateWorkflowState = mutationGeneric({
     lockedAt: v.optional(v.string()),
     highlights: v.optional(v.array(v.string())),
   },
-  handler: async (ctx, args) => {
+  async (ctx: any, args: any, identity: any) => {
     const period = await ctx.db.get(args.periodId);
     if (!period) {
       throw new Error("Reporting period not found.");
     }
+    await requireCompanyAccessById(ctx, identity, period.companyId);
     validateTaskSummary(args.taskSummary);
     if (args.lockedAt) {
       ensureIsoDate(args.lockedAt, "Reporting period lock date");
@@ -156,4 +176,4 @@ export const updateWorkflowState = mutationGeneric({
 
     return await ctx.db.get(args.periodId);
   },
-});
+);

@@ -33,9 +33,48 @@ export type ReconciliationMutation = {
   action: "log_note" | "toggle_case" | "toggle_review";
 };
 
+export type ExportPacketMutation = {
+  companySlug: string;
+  bundleId: string;
+  bundleName: string;
+  periodLabel: string;
+  recipient: string;
+  owner: string;
+  status: "draft" | "generated" | "sent" | "held";
+  selectedFormats: string[];
+  selectedSchedules: string[];
+  selectedChecklistTitles: string[];
+  coverMemoMode: "controller_summary" | "cpa_handoff" | "open_items";
+  includeDeliveryNotes: boolean;
+  detail: string;
+  blockers: string[];
+};
+
 export type WriteResult<T> = {
   ok: true;
   mode: "persisted" | "demo";
   message: string;
   item?: T;
+};
+
+export type SeedSummary = {
+  companyId: string;
+  companySlug: string;
+  locationsSeeded: number;
+  licensesSeeded: number;
+  accountsSeeded: number;
+  reportingPeriodsSeeded: number;
+  importProfilesSeeded: number;
+  importJobsSeeded: number;
+  importRowsSeeded: number;
+  transactionsSeeded: number;
+  transactionLinesSeeded: number;
+  cashReconciliationsSeeded: number;
+};
+
+export type SeedResult = {
+  ok: true;
+  mode: "persisted" | "demo";
+  message: string;
+  summary?: SeedSummary;
 };

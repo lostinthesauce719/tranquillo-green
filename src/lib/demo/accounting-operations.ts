@@ -30,6 +30,29 @@ export type DemoPolicyTrailEntry = {
   note: string;
 };
 
+export type DemoSupportEvidenceLink = {
+  label: string;
+  documentType: string;
+  status: "linked" | "needs_refresh" | "missing";
+  href: string;
+};
+
+export type DemoSimilarAllocationDecision = {
+  id: string;
+  periodLabel: string;
+  basis: AllocationBasis;
+  outcome: string;
+  deductiblePercent: number;
+  note: string;
+};
+
+export type DemoAllocationTaxImpactPreview = {
+  acceptedDeductibleDelta: number;
+  acceptedNondeductibleDelta: number;
+  returnLine: string;
+  note: string;
+};
+
 export type DemoAllocationReviewItem = {
   id: string;
   periodLabel: string;
@@ -50,9 +73,16 @@ export type DemoAllocationReviewItem = {
   reviewStatus: AllocationReviewStatus;
   reviewer: string;
   dueLabel: string;
+  lastReviewedAt: string;
   priority: AllocationPriority;
   recommendedAction: RecommendedAction;
+  flagReason: string;
+  decisionRequired: string;
+  acceptedOutcome: string;
+  supportLinks: DemoSupportEvidenceLink[];
   supportingEvidence: string[];
+  similarDecisions: DemoSimilarAllocationDecision[];
+  taxImpactPreview: DemoAllocationTaxImpactPreview;
   notes: string[];
   overrideHistory: DemoAllocationOverrideEvent[];
   policyTrail: DemoPolicyTrailEntry[];
@@ -139,13 +169,46 @@ export const demoAllocationReviewQueue: DemoAllocationReviewItem[] = [
     reviewStatus: "ready_for_review",
     reviewer: "Staff Accountant",
     dueLabel: "Due May 2",
+    lastReviewedAt: "May 1, 2026 • 9:02 AM PT",
     priority: "high",
     recommendedAction: "approve_split",
+    flagReason: "Shared security spend covers both production support zones and the customer floor, so the system is forcing an explicit mixed-use allocation review instead of silently posting a default expense split.",
+    decisionRequired: "Confirm the square-footage basis still matches April camera coverage and approve the recommended split or override the footprint if monitored areas changed.",
+    acceptedOutcome: "If accepted, 28.1% of the invoice stays in deductible or capitalizable support and the reviewed split is released into the monthly 280E binder with staff-accountant attribution.",
+    supportLinks: [
+      { label: "Oakland mixed-use floorplan v2026.1", documentType: "Floorplan", status: "linked", href: "/dashboard/allocations/support-schedule#SUP-001" },
+      { label: "Security camera zone map", documentType: "Coverage map", status: "linked", href: "/dashboard/allocations/support-schedule#SUP-001" },
+      { label: "Matched bank reference SVB-7421-0403", documentType: "Cash disbursement tie-out", status: "linked", href: "/dashboard/accounting/transactions/txn_002" },
+    ],
     supportingEvidence: [
       "Oakland mixed-use floorplan v2026.1",
       "Security camera zone map tagged to vault + receiving room",
       "April vendor invoice matched to bank reference SVB-7421-0403",
     ],
+    similarDecisions: [
+      {
+        id: "sim_alloc_001_a",
+        periodLabel: "March 2026",
+        basis: "square_footage",
+        outcome: "Approved unchanged after facility walkthrough refresh",
+        deductiblePercent: 0.281,
+        note: "Production-support footage held flat after no changes to receiving room or vault coverage.",
+      },
+      {
+        id: "sim_alloc_001_b",
+        periodLabel: "January 2026",
+        basis: "square_footage",
+        outcome: "Minor override after camera moved into retail lobby",
+        deductiblePercent: 0.243,
+        note: "Prior override reduced deductible share when security coverage expanded into customer-only space.",
+      },
+    ],
+    taxImpactPreview: {
+      acceptedDeductibleDelta: 614.04,
+      acceptedNondeductibleDelta: 1570.96,
+      returnLine: "Schedule M-1 / 280E occupancy-support workpaper",
+      note: "Accepting this recommendation preserves the production-support portion in the deductible or capitalizable bucket and leaves the retail-facing remainder in the 280E-limited schedule.",
+    },
     notes: [
       "Rule engine applied square footage policy because invoice supports both vault receiving and customer floor coverage.",
       "No override needed unless operations changed camera coverage this month.",
@@ -225,13 +288,47 @@ export const demoAllocationReviewQueue: DemoAllocationReviewItem[] = [
     reviewStatus: "pending_controller",
     reviewer: "Cost Accountant",
     dueLabel: "Controller review today",
+    lastReviewedAt: "May 1, 2026 • 8:36 AM PT",
     priority: "critical",
     recommendedAction: "route_to_controller",
+    flagReason: "Direct labor capitalization moved more than five points from the prior month after sanitation downtime was reclassified, which triggers controller review under the labor variance policy.",
+    decisionRequired: "Decide whether the revised labor-hour split should stand as the final April treatment and whether enhanced exception retention is sufficient for recurring downtime risk.",
+    acceptedOutcome: "If accepted, the revised payroll split becomes the posted April basis, controller exception language is locked into the binder, and the recurring sanitation issue stays on the watchlist for May close.",
+    supportLinks: [
+      { label: "Gusto hours export", documentType: "Payroll support", status: "linked", href: "/dashboard/allocations/support-schedule#SUP-002" },
+      { label: "Supervisor sanitation downtime attestation", documentType: "Supervisor memo", status: "linked", href: "/dashboard/allocations/history" },
+      { label: "Production schedule MFG-RUN-8841", documentType: "Production schedule", status: "linked", href: "/dashboard/allocations/support-schedule#SUP-002" },
+      { label: "March-to-April labor bridge schedule", documentType: "Variance bridge", status: "linked", href: "/dashboard/allocations/history" },
+    ],
     supportingEvidence: [
       "Gusto hours export for packaging + infusion team",
       "Supervisor attestation on indirect sanitation time",
       "Production schedule for vape run MFG-RUN-8841",
     ],
+    similarDecisions: [
+      {
+        id: "sim_alloc_002_a",
+        periodLabel: "March 2026",
+        basis: "labor_hours",
+        outcome: "Approved without override",
+        deductiblePercent: 0.693,
+        note: "Prior month direct labor ratio cleared policy thresholds with no downtime adjustment.",
+      },
+      {
+        id: "sim_alloc_002_b",
+        periodLabel: "December 2025",
+        basis: "labor_hours",
+        outcome: "Controller override after maintenance shutdown",
+        deductiblePercent: 0.711,
+        note: "Maintenance-related idle hours were reclassified out of capitalizable labor after controller review.",
+      },
+    ],
+    taxImpactPreview: {
+      acceptedDeductibleDelta: -858.55,
+      acceptedNondeductibleDelta: 858.55,
+      returnLine: "Form 1120 inventory capitalization support / 280E labor bridge",
+      note: "Accepting the current override keeps $858.55 out of the deductible or capitalizable labor bucket compared with the original recommendation and documents the shift as a controller-approved exception.",
+    },
     notes: [
       "Support labor hours increased after sanitation downtime on Apr 7.",
       "Controller sign-off required because direct labor ratio moved more than 5 points from March baseline.",
@@ -327,12 +424,45 @@ export const demoAllocationReviewQueue: DemoAllocationReviewItem[] = [
     reviewStatus: "approved",
     reviewer: "Assistant Controller",
     dueLabel: "Approved Apr 30",
+    lastReviewedAt: "Apr 30, 2026 • 10:26 AM PT",
     priority: "normal",
     recommendedAction: "approve_split",
+    flagReason: "Professional-fee invoices are still surfaced in the queue because 280E treatment turns on engagement scope, and scope drift into inventory implementation would change the tax position immediately.",
+    decisionRequired: "Confirm the retainer remains general accounting and tax advisory only, with no inventory costing or production implementation work embedded in the monthly bill.",
+    acceptedOutcome: "If accepted, the invoice remains fully deductible, ties back to the standing memo, and rolls into the recurring professional-fees schedule without a policy exception.",
+    supportLinks: [
+      { label: "Signed retainer letter", documentType: "Engagement letter", status: "linked", href: "/dashboard/allocations/support-schedule#SUP-003" },
+      { label: "Invoice scope memo", documentType: "Scope review", status: "linked", href: "/dashboard/allocations/support-schedule#SUP-003" },
+      { label: "Q1 CPA packet cross-reference", documentType: "Prior packet", status: "linked", href: "/dashboard/allocations/history" },
+    ],
     supportingEvidence: [
       "Signed retainer letter dated Jan 1, 2026",
       "Invoice scope excludes inventory implementation work",
     ],
+    similarDecisions: [
+      {
+        id: "sim_alloc_003_a",
+        periodLabel: "March 2026",
+        basis: "custom_policy",
+        outcome: "Approved unchanged under REV-PROF-02",
+        deductiblePercent: 1,
+        note: "Monthly retainer stayed fully deductible after the same engagement-scope check.",
+      },
+      {
+        id: "sim_alloc_003_b",
+        periodLabel: "November 2025",
+        basis: "custom_policy",
+        outcome: "Split after ERP inventory setup add-on",
+        deductiblePercent: 0.62,
+        note: "A one-time implementation rider created partial inventory-related treatment in a prior quarter.",
+      },
+    ],
+    taxImpactPreview: {
+      acceptedDeductibleDelta: 4500,
+      acceptedNondeductibleDelta: 0,
+      returnLine: "Ordinary deduction schedule / memo-backed professional fees",
+      note: "Accepting the memo-backed recommendation leaves the entire retainer in the deductible column and avoids creating an unnecessary 280E limitation entry.",
+    },
     notes: [
       "Kept fully deductible under standing policy memo REV-PROF-02.",
     ],
@@ -410,12 +540,45 @@ export const demoAllocationReviewQueue: DemoAllocationReviewItem[] = [
     reviewStatus: "needs_support",
     reviewer: "Bookkeeper",
     dueLabel: "Waiting on support",
+    lastReviewedAt: "May 1, 2026 • 7:41 AM PT",
     priority: "high",
     recommendedAction: "request_support",
+    flagReason: "The event spend touched a mixed cannabis and non-cannabis revenue context, but the SKU recap needed to support a revenue-mix allocation is missing, so the item is explicitly blocked in review.",
+    decisionRequired: "Obtain the event-day SKU recap and usage log, then decide whether the fallback benchmark should be replaced with actual sales mix or the spend should remain almost entirely 280E-limited.",
+    acceptedOutcome: "If the current fallback were accepted as-is, only a small benchmark-based deductible share would remain and the item would continue carrying a support-gap note into the tax binder until real sales support arrives.",
+    supportLinks: [
+      { label: "Expo invoice PDF", documentType: "Vendor invoice", status: "linked", href: "/dashboard/allocations/support-schedule#SUP-004" },
+      { label: "POS category recap", documentType: "Sales recap", status: "missing", href: "/dashboard/allocations/support-schedule#SUP-004" },
+      { label: "Educational-material usage log", documentType: "Usage log", status: "missing", href: "/dashboard/allocations/history" },
+    ],
     supportingEvidence: [
       "Event invoice uploaded",
       "Missing POS category recap for event weekend",
     ],
+    similarDecisions: [
+      {
+        id: "sim_alloc_004_a",
+        periodLabel: "February 2026",
+        basis: "revenue_mix",
+        outcome: "Approved after SKU recap delivered",
+        deductiblePercent: 0.11,
+        note: "A prior event cleared review only after category-level POS support arrived from retail ops.",
+      },
+      {
+        id: "sim_alloc_004_b",
+        periodLabel: "October 2025",
+        basis: "revenue_mix",
+        outcome: "Denied and left fully limited",
+        deductiblePercent: 0,
+        note: "Missing event support forced the team to leave the full spend in the nondeductible bucket.",
+      },
+    ],
+    taxImpactPreview: {
+      acceptedDeductibleDelta: 184,
+      acceptedNondeductibleDelta: 2116,
+      returnLine: "280E promotional spend schedule / unsupported mixed-event review",
+      note: "Accepting the current fallback would leave most of the spend in the 280E-limited bucket and still advertise to reviewers that the tax position is benchmark-based rather than fully supported.",
+    },
     notes: [
       "Engine fell back to prior-event revenue mix benchmark, which is below approval threshold.",
       "Do not post allocation without event SKU sales recap.",

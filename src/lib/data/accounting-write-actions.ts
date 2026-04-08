@@ -1,41 +1,25 @@
 import "server-only";
 
-import { ConvexHttpClient } from "convex/browser";
 import { anyApi } from "convex/server";
 import type { DemoCashReconciliationItem } from "@/lib/demo/accounting-operations";
 import type { DemoReportingPeriod } from "@/lib/demo/accounting";
 import type {
+  ExportPacketMutation,
   ManualJournalSubmission,
   ReconciliationMutation,
   ReportingPeriodMutation,
   WriteResult,
 } from "@/lib/accounting-write-contracts";
+import type { DemoGenerationHistoryItem } from "@/lib/demo/accounting-handoff";
 import { DEMO_COMPANY_SLUG, loadAccountingWorkspace } from "@/lib/data/accounting-core";
-
-function getConvexUrl() {
-  const url = process.env.NEXT_PUBLIC_CONVEX_URL?.trim();
-  if (!url || !/^https?:\/\//.test(url)) {
-    return null;
-  }
-  return url;
-}
-
-async function withTimeout<T>(promise: Promise<T>, timeoutMs = 5000): Promise<T> {
-  return await Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      setTimeout(() => reject(new Error(`Timed out after ${timeoutMs}ms`)), timeoutMs);
-    }),
-  ]);
-}
+import { getAuthenticatedConvexClient, withTimeout } from "@/lib/data/convex-client";
 
 async function getConvexContext(companySlug: string) {
-  const url = getConvexUrl();
-  if (!url) {
+  const client = await getAuthenticatedConvexClient();
+  if (!client) {
     return null;
   }
 
-  const client = new ConvexHttpClient(url);
   const [company, workspace] = await Promise.all([
     withTimeout(client.query((anyApi as any).cannabisCompanies.getBySlug, { slug: companySlug })),
     withTimeout(client.query((anyApi as any).accountingCore.getWorkspaceBySlug, { slug: companySlug })),
@@ -50,10 +34,6 @@ async function getConvexContext(companySlug: string) {
 
 function dedupeStrings(values: string[]) {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
-}
-
-function isoToday() {
-  return new Date().toISOString().slice(0, 10);
 }
 
 function isoTimestampLabel() {
@@ -158,6 +138,41 @@ function toPersistenceStatus(item: DemoCashReconciliationItem) {
   } as const;
 }
 
+async function logAccountingAuditEvent(
+  convex: Awaited<ReturnType<typeof getConvexContext>>,
+  payload: {
+    periodId?: string;
+    reconciliationId?: string;
+    exportPacketRunId?: string;
+    category: "reporting_period" | "reconciliation" | "export_packet" | "allocation_override";
+    entityId: string;
+    entityLabel: string;
+    action: string;
+    detail: string;
+    actor: string;
+  },
+) {
+  if (!convex) {
+    return;
+  }
+
+  await withTimeout(
+    convex.client.mutation((anyApi as any).accountingAudit.createEvent, {
+      companyId: convex.company._id,
+      periodId: payload.periodId as any,
+      reconciliationId: payload.reconciliationId as any,
+      exportPacketRunId: payload.exportPacketRunId as any,
+      category: payload.category,
+      entityId: payload.entityId,
+      entityLabel: payload.entityLabel,
+      action: payload.action,
+      detail: payload.detail,
+      actor: payload.actor,
+      source: "server_action",
+    }),
+  );
+}
+
 export async function submitManualJournal(
   payload: ManualJournalSubmission,
 ): Promise<WriteResult<{ reference: string }>> {
@@ -253,6 +268,16 @@ export async function persistReportingPeriodState(
       }),
     );
 
+    await logAccountingAuditEvent(convex, {
+      periodId: period._id,
+      category: "reporting_period",
+      entityId: payload.periodLabel,
+      entityLabel: payload.periodLabel,
+      action: payload.status === "closed" ? "Locked reporting period" : payload.status === "review" ? "Updated reporting period review state" : "Reopened reporting period",
+      detail: `${payload.taskSummary.completed}/${payload.taskSummary.total} checklist items complete with ${payload.blockers.length} blocker${payload.blockers.length === 1 ? "" : "s"}.`,
+      actor: "Close workspace",
+    });
+
     return {
       ok: true,
       mode: "persisted",
@@ -314,6 +339,16 @@ export async function mutateReconciliationState(
       }),
     );
 
+    await logAccountingAuditEvent(convex, {
+      reconciliationId: reconciliation._id,
+      category: "reconciliation",
+      entityId: payload.reconciliationId,
+      entityLabel: nextItem.accountName,
+      action: payload.action === "log_note" ? "Logged reconciliation note" : payload.action === "toggle_case" ? "Updated reconciliation case" : "Updated reconciliation review queue",
+      detail: `${nextItem.status.replaceAll("_", " ")} for ${nextItem.periodLabel} with variance ${nextItem.varianceAmount.toFixed(2)}.`,
+      actor: nextItem.owner,
+    });
+
     return {
       ok: true,
       mode: "persisted",
@@ -328,6 +363,91 @@ export async function mutateReconciliationState(
         ? `Persisted reconciliation action was unavailable (${error.message}). Demo-safe local reconciliation state was updated instead.`
         : "Persisted reconciliation action was unavailable. Demo-safe local reconciliation state was updated instead.",
       item: nextItem,
+    };
+  }
+}
+
+function buildExportHistoryItem(args: {
+  actor: string;
+  action: string;
+  detail: string;
+  timestamp: number;
+}): DemoGenerationHistoryItem {
+  return {
+    timestampLabel: new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    }).format(new Date(args.timestamp)),
+    actor: args.actor,
+    action: args.action,
+    detail: args.detail,
+  };
+}
+
+export async function persistExportPacketRun(
+  payload: ExportPacketMutation,
+): Promise<WriteResult<DemoGenerationHistoryItem>> {
+  const fallbackItem = buildExportHistoryItem({
+    actor: payload.owner,
+    action: payload.status === "held" ? "Held export packet" : "Generated bundle",
+    detail: payload.detail,
+    timestamp: Date.now(),
+  });
+
+  try {
+    const convex = await getConvexContext(payload.companySlug || DEMO_COMPANY_SLUG);
+    if (!convex) {
+      return {
+        ok: true,
+        mode: "demo",
+        message: `Saved demo packet history for ${payload.bundleName}. Convex is not configured, so the generation event remains local only.`,
+        item: fallbackItem,
+      };
+    }
+
+    const period = convex.workspace.reportingPeriods.find((entry: any) => entry.label === payload.periodLabel);
+    const run = await withTimeout(
+      convex.client.mutation((anyApi as any).exportPackets.createRun, {
+        companyId: convex.company._id,
+        periodId: period?._id,
+        bundleId: payload.bundleId,
+        bundleName: payload.bundleName,
+        periodLabel: payload.periodLabel,
+        recipient: payload.recipient,
+        owner: payload.owner,
+        status: payload.status,
+        selectedFormats: payload.selectedFormats,
+        selectedSchedules: payload.selectedSchedules,
+        selectedChecklistTitles: payload.selectedChecklistTitles,
+        coverMemoMode: payload.coverMemoMode,
+        includeDeliveryNotes: payload.includeDeliveryNotes,
+        generatedBy: payload.owner,
+        detail: payload.detail,
+        blockers: payload.blockers,
+      }),
+    );
+
+    return {
+      ok: true,
+      mode: "persisted",
+      message: `Export packet run for ${payload.bundleName} was persisted to Convex history.`,
+      item: buildExportHistoryItem({
+        actor: run.generatedBy,
+        action: run.status === "held" ? "Held export packet" : "Generated bundle",
+        detail: run.detail,
+        timestamp: run.generatedAt,
+      }),
+    };
+  } catch (error) {
+    return {
+      ok: true,
+      mode: "demo",
+      message: error instanceof Error
+        ? `Persisted export packet history was unavailable (${error.message}). Local demo history was updated instead.`
+        : "Persisted export packet history was unavailable. Local demo history was updated instead.",
+      item: fallbackItem,
     };
   }
 }

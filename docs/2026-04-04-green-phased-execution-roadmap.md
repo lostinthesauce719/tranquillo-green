@@ -1,148 +1,246 @@
-# Tranquillo Green Phased Execution Roadmap
+# Tranquillo Green Strategic Execution Roadmap
 
-Goal: move Tranquillo Green from a strong demo-backed MVP shell into a real deployable cannabis accounting and compliance product.
+Goal: move Tranquillo Green from a strong demo-backed shell into a deployable cannabis accounting product that earns trust by helping operators and CPAs make defensible decisions.
+
+This roadmap replaces shallow phase language with product-strategic workstreams that still map cleanly into implementation sprints.
 
 Current completion estimate:
-- Demo-grade MVP: 60%
-- Real deployable product: 30-35%
+- Workflow shell and demo UX: 85%
+- Domain framing for cannabis accounting / 280E: 75-80%
+- Persisted system of record: 25%
+- Real operational trust and auditability: 20%
+- Deployable multi-user product readiness: 15-20%
 
-## Phase 1 — Demo MVP shell (mostly complete)
-Status: 90%
+## Product strategy in build order
+1. Defensible Decisions
+2. Guided Certainty
+3. Mess In -> Order Out imports
+4. Visible Trust
+5. Transparent Automation
+6. CPA Leverage
+7. Broader decision intelligence
 
-Completed:
-- accounting shell and route structure
-- chart of accounts workspace
-- reporting periods workspace
-- transaction list, detail, and approval flows
-- imports, pipeline, and month-end close views
-- 280E allocation queue, history, and support schedule
-- cash reconciliation list and detail flows
-- CPA export center and packet builder
-- automation/agent control surface
-- lint, typecheck, and production build passing
-- review/QA pass on key routes
+The ordering is intentional: Green should first prove it can structure accounting truth, guide review, tame messy inputs, and make trust visible before expanding into broader analytics or intelligence surfaces.
 
-Remaining in this phase:
-- broader browser QA pass across all routes
-- tighten weak placeholder modules or hide them
-- refresh README/docs to match actual shipped flows
+## 1) Defensible Decisions
+Status: active foundation
+Target outcome: every important accounting conclusion in Green is traceable to persisted records, period context, reviewer action, and supporting evidence.
 
-## Phase 2 — Persistent accounting core
-Status: 15%
-Target completion: 55%
+Why this comes first:
+- This is the core wedge against spreadsheets and generic accounting tooling.
+- Cannabis operators and CPAs need supportable close decisions, not just dashboards.
+- The rest of the product becomes more credible once the accounting truth layer is real.
 
-Objective:
-Replace demo/local UI state with persisted Convex-backed truth for the accounting core.
-
-Scope:
-- cannabisCompanies persistence
-- chartOfAccounts persistence
-- reportingPeriods persistence
-- transactions and transactionLines persistence
-- cashReconciliations persistence
+Execution scope:
+- persist cannabisCompanies
+- persist chartOfAccounts
+- persist reportingPeriods
+- persist transactions and transactionLines
+- persist cashReconciliations
 - seed backend demo org matching current UI story
+- remove dependence on demo constants for primary accounting workflows
+- preserve period status, journal entries, reconciliation notes, and reviewer state across sessions
+- establish actor / timestamp / reason structure for material accounting decisions
 
 Acceptance criteria:
-- accounting pages load from Convex, not demo constants
+- accounting pages load from Convex-backed data by default
 - journal entries persist across sessions
-- period status changes persist
-- reconciliation state persists
+- period status changes persist with history-ready metadata
+- reconciliation state persists and can be revisited
+- seeded demo org reproduces the current product story without manual patching
 
-## Phase 3 — Real import and review pipeline
-Status: 10%
-Target completion: 70%
+Sprint-ready slices:
+- finish persistence gaps in accounting workspace loaders
+- normalize write paths for journals, periods, and reconciliations
+- add event metadata fields needed for later audit trail work
+- verify seeded data coverage against accounting, close, and export screens
 
-Objective:
-Turn the import/review/post workflow into a real operational path.
+## 2) Guided Certainty
+Status: partial UX shell exists, logic mostly shallow
+Target outcome: Green does not merely display accounting data; it guides users toward the next correct review action with explicit confidence, blockers, and escalation paths.
 
-Scope:
-- importJob model
-- source file metadata
+Why this comes second:
+- Once truth exists, users need guided review instead of raw tables.
+- This is where the product starts feeling like an operator system rather than a UI shell.
+
+Execution scope:
+- compute close dashboard readiness from persisted workflow state
+- define review states for imported transactions, reconciliations, close tasks, and 280E support items
+- show blockers, missing evidence, and next recommended action on core workspaces
+- persist reviewer decisions, override reasons, and signoff history
+- connect transaction detail, queue views, and period close surfaces into one review narrative
+
+Acceptance criteria:
+- close dashboard is fully data-derived
+- review queues are generated from live state rather than mock counts
+- every override captures actor, reason, and timestamp
+- users can tell what is ready, blocked, and awaiting review without cross-referencing multiple pages
+
+Sprint-ready slices:
+- build readiness calculators for period close and 280E workflows
+- formalize review-state enums and transitions
+- add blocker cards / exception summaries to dashboard surfaces
+- persist close signoff actions and reviewer history
+
+## 3) Mess In -> Order Out imports
+Status: UI story exists, backend operational path is incomplete
+Target outcome: messy source files become structured, reviewable accounting records through a persistent import pipeline.
+
+Why this comes third:
+- Import quality is the operational bottleneck in real bookkeeping.
+- Green wins when it turns operator mess into orderly books and review work.
+
+Execution scope:
+- importJob model and source file metadata
 - mapping profile persistence
 - row-level validation results
-- promote imported rows into transactions
+- review queue for exceptions and unmapped rows
+- promotion of imported rows into transactions
 - posting state transitions: imported -> needs review -> ready -> posted
+- reopenable import jobs with deterministic state history
 
 Acceptance criteria:
 - import jobs persist and can be reopened
 - review queue derives from stored records
-- transaction detail pages reflect live posting state
+- imported rows can be promoted into transactions without losing lineage
+- transaction detail pages reflect live posting state and source provenance
+- mapping decisions reduce repeated cleanup effort on subsequent imports
 
-## Phase 4 — Live close engine + auditability
-Status: 20%
-Target completion: 82%
+Sprint-ready slices:
+- persist import job headers and source file metadata
+- persist mapping profiles and validation output
+- connect review decisions to transaction creation / posting transitions
+- add lineage links from posted transactions back to import sources
 
-Objective:
-Make close readiness, 280E review, and handoff packages computed from live data and preserved in audit trails.
+## 4) Visible Trust
+Status: partially implied in UX, not yet systemically implemented
+Target outcome: Green visibly proves why numbers can be trusted by exposing support, history, signoff, and export provenance.
 
-Scope:
-- computed close dashboard readiness
-- persistent reviewer decisions and override history
+Why this comes fourth:
+- Trust must be visible to operators, controllers, and external CPAs.
+- This is a differentiator only after live data and review decisions exist.
+
+Execution scope:
 - support evidence metadata / attachments registry
 - packet generation history persistence
 - export bundle records
 - close signoff actions and history
+- source-to-schedule traceability for 280E support schedules and close outputs
+- clear audit timeline for material overrides and reviewer actions
 
 Acceptance criteria:
-- close dashboard is fully data-derived
-- every override has actor/reason/history
 - every exported packet has generation history
-- support schedule ties to persisted source records
+- support schedules tie to persisted source records
+- users can inspect who changed what and why on key decisions
+- packet / export surfaces clearly show source period, generation time, and included artifacts
 
-## Phase 5 — Multi-user, tenant-aware, deploy credible
-Status: 10%
-Target completion: 92%
+Sprint-ready slices:
+- persist packet generation records and export bundle metadata
+- attach evidence references to close items and allocations
+- add history timeline components to detail views
+- expose trust artifacts directly on close and export screens
 
-Objective:
-Make the app usable by real operators, controllers, and CPAs.
+## 5) Transparent Automation
+Status: descriptive surfaces exist, real execution is thin
+Target outcome: automation reduces clerical work while staying inspectable, reversible, and human-supervised.
 
-Scope:
-- Clerk auth flows
-- company/org boundary in app shell
-- role-aware views (owner, accountant, controller)
-- protected routes
-- seeded multi-tenant demo story
+Why this comes fifth:
+- Automation only helps after truth, review, and trust surfaces are established.
+- In this domain, hidden automation is a liability; visible automation is leverage.
+
+Execution scope:
+- convert automation definitions into scheduled / triggered jobs or service stubs
+- show what each automation does, why it ran, what records it touched, and what still needs review
+- define approval boundaries for automated suggestions vs automated actions
+- connect automation outputs into review queues instead of bypassing them
+- document deployment and operational controls for background jobs
+
+Acceptance criteria:
+- automation is no longer purely descriptive
+- each run has status, timestamp, scope, and result visibility
+- automated outputs feed auditable review workflows
+- operators can distinguish system suggestion from committed accounting action
+
+Sprint-ready slices:
+- stand up one or two real automation jobs around import prep, close reminders, or reconciliation checks
+- create automation run history model
+- wire automation outputs into exception queues and dashboard summaries
+- document failure handling and operator override paths
+
+## 6) CPA Leverage
+Status: good demo story, limited operational depth
+Target outcome: Green materially reduces the effort for controllers and external CPAs to review books, request support, and complete handoff.
+
+Why this comes sixth:
+- CPA leverage is where the accounting moat becomes commercially obvious.
+- It depends on trustworthy data, guided review, visible support, and structured exports.
+
+Execution scope:
+- strengthen CPA export center and packet builder on persisted data
+- package period-close records, support schedules, exceptions, and reviewer notes into reusable handoff artifacts
+- support role-aware views for owner, accountant, controller, and CPA reviewer
+- add company/org boundary and tenant isolation in app shell
+- prepare seeded multi-tenant demo story for external walkthroughs and pilots
 
 Acceptance criteria:
 - authenticated app shell exists
-- user role affects visible actions
+- user role affects visible actions and review permissions
 - company data is isolated by tenant
+- CPA packet builder uses persisted records rather than static placeholders
+- external reviewer can understand close status and support package without operator narration
 
-## Phase 6 — Production hardening and live automation
-Status: 5%
-Target completion: 100%
+Sprint-ready slices:
+- add Clerk auth flows and protected routes
+- enforce company / org boundary on core queries and mutations
+- add role-aware action gating on review and export surfaces
+- tighten packet builder outputs around real close and support data
 
-Objective:
-Ship a credible production candidate with real quality gates and automation stubs/jobs.
+## 7) Broader decision intelligence
+Status: intentionally deferred
+Target outcome: once Green is trusted as the accounting decision system, expand into forecasting, recommendations, and higher-level operational insight.
 
-Scope:
+What belongs here later:
+- trend and anomaly detection across close periods
+- cross-period 280E insight and margin explanations
+- operational recommendations tied to trusted accounting facts
+- management and investor reporting layers
+- benchmarking once tenant-safe data strategy exists
+
+Guardrail:
+- do not prioritize broad intelligence surfaces ahead of persistent truth, review guidance, imports, trust, automation visibility, and CPA handoff leverage.
+
+## Current implementation priorities
+Priority 1:
+- complete Defensible Decisions persistence and remove remaining demo-state dependencies
+
+Priority 2:
+- turn Guided Certainty into live readiness / review state logic
+
+Priority 3:
+- make Mess In -> Order Out a real persistent import pipeline
+
+Priority 4:
+- add Visible Trust history, packet lineage, and support traceability
+
+Priority 5:
+- implement Transparent Automation with run visibility and human review boundaries
+
+Priority 6:
+- unlock CPA Leverage with auth, tenancy, role-aware review, and stronger packet outputs
+
+## Cross-cutting hardening required throughout
+- broader browser QA pass across all routes
+- tighten weak placeholder modules or hide them
+- CI for lint, typecheck, and production build
 - deployment-ready env setup
-- CI for lint/typecheck/build
-- broader browser QA and bugfix sweep
-- real scheduled/triggered automation jobs or service stubs
-- finish or hide shallow modules: Inventory, Compliance, Settings
-- demo/deploy package and operator walkthrough
+- README/docs refresh to match actual shipped flows
+- controlled external demo / pilot walkthrough package
 
-Acceptance criteria:
-- CI blocks broken changes
-- production config documented
-- major routes QA’d
-- automation is no longer purely descriptive
-- app is ready for a controlled external demo or pilot
-
-## Recommended build order from here
-1. Persistent accounting core
-2. Real import jobs and posting pipeline
-3. Computed close engine
-4. Auth + tenant boundaries
-5. Persistent audit trail and packet generation history
-6. Production hardening + automation jobs
-
-## Rough completion by area
-- Product UX/workflow shell: 85%
-- Cannabis accounting domain modeling: 75%
-- 280E moat features: 80%
-- Backend persistence: 20%
-- Auth/multi-tenant readiness: 10%
-- Deployment readiness: 25%
-- QA/production hardening: 45%
+## Definition of a credible next milestone
+Green is ready for the next serious implementation sprint when it can:
+- persist core accounting truth end-to-end
+- ingest messy source data into a reviewable pipeline
+- compute close readiness from live records
+- show visible history and support for key accounting decisions
+- expose at least one real automation with inspectable results
+- produce a CPA-facing handoff packet from persisted data

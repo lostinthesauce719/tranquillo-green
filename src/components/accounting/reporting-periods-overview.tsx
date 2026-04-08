@@ -253,13 +253,11 @@ export function ReportingPeriodsOverview({
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-3">
-                  <h2 className="text-xl font-semibold">{period.label}</h2>
-                  <AccountingStatusBadge label={period.status.toUpperCase()} tone={getStatusTone(period.status)} />
-                  {workflow ? <AccountingStatusBadge label={workflow.reviewStatus.replaceAll("_", " ")} tone={getReviewTone(workflow.reviewStatus)} className="capitalize" /> : null}
+                  <h2 className="text-lg font-semibold">{period.label}</h2>
+                  <AccountingStatusBadge label={period.status} tone={getStatusTone(period.status)} className="capitalize" />
                   {blockers.length > 0 ? <AccountingStatusBadge label={`${blockers.length} blockers`} tone="rose" /> : null}
-                  {isPending ? <AccountingStatusBadge label="syncing" tone="blue" /> : null}
                 </div>
-                <p className="mt-2 text-sm text-text-muted">{formatRange(period.startDate, period.endDate)} • Owner: {period.closeOwner} • Target close in {period.closeWindowDays} days</p>
+                <p className="mt-1 text-sm text-text-muted/60">{formatRange(period.startDate, period.endDate)} · {period.closeOwner} · {period.closeWindowDays} day target</p>
               </div>
               <div className="min-w-[240px] rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-muted">
                 <div className="flex items-center justify-between gap-4">
@@ -269,8 +267,8 @@ export function ReportingPeriodsOverview({
                 <div className="mt-3 h-2 rounded-full bg-background">
                   <div className="h-2 rounded-full bg-accent" style={{ width: progressWidth }} />
                 </div>
-                <div className="mt-3 text-xs">
-                  {period.lockedAt ? `Locked ${period.lockedAt}` : workflow?.reviewStatus === "ready_for_review" ? `Waiting on ${workflow.reviewer} review` : "Still editable for manual journals and reconciliations"}
+                <div className="mt-2 text-xs text-text-muted/40">
+                  {period.lockedAt ? `Locked ${period.lockedAt}` : workflow?.reviewStatus === "ready_for_review" ? `Waiting on ${workflow.reviewer}` : "Editable"}
                 </div>
               </div>
             </div>
@@ -284,11 +282,11 @@ export function ReportingPeriodsOverview({
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <div className="font-medium text-text-primary">{item.title}</div>
+                            <div className="text-sm font-medium text-text-primary">{item.title}</div>
                             <AccountingStatusBadge label={item.status.replaceAll("_", " ")} tone={getChecklistTone(item.status)} className="capitalize" />
                           </div>
-                          <div className="mt-2 text-sm text-text-muted">{item.guidance}</div>
-                          <div className="mt-2 text-xs text-text-muted">Owner: {item.owner} • Due {item.dueLabel}</div>
+                          <div className="mt-1 text-sm text-text-muted/60">{item.guidance}</div>
+                          <div className="mt-1 text-xs text-text-muted/40">{item.owner} · {item.dueLabel}</div>
                           {item.blocker ? <div className="mt-2 text-xs text-rose-200">Blocker: {item.blocker}</div> : null}
                         </div>
                         <div className="flex flex-wrap gap-2">

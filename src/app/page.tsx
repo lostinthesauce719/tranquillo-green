@@ -19,7 +19,8 @@ export default function HomePage() {
           survive 280E, and build toward unified operations.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
-          <Link href="/dashboard" className="rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white">Open dashboard scaffold</Link>
+          <Link href="/sign-in" className="rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white">Sign in</Link>
+          <Link href="/sign-up" className="rounded-xl border border-brand/50 bg-brand/10 px-5 py-3 text-sm font-semibold text-brand">Create account</Link>
           <Link href="/docs" className="rounded-xl border border-border px-5 py-3 text-sm font-semibold text-text-primary">View architecture docs</Link>
         </div>
         <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">

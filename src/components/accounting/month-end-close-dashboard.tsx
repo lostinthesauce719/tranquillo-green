@@ -23,7 +23,34 @@ function progressWidth(area: DemoCloseArea) {
   return "22%";
 }
 
+function describeClosePhase(readinessPercent: number) {
+  if (readinessPercent >= 90) {
+    return {
+      label: "Ready to lock",
+      detail: "Most lanes are complete and the remaining work is signoff packaging rather than operational cleanup.",
+    };
+  }
+  if (readinessPercent >= 75) {
+    return {
+      label: "Reviewer handoff",
+      detail: "The period is mostly assembled, but reviewers still need a clean pass on a few support and exception items.",
+    };
+  }
+  if (readinessPercent >= 55) {
+    return {
+      label: "Close in progress",
+      detail: "Core workflows are moving, but blockers or missing support still make lock timing fragile.",
+    };
+  }
+  return {
+    label: "Prep before close",
+    detail: "Too many lanes are blocked or incomplete for a confident reviewer handoff.",
+  };
+}
+
 export function MonthEndCloseDashboard({ dashboard }: { dashboard: MonthEndCloseDashboardData }) {
+  const phase = describeClosePhase(dashboard.readinessPercent);
+
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-border bg-surface-mid p-5">
@@ -38,6 +65,7 @@ export function MonthEndCloseDashboard({ dashboard }: { dashboard: MonthEndClose
           <div className="rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-text-muted">
             <div>Approver: {dashboard.controller}</div>
             <div className="mt-1">{dashboard.targetLockDate}</div>
+            <div className="mt-1">Close phase: <span className="text-text-primary">{phase.label}</span></div>
             <div className="mt-1 capitalize">Source mode: {dashboard.source}</div>
           </div>
         </div>
@@ -48,19 +76,27 @@ export function MonthEndCloseDashboard({ dashboard }: { dashboard: MonthEndClose
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             <div>
               <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Live-computed areas</div>
-              <ul className="mt-2 space-y-2">
-                {dashboard.computedAreas.map((area) => (
-                  <li key={area}>• {area}</li>
-                ))}
-              </ul>
+              {dashboard.computedAreas.length > 0 ? (
+                <ul className="mt-2 space-y-2">
+                  {dashboard.computedAreas.map((area) => (
+                    <li key={area}>• {area}</li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="mt-2 text-sm text-text-muted">No live-computed lanes are available in this runtime, so the close dashboard is fully demo-backed.</div>
+              )}
             </div>
             <div>
               <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Fallback areas</div>
-              <ul className="mt-2 space-y-2">
-                {dashboard.fallbackAreas.map((area) => (
-                  <li key={area}>• {area}</li>
-                ))}
-              </ul>
+              {dashboard.fallbackAreas.length > 0 ? (
+                <ul className="mt-2 space-y-2">
+                  {dashboard.fallbackAreas.map((area) => (
+                    <li key={area}>• {area}</li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="mt-2 text-sm text-emerald-200">No fallback lanes are currently needed.</div>
+              )}
             </div>
           </div>
           {dashboard.caveats.length > 0 ? (
@@ -83,24 +119,33 @@ export function MonthEndCloseDashboard({ dashboard }: { dashboard: MonthEndClose
               <div className="h-3 bg-violet-400/80" style={{ width: `${dashboard.readinessPercent}%` }} />
             </div>
             <div className="mt-3 text-sm text-violet-100/80">Use this view to decide whether the period is still in prep, in reviewer hands, or ready to lock.</div>
+            <div className="mt-3 text-sm text-violet-100">Current posture: {phase.detail}</div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-2xl border border-border bg-surface p-4">
               <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Critical blockers</div>
-              <ul className="mt-3 space-y-2 text-sm text-text-muted">
-                {dashboard.openBlockers.map((blocker) => (
-                  <li key={blocker}>• {blocker}</li>
-                ))}
-              </ul>
+              {dashboard.openBlockers.length > 0 ? (
+                <ul className="mt-3 space-y-2 text-sm text-text-muted">
+                  {dashboard.openBlockers.map((blocker) => (
+                    <li key={blocker}>• {blocker}</li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="mt-3 text-sm text-emerald-200">No blocker is currently preventing signoff.</div>
+              )}
             </div>
             <div className="rounded-2xl border border-border bg-surface p-4">
               <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Next actions</div>
-              <ul className="mt-3 space-y-2 text-sm text-text-muted">
-                {dashboard.nextActions.map((action) => (
-                  <li key={action}>• {action}</li>
-                ))}
-              </ul>
+              {dashboard.nextActions.length > 0 ? (
+                <ul className="mt-3 space-y-2 text-sm text-text-muted">
+                  {dashboard.nextActions.map((action) => (
+                    <li key={action}>• {action}</li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="mt-3 text-sm text-emerald-200">The close owner does not have any outstanding follow-up tasks in the current dashboard state.</div>
+              )}
             </div>
           </div>
         </div>
@@ -162,7 +207,7 @@ export function MonthEndCloseDashboard({ dashboard }: { dashboard: MonthEndClose
                   Open workspace
                 </Link>
                 <Link href={area.routeHref} className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm text-blue-100 transition hover:bg-blue-500/20">
-                  Request signoff in workspace
+                  Review owner handoff details
                 </Link>
                 <div className="rounded-xl border border-dashed border-border px-3 py-2 text-sm text-text-muted">
                   Notes stay lane-specific and are captured in the linked workspace.

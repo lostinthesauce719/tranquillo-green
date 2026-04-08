@@ -20,48 +20,63 @@ export default async function AccountingImportsPage() {
     0,
   );
   const promotedRows = importWorkspace.datasets.reduce((sum, dataset) => sum + dataset.promotedRowCount, 0);
+  const readyToPromoteRows = importWorkspace.datasets.reduce((sum, dataset) => sum + dataset.promotionReadyCount, 0);
+  const persistedJobs = importWorkspace.datasets.filter((dataset) => dataset.backendMode === "persisted").length;
+  const recentDatasets = [...importWorkspace.datasets].slice(0, 3);
 
   return (
     <AppShell
       title="Imports"
-      description={
-        importWorkspace.source === "convex"
-          ? "CSV imports now load from the persisted import-job backend when Convex is available, while still falling back safely to demo data during static builds and disconnected runtime."
-          : "CSV import mapping and validation workspace running on the demo-safe fallback path because the persisted Convex import backend is unavailable in this runtime."
-      }
+      description="Stage files, apply mappings, and validate rows before posting."
     >
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label={importWorkspace.source === "convex" ? "Persisted jobs" : "Demo files"} value={String(importWorkspace.datasets.length)} detail="Bank and payroll source formats staged for review" />
-        <MetricCard label="Rows previewed" value={String(totalRows)} detail="Total staged transactions across current imports" />
-        <MetricCard label="Warnings" value={String(warningRows)} detail="Rows that need support or accounting review before post" />
-        <MetricCard label="Promoted rows" value={String(promotedRows)} detail={`${errorRows} blocked row${errorRows === 1 ? "" : "s"} still need repair`} />
+      <div className="grid gap-5 md:grid-cols-3">
+        <MetricCard label="Files" value={String(importWorkspace.datasets.length)} detail="Bank and payroll sources staged" />
+        <MetricCard label="Rows" value={String(totalRows)} detail="Total staged transactions" />
+        <MetricCard label="Ready" value={String(readyToPromoteRows)} detail={`${promotedRows} already promoted`} />
       </div>
 
-      <div className="mt-6 grid gap-4 xl:grid-cols-[1.7fr_1fr]">
-        <section className="rounded-2xl border border-border bg-surface-mid p-5">
-          <div className="text-xs uppercase tracking-[0.2em] text-accent">Workflow coverage</div>
-          <ul className="mt-4 space-y-3 text-sm text-text-muted">
-            <li>• Choose a staged source file and apply a reusable mapping profile.</li>
-            <li>• Persist source-file metadata, profile mappings, and row-level validation results when Convex is available.</li>
-            <li>• Review row-level posting suggestions, confidence, warnings, and blocking errors.</li>
-            <li>• Promote eligible import rows into transactions with a safe demo fallback when the backend path is unavailable.</li>
+      <div className="mt-8 grid gap-5 xl:grid-cols-[1.7fr_1fr]">
+        <section className="rounded-2xl border border-border bg-surface-mid p-6">
+          <div className="text-[11px] uppercase tracking-[0.15em] text-accent/70">Workflow</div>
+          <ul className="mt-4 space-y-1.5 text-sm text-text-muted/60">
+            <li>Choose a source file and apply a mapping profile.</li>
+            <li>Review posting suggestions and validation results.</li>
+            <li>Promote clean rows into transactions.</li>
           </ul>
         </section>
 
-        <section className="rounded-2xl border border-border bg-surface-mid p-5">
-          <div className="text-xs uppercase tracking-[0.2em] text-accent">Related workspaces</div>
+        <section className="rounded-2xl border border-border bg-surface-mid p-6">
+          <div className="text-[11px] uppercase tracking-[0.15em] text-accent/70">Recent jobs</div>
           <div className="mt-4 grid gap-3">
-            <Link href="/dashboard/accounting/pipeline" className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-4 py-3 text-sm text-violet-100 transition hover:bg-violet-500/20">
-              Open transaction pipeline
+            {recentDatasets.map((dataset) => (
+              <div key={dataset.id} className="rounded-xl border border-border bg-surface px-4 py-3 text-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-text-primary">{dataset.fileName}</div>
+                    <div className="mt-1 text-xs text-text-muted">
+                      {dataset.source} • {dataset.uploadedAt} • {dataset.periodLabel}
+                    </div>
+                  </div>
+                  <div className="text-right text-xs text-text-muted">
+                    {dataset.promotionReadyCount} ready • {dataset.blockedRowCount} blocked
+                  </div>
+                </div>
+                <div className="mt-2 text-xs text-text-muted">
+                  {dataset.persistedStatusReason ?? "Review mappings, clear issues, and move the clean rows into accounting review."}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 text-[11px] uppercase tracking-[0.15em] text-accent/70">Workspaces</div>
+          <div className="mt-3 space-y-2">
+            <Link href="/dashboard/accounting/pipeline" className="block rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text-muted transition hover:text-text-primary hover:bg-surface/70">
+              Pipeline
             </Link>
-            <Link href="/dashboard/accounting/transactions" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
-              Open transactions review
+            <Link href="/dashboard/accounting/transactions" className="block rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text-muted transition hover:text-text-primary hover:bg-surface/70">
+              Transactions
             </Link>
-            <Link href="/dashboard/accounting/periods" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
-              Open close periods
-            </Link>
-            <Link href="/dashboard/accounting/close" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
-              Open month-end close dashboard
+            <Link href="/dashboard/accounting/periods" className="block rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text-muted transition hover:text-text-primary hover:bg-surface/70">
+              Periods
             </Link>
           </div>
         </section>
