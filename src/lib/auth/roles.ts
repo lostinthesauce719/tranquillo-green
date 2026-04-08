@@ -11,18 +11,18 @@ export const ROLE_LABELS: Record<TenantRole, string> = {
 /** Which nav sections each role can access */
 export const ROLE_PERMISSIONS: Record<TenantRole, readonly string[]> = {
   owner: [
-    "overview", "accounting", "allocations", "inventory",
+    "overview", "onboarding", "accounting", "allocations", "inventory",
     "compliance", "reconciliations", "exports", "automation", "settings",
   ],
   controller: [
-    "overview", "accounting", "allocations", "inventory",
+    "overview", "onboarding", "accounting", "allocations", "inventory",
     "compliance", "reconciliations", "exports", "automation",
   ],
   accountant: [
-    "overview", "accounting", "allocations",
+    "overview", "onboarding", "accounting", "allocations",
     "reconciliations", "exports",
   ],
-  viewer: ["overview", "accounting"],
+  viewer: ["overview", "onboarding", "accounting"],
 };
 
 /** Map a nav href to its section key for role gating */

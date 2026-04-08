@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { AppShell } from "@/components/shell/app-shell";
 
 /* ── Demo data ────────────────────────────────────────────────── */
@@ -131,6 +132,20 @@ export default function SettingsPage() {
       description="Organization configuration, integrations, team management, and accounting preferences for Green Harvest CA."
     >
       <div className="space-y-6">
+        <section className="rounded-2xl border border-amber-500/20 bg-amber-500/10 p-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div className="max-w-3xl">
+              <div className="text-xs uppercase tracking-[0.2em] text-amber-200">Demo-first note</div>
+              <h2 className="mt-2 text-xl font-semibold text-amber-50">Use settings to understand the company frame after the workflow makes sense.</h2>
+              <p className="mt-3 text-sm text-amber-100/85">
+                This page is a stable reference for the seeded company profile, locations, integrations, and team roles. It is not the recommended first stop for a new walkthrough. Start in onboarding or the overview if you want the fastest path to what matters now.
+              </p>
+            </div>
+            <Link href="/dashboard/onboarding" className="inline-flex rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm font-semibold text-amber-100 transition hover:bg-amber-500/20">
+              Open onboarding workspace
+            </Link>
+          </div>
+        </section>
         {/* Company Profile */}
         <Card title="Company Profile">
           <div className="flex items-start justify-between">
