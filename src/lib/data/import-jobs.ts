@@ -74,7 +74,6 @@ function buildImportedCards(datasets: ImportWorkspaceDataset[]): DemoPipelineCar
   return datasets.flatMap((dataset) =>
     dataset.rows
       .filter((row) => !row.promotedTransactionId)
-      .filter((row) => row.status !== "ready" || dataset.backendMode === "persisted")
       .map((row) => ({
         id: row.id,
         stage: "imported" as const,

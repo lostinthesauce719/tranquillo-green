@@ -13,8 +13,34 @@ function agentTone(status: DemoAutomationAgent["status"]) {
 }
 
 export function GreenAutomationWorkspace({ agents }: { agents: DemoAutomationAgent[] }) {
+  const attentionCount = agents.filter((agent) => agent.status === "attention").length;
+  const watchCount = agents.filter((agent) => agent.status === "watch").length;
+  const healthyCount = agents.filter((agent) => agent.status === "healthy").length;
+
   return (
     <div className="space-y-4">
+      <section className="rounded-2xl border border-border bg-surface-mid p-5">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <div className="text-xs uppercase tracking-[0.2em] text-accent">Automation posture</div>
+            <h2 className="mt-2 text-xl font-semibold">What is automated versus what still needs a human</h2>
+            <p className="mt-2 max-w-3xl text-sm text-text-muted">
+              The current Green automation story is reviewer-first: agents summarize issues, package context, and propose follow-up, but they do not post entries, send external messages, or move workflow state on their own.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-border bg-surface px-4 py-3 text-sm text-text-muted">
+            <div>Healthy definitions: <span className="text-text-primary">{healthyCount}</span></div>
+            <div className="mt-1">Watch definitions: <span className="text-text-primary">{watchCount}</span></div>
+            <div className="mt-1">Attention definitions: <span className="text-text-primary">{attentionCount}</span></div>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-muted">Good fit: monitoring close blockers, missing support, and reviewer queue conditions.</div>
+          <div className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-muted">Human-required: signoff, posting, recipient delivery, and anything that changes accounting state.</div>
+          <div className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-muted">Demo constraint: statuses and last-run values reflect seeded product narrative rather than live background execution.</div>
+        </div>
+      </section>
+
       {agents.map((agent) => (
         <section key={agent.id} className="rounded-2xl border border-border bg-surface-mid p-5">
           <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-start sm:justify-between">

@@ -93,28 +93,26 @@ function transactionAgeLabel(date: string) {
 
 function buildImportedCards(): DemoPipelineCard[] {
   return demoImportDatasets.flatMap((dataset) =>
-    dataset.rows
-      .filter((row) => row.status !== "ready")
-      .map((row) => ({
-        id: row.id,
-        stage: "imported" as const,
-        title: row.values.vendor_name || row.values.employee_group || row.values.bank_reference || row.values.batch_reference || "Imported row",
-        reference: row.values.bank_reference || row.values.batch_reference || row.id,
-        source: `${dataset.source} import`,
-        owner: row.status === "error" ? "Import Analyst" : "Staff Accountant",
-        reviewer: row.status === "error" ? "Accounting Ops Lead" : "Assistant Controller",
-        amount: Math.abs(
-          Number(row.values.signed_amount || row.values.debit_amount || row.values.credit_amount || 0),
-        ),
-        periodLabel: dataset.periodLabel,
-        location: row.values.entity || "Richmond Manufacturing Hub",
-        ageLabel: `Uploaded ${dataset.uploadedAt}`,
-        blocker: row.validationIssues[0],
-        nextAction: row.status === "error" ? "Repair mapping and re-stage import row" : "Collect support and promote into review queue",
-        linkHref: "/dashboard/accounting/imports",
-        supportLabel: `${row.validationIssues.length} validation issue${row.validationIssues.length === 1 ? "" : "s"}`,
-        priority: row.status === "error" ? "critical" : "high",
-      })),
+    dataset.rows.map((row) => ({
+      id: row.id,
+      stage: "imported" as const,
+      title: row.values.vendor_name || row.values.employee_group || row.values.bank_reference || row.values.batch_reference || "Imported row",
+      reference: row.values.bank_reference || row.values.batch_reference || row.id,
+      source: `${dataset.source} import`,
+      owner: row.status === "error" ? "Import Analyst" : "Staff Accountant",
+      reviewer: row.status === "error" ? "Accounting Ops Lead" : "Assistant Controller",
+      amount: Math.abs(
+        Number(row.values.signed_amount || row.values.debit_amount || row.values.credit_amount || 0),
+      ),
+      periodLabel: dataset.periodLabel,
+      location: row.values.entity || "Richmond Manufacturing Hub",
+      ageLabel: `Uploaded ${dataset.uploadedAt}`,
+      blocker: row.validationIssues[0],
+      nextAction: row.status === "error" ? "Repair mapping and re-stage import row" : "Collect support and promote into review queue",
+      linkHref: "/dashboard/accounting/imports",
+      supportLabel: `${row.validationIssues.length} validation issue${row.validationIssues.length === 1 ? "" : "s"}`,
+      priority: row.status === "error" ? "critical" : row.validationIssues.length > 0 ? "high" : "normal",
+    })),
   );
 }
 

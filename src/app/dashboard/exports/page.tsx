@@ -11,20 +11,21 @@ export default async function ExportsPage() {
   const readyBundles = exportCenter.bundles.filter((bundle) => bundle.status === "ready").length;
   const blockedChecklistItems = exportCenter.checklist.filter((item) => item.status === "missing").length;
   const watchChecklistItems = exportCenter.checklist.filter((item) => item.status === "watch").length;
+  const sentBundles = exportCenter.bundles.filter((bundle) => bundle.status === "sent").length;
 
   return (
     <AppShell
       title="CPA export center"
       description={
         exportCenter.source === "convex"
-          ? "Bundle builder for CPA and controller handoff packets. Persisted Convex packet history and audit activity are now surfaced when available while packet templates remain demo-safe."
-          : "Bundle builder for CPA and controller handoff packets. This workspace is running on the demo-safe fallback path because persisted Convex packet history is unavailable in this runtime."
+          ? "Bundle builder for CPA and controller handoff packets. Packet history and audit activity can come from Convex, while the builder stays explicit about which packet content is still demo-scaffolded."
+          : "Bundle builder for CPA and controller handoff packets. This workspace is using demo-safe history and packet scaffolding, with no live delivery or file transfer happening from this page."
       }
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Export bundles" value={String(exportCenter.bundles.length)} detail={`${readyBundles} ready for handoff`} />
         <MetricCard label="Checklist blockers" value={String(blockedChecklistItems)} detail={`${watchChecklistItems} items still on watch`} />
-        <MetricCard label={exportCenter.source === "convex" ? "Persisted history" : "Demo history"} value={String(exportCenter.history.length)} detail="Packet refreshes and releases preserved in the export timeline" />
+        <MetricCard label={exportCenter.source === "convex" ? "Persisted history" : "Demo history"} value={String(exportCenter.history.length)} detail={`${sentBundles} bundles already marked sent in the current packet lineup`} />
         <MetricCard label="Workflow agents" value={String(exportCenter.agents.length)} detail="Static automation definitions attached to the handoff center" />
       </div>
 
@@ -37,6 +38,12 @@ export default async function ExportsPage() {
           </div>
           <div className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-muted">
             Audit trail events loaded: {exportCenter.auditTrail.length}
+          </div>
+          <div className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-muted">
+            Bundle templates: static demo packet definitions with configurable section mix and memo framing
+          </div>
+          <div className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-muted">
+            Delivery behavior: this workspace records packet intent and history only; it does not send live files to recipients
           </div>
         </div>
       </div>

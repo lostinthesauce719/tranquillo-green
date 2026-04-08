@@ -28,6 +28,30 @@ function formatPercent(value: number) {
   return `${Math.round(value * 100)}%`;
 }
 
+function formatBytes(value?: number) {
+  if (!value) {
+    return null;
+  }
+
+  if (value < 1024) {
+    return `${value} B`;
+  }
+
+  if (value < 1024 * 1024) {
+    return `${(value / 1024).toFixed(1)} KB`;
+  }
+
+  return `${(value / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function humanizeLabel(value: string) {
+  return value.replaceAll("_", " ");
+}
+
+function humanizeTargetField(value: DemoImportTargetField) {
+  return targetFieldLabels[value].toLowerCase();
+}
+
 function getRowTone(status: "ready" | "warning" | "error") {
   switch (status) {
     case "ready":
@@ -55,6 +79,32 @@ function profilePersistenceMeta(mode: ImportWorkspace["datasets"][number]["profi
       return { label: "Snapshot only", tone: "amber" as const };
     case "saved_with_overrides":
       return { label: "Saved + overridden", tone: "violet" as const };
+  }
+}
+
+function backendModeMeta(mode: ImportWorkspace["datasets"][number]["backendMode"]) {
+  switch (mode) {
+    case "demo":
+      return { label: "Demo-only dataset", tone: "slate" as const };
+    case "persisted":
+      return { label: "Persisted job", tone: "violet" as const };
+  }
+}
+
+function persistedStatusMeta(status: ImportWorkspace["datasets"][number]["persistedStatus"]) {
+  switch (status) {
+    case "uploaded":
+      return { label: "Uploaded", tone: "blue" as const };
+    case "mapped":
+      return { label: "Mapped", tone: "amber" as const };
+    case "validated":
+      return { label: "Validated", tone: "emerald" as const };
+    case "partially_promoted":
+      return { label: "Partially promoted", tone: "violet" as const };
+    case "promoted":
+      return { label: "Promoted", tone: "emerald" as const };
+    case "failed":
+      return { label: "Needs attention", tone: "rose" as const };
   }
 }
 
@@ -94,12 +144,42 @@ export function CsvImportWorkflow({
     setSelectedRowId(dataset.rows[0]?.id ?? "");
   }, [dataset]);
 
-  if (!dataset || dataset.profiles.length === 0 || dataset.rows.length === 0) {
-    return null;
+  if (workspace.datasets.length === 0) {
+    return (
+      <section className="rounded-2xl border border-dashed border-border bg-surface-mid p-6 text-sm text-text-muted">
+        No import files are available yet. Upload or seed a dataset before using the mapping workspace.
+      </section>
+    );
+  }
+
+  if (!dataset) {
+    return (
+      <section className="rounded-2xl border border-dashed border-border bg-surface-mid p-6 text-sm text-text-muted">
+        The selected import dataset could not be loaded. Try refreshing the workspace.
+      </section>
+    );
+  }
+
+  if (dataset.profiles.length === 0) {
+    return (
+      <section className="rounded-2xl border border-dashed border-border bg-surface-mid p-6 text-sm text-text-muted">
+        {dataset.fileName} does not have any mapping profiles yet, so the import cannot be staged from this demo workspace.
+      </section>
+    );
+  }
+
+  if (dataset.rows.length === 0) {
+    return (
+      <section className="rounded-2xl border border-dashed border-border bg-surface-mid p-6 text-sm text-text-muted">
+        {dataset.fileName} loaded successfully, but no preview rows are available to validate or promote.
+      </section>
+    );
   }
 
   const selectedProfile = dataset.profiles.find((profile) => profile.id === selectedProfileId) ?? dataset.profiles[0]!;
   const profileMeta = profilePersistenceMeta(dataset.profilePersistence);
+  const backendMeta = backendModeMeta(dataset.backendMode);
+  const persistedMeta = persistedStatusMeta(dataset.persistedStatus);
   const availableTargets = getAvailableTargetFields(selectedProfile.amountStrategy);
   const effectiveMappings = dataset.columns.reduce<Record<string, DemoImportTargetField>>((acc, column) => {
     acc[column.key] = mappingOverrides[column.key] ?? selectedProfile.fieldMappings[column.key] ?? column.suggestedTarget;
@@ -126,6 +206,26 @@ export function CsvImportWorkflow({
   );
 
   const selectedRow = dataset.rows.find((row) => row.id === selectedRowId) ?? dataset.rows[0]!;
+  const mappingCoverageCount = dataset.columns.filter((column) => {
+    const mappedField = effectiveMappings[column.key] ?? column.suggestedTarget;
+    return mappedField !== "ignore";
+  }).length;
+  const stageButtonLabel = workspace.source === "convex"
+    ? dataset.backendMode === "persisted"
+      ? "Save mapping changes"
+      : "Persist import job"
+    : "Stage demo import";
+  const stageButtonDetail = workspace.source === "convex"
+    ? dataset.backendMode === "persisted"
+      ? "Updates the persisted job snapshot and refreshes validation state."
+      : "Creates a persisted import job from the staged demo file."
+    : "Runs the stage action in demo-safe mode with no persisted writes.";
+  const promoteHelpText = dataset.backendMode === "persisted"
+    ? dataset.promotionReadyCount > 0
+      ? `${dataset.promotionReadyCount} eligible row${dataset.promotionReadyCount === 1 ? " is" : "s are"} ready to enter the transaction queue.`
+      : "No rows are currently eligible for promotion. Clear blockers or save mapping fixes first."
+    : "Promotion is only available once the dataset exists as a persisted import job.";
+  const sourceFileSizeLabel = formatBytes(dataset.sourceFileSizeBytes);
 
   function handleDatasetChange(nextDatasetId: string) {
     const nextDataset = workspace.datasets.find((item) => item.id === nextDatasetId) ?? workspace.datasets[0];
@@ -152,7 +252,7 @@ export function CsvImportWorkflow({
   async function submitImportJob() {
     const issues = [...requiredFieldIssues, ...amountStrategyFieldIssues];
     if (issues.length > 0) {
-      setMessage(`Import cannot be staged yet. Resolve mapping gaps for: ${issues.join(", ")}.`);
+      setMessage(`Import cannot be staged yet. Resolve mapping gaps for: ${issues.map((issue) => humanizeTargetField(issue as DemoImportTargetField)).join(", ")}.`);
       return;
     }
 
@@ -282,11 +382,11 @@ export function CsvImportWorkflow({
           <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">
             <div className="text-xs uppercase tracking-[0.2em] text-accent">Lifecycle</div>
             <div className="mt-3 flex flex-wrap gap-2">
-              <AccountingStatusBadge label={dataset.backendMode} tone={dataset.backendMode === "persisted" ? "violet" : "slate"} />
-              <AccountingStatusBadge label={dataset.persistedStatus.replaceAll("_", " ")} tone={dataset.persistedStatus === "promoted" ? "emerald" : dataset.persistedStatus === "mapped" ? "amber" : "blue"} className="capitalize" />
+              <AccountingStatusBadge label={backendMeta.label} tone={backendMeta.tone} />
+              <AccountingStatusBadge label={persistedMeta.label} tone={persistedMeta.tone} />
               <AccountingStatusBadge label={profileMeta.label} tone={profileMeta.tone} />
             </div>
-            <div className="mt-1">Promoted {dataset.promotedRowCount} / {dataset.rows.length} rows</div>
+            <div className="mt-1">Promoted {dataset.promotedRowCount} / {dataset.rows.length} rows • {dataset.promotionReadyCount} ready next</div>
             {dataset.persistedStatusReason ? <div className="mt-1 text-xs">{dataset.persistedStatusReason}</div> : null}
           </div>
           <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">
@@ -296,6 +396,7 @@ export function CsvImportWorkflow({
               <AccountingStatusBadge label={`${previewStats.warning} warning`} tone="amber" />
               <AccountingStatusBadge label={`${previewStats.error} error`} tone="rose" />
             </div>
+            <div className="mt-2 text-xs">{dataset.blockedRowCount} blocked • {dataset.promotionReadyCount} can move forward after review</div>
           </div>
         </div>
       </section>
@@ -373,16 +474,18 @@ export function CsvImportWorkflow({
           {requiredFieldIssues.length === 0 ? (
             <AccountingStatusBadge label="Core fields mapped" tone="emerald" />
           ) : (
-            <AccountingStatusBadge label={`Missing: ${requiredFieldIssues.join(", ")}`} tone="rose" />
+            <AccountingStatusBadge label={`Missing: ${requiredFieldIssues.map(humanizeTargetField).join(", ")}`} tone="rose" />
           )}
           {amountStrategyFieldIssues.length === 0 ? (
             <AccountingStatusBadge label="Amount columns valid" tone="emerald" />
           ) : (
-            <AccountingStatusBadge label={`Amount issue: ${amountStrategyFieldIssues.join(", ")}`} tone="amber" />
+            <AccountingStatusBadge label={`Amount issue: ${amountStrategyFieldIssues.map((field) => humanizeTargetField(field as DemoImportTargetField)).join(", ")}`} tone="amber" />
           )}
+          <AccountingStatusBadge label={`${mappingCoverageCount}/${dataset.columns.length} columns mapped`} tone="slate" />
           {dataset.selectedProfileName ? <AccountingStatusBadge label={`Selected profile ${dataset.selectedProfileName}`} tone="slate" /> : null}
           <AccountingStatusBadge label={`Delimiter ${dataset.delimiter}`} tone="slate" />
-          {dataset.sourceFileSizeBytes ? <AccountingStatusBadge label={`${dataset.sourceFileSizeBytes} bytes`} tone="slate" /> : null}
+          {sourceFileSizeLabel ? <AccountingStatusBadge label={sourceFileSizeLabel} tone="slate" /> : null}
+          {dataset.uploadedBy ? <AccountingStatusBadge label={`Uploaded by ${dataset.uploadedBy}`} tone="slate" /> : null}
         </div>
       </section>
 
@@ -394,26 +497,35 @@ export function CsvImportWorkflow({
               <p className="mt-2 text-sm text-text-muted">
                 Review confidence, suggested posting accounts, and row issues before submitting for accounting review.
               </p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <AccountingStatusBadge label={`${previewStats.promoted} already promoted`} tone="violet" />
+                <AccountingStatusBadge label={`${dataset.promotionReadyCount} promotion-ready`} tone="emerald" />
+                <AccountingStatusBadge label={`${dataset.blockedRowCount} blocked`} tone={dataset.blockedRowCount > 0 ? "rose" : "slate"} />
+              </div>
             </div>
             <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
-                disabled={isPending}
-                onClick={submitImportJob}
-                className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-200 transition hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {workspace.source === "convex" ? "Persist import job" : "Stage demo import"}
-              </button>
-              {dataset.backendMode === "persisted" && dataset.jobId ? (
+              <div className="grid gap-2">
                 <button
                   type="button"
-                  disabled={isPending || dataset.promotionReadyCount === 0}
+                  disabled={isPending}
+                  onClick={submitImportJob}
+                  className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-200 transition hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {stageButtonLabel}
+                </button>
+                <div className="text-xs text-text-muted">{stageButtonDetail}</div>
+              </div>
+              <div className="grid gap-2">
+                <button
+                  type="button"
+                  disabled={isPending || dataset.backendMode !== "persisted" || !dataset.jobId || dataset.promotionReadyCount === 0}
                   onClick={promoteDataset}
                   className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-4 py-3 text-sm font-medium text-violet-100 transition hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   Promote to transactions
                 </button>
-              ) : null}
+                <div className="max-w-xs text-xs text-text-muted">{promoteHelpText}</div>
+              </div>
             </div>
           </div>
 
@@ -474,6 +586,10 @@ export function CsvImportWorkflow({
                 </div>
                 <div className="mt-1 font-mono text-xs">
                   {selectedRow.values.bank_reference ?? selectedRow.values.batch_reference ?? "No reference"}
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <AccountingStatusBadge label={`${formatPercent(selectedRow.confidence)} confidence`} tone={selectedRow.confidence >= 0.9 ? "emerald" : selectedRow.confidence >= 0.7 ? "amber" : "rose"} />
+                  <AccountingStatusBadge label={humanizeLabel(selectedRow.status)} tone={getRowTone(selectedRow.status)} className="capitalize" />
                 </div>
               </div>
               <div className="grid gap-2">

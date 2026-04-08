@@ -20,6 +20,7 @@ export default async function AccountingImportsPage() {
     0,
   );
   const promotedRows = importWorkspace.datasets.reduce((sum, dataset) => sum + dataset.promotedRowCount, 0);
+  const readyToPromoteRows = importWorkspace.datasets.reduce((sum, dataset) => sum + dataset.promotionReadyCount, 0);
   const persistedJobs = importWorkspace.datasets.filter((dataset) => dataset.backendMode === "persisted").length;
 
   return (
@@ -31,7 +32,7 @@ export default async function AccountingImportsPage() {
         <MetricCard label={importWorkspace.source === "convex" ? "Persisted jobs" : "Demo files"} value={String(importWorkspace.datasets.length)} detail={importWorkspace.source === "convex" ? `${persistedJobs} jobs are loading from Convex persistence` : "Bank and payroll source formats staged for review"} />
         <MetricCard label="Rows previewed" value={String(totalRows)} detail="Total staged transactions across current imports" />
         <MetricCard label="Warnings" value={String(warningRows)} detail="Rows that need support or accounting review before post" />
-        <MetricCard label="Promoted rows" value={String(promotedRows)} detail={`${errorRows} blocked row${errorRows === 1 ? "" : "s"} still need repair`} />
+        <MetricCard label="Ready to promote" value={String(readyToPromoteRows)} detail={`${errorRows} blocked row${errorRows === 1 ? "" : "s"} still need repair • ${promotedRows} already promoted`} />
       </div>
 
       {importWorkspace.fallbackReason ? (

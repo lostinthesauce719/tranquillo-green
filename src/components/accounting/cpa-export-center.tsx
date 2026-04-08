@@ -100,6 +100,10 @@ export function CpaExportCenter({
   const selectedBundle = bundles.find((bundle) => bundle.id === builderState.selectedBundleId) ?? fallbackBundle;
   const selectedChecklistItems = checklist.filter((item) => builderState.selectedChecklistTitles.includes(item.title));
   const selectedChecklistStatuses = new Set(selectedChecklistItems.map((item) => item.status));
+  const selectedChecklistCount = builderState.selectedChecklistTitles.length;
+  const selectedDoneChecklistCount = selectedChecklistItems.filter((item) => item.status === "done").length;
+  const selectedWatchChecklistCount = selectedChecklistItems.filter((item) => item.status === "watch").length;
+  const selectedMissingChecklistCount = selectedChecklistItems.filter((item) => item.status === "missing").length;
   const packetReadinessLabel = selectedChecklistStatuses.has("missing")
     ? "Packet still has missing support selected"
     : selectedChecklistStatuses.has("watch")
@@ -174,10 +178,22 @@ export function CpaExportCenter({
             <div>
               <div className="text-xs uppercase tracking-[0.2em] text-accent">Packet builder</div>
               <h2 className="mt-2 text-xl font-semibold">CPA handoff packet assembly center</h2>
-              <p className="mt-2 text-sm text-text-muted">Static packet builder with demo controls for selecting bundle sections, export formats, memo style, and readiness attachments before generating a mock handoff event.</p>
+              <p className="mt-2 text-sm text-text-muted">Demo-safe packet builder for selecting bundle sections, output formats, memo framing, and support attachments before logging a packet build event.</p>
             </div>
             <div className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-muted">
               {historySource === "convex" ? "Persisted packet history enabled" : "Demo-backed generation only"}
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            <div className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-muted">
+              Step 1: pick the handoff packet you want to prepare.
+            </div>
+            <div className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-muted">
+              Step 2: adjust formats, schedules, and memo framing to match the recipient.
+            </div>
+            <div className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-muted">
+              Step 3: attach only the checklist items you want called out in the final packet story.
             </div>
           </div>
 
@@ -300,6 +316,7 @@ export function CpaExportCenter({
                   <div className="mt-3 space-y-3 rounded-xl border border-border bg-background p-3 text-sm text-text-muted">
                     <div>Recipient: <span className="text-text-primary">{selectedBundle.recipient}</span></div>
                     <div>Owner: <span className="text-text-primary">{selectedBundle.owner}</span></div>
+                    <div>Last packet refresh: <span className="text-text-primary">{selectedBundle.generatedAt}</span></div>
                     <label className="flex cursor-pointer items-start gap-3">
                       <input
                         type="checkbox"
@@ -322,7 +339,7 @@ export function CpaExportCenter({
                       }}
                       className="rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-3 text-sm text-violet-100 transition hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                     >
-                      {isSaving ? "Saving packet history..." : historySource === "convex" ? "Assemble + persist packet" : "Assemble demo packet"}
+                      {isSaving ? "Saving packet history..." : historySource === "convex" ? "Build packet + save history" : "Build demo packet event"}
                     </button>
                   </div>
                   {buildMessage ? <div className="mt-4 text-sm text-text-muted">{buildMessage}</div> : null}
@@ -351,9 +368,23 @@ export function CpaExportCenter({
                   </div>
                 ))}
               </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                <div className="rounded-xl border border-border bg-background px-3 py-3 text-sm text-text-muted">
+                  Included checklist items: <span className="text-text-primary">{selectedChecklistCount}</span>
+                </div>
+                <div className="rounded-xl border border-border bg-background px-3 py-3 text-sm text-text-muted">
+                  Watch items included: <span className="text-text-primary">{selectedWatchChecklistCount}</span>
+                </div>
+                <div className="rounded-xl border border-border bg-background px-3 py-3 text-sm text-text-muted">
+                  Missing items included: <span className="text-text-primary">{selectedMissingChecklistCount}</span>
+                </div>
+              </div>
               <div className="mt-4 rounded-xl border border-border bg-background p-3">
                 <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Readiness framing</div>
                 <div className="mt-2 text-sm text-text-primary">{packetReadinessLabel}</div>
+                <div className="mt-2 text-sm text-text-muted">
+                  Selected checklist mix: {selectedDoneChecklistCount} ready, {selectedWatchChecklistCount} watch, {selectedMissingChecklistCount} missing.
+                </div>
                 {selectedBundle.blockers.length > 0 ? (
                   <ul className="mt-3 space-y-2 text-sm text-text-muted">
                     {selectedBundle.blockers.map((blocker) => (
@@ -369,6 +400,7 @@ export function CpaExportCenter({
 
           <section className="rounded-2xl border border-border bg-surface-mid p-5">
             <div className="text-xs uppercase tracking-[0.2em] text-accent">3. Attach checklist items</div>
+            <p className="mt-2 text-sm text-text-muted">Attach what the recipient should see. Leaving a watch or missing item selected is useful when you want the packet cover memo to explain why delivery is being held.</p>
             <div className="mt-4 space-y-3">
               {checklist.map((item) => (
                 <label key={item.title} className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border bg-surface p-4">
@@ -425,6 +457,7 @@ export function CpaExportCenter({
               <div className="text-xs uppercase tracking-[0.2em] text-accent">Generation history</div>
               <AccountingStatusBadge label={historySource === "convex" ? "persisted" : "demo"} tone={historySource === "convex" ? "emerald" : "slate"} className="capitalize" />
             </div>
+            <p className="mt-2 text-sm text-text-muted">This timeline shows packet builds and holds. In demo mode it is illustrative; in Convex mode it reflects saved packet events.</p>
             <div className="mt-4 space-y-3">
               {demoHistory.map((entry) => (
                 <div key={`${entry.timestampLabel}-${entry.action}`} className="rounded-2xl border border-border bg-surface p-4">
