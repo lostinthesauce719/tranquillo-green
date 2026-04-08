@@ -12,6 +12,9 @@ export default async function ExportsPage() {
   const blockedChecklistItems = exportCenter.checklist.filter((item) => item.status === "missing").length;
   const watchChecklistItems = exportCenter.checklist.filter((item) => item.status === "watch").length;
   const sentBundles = exportCenter.bundles.filter((bundle) => bundle.status === "sent").length;
+  const manifestAttached = exportCenter.manifest.filter((item) => item.status === "attached").length;
+  const manifestMissing = exportCenter.manifest.filter((item) => item.status === "missing").length;
+  const openQuestions = exportCenter.questionQueue.filter((item) => item.status === "open").length;
 
   return (
     <AppShell
@@ -23,10 +26,10 @@ export default async function ExportsPage() {
       }
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Export bundles" value={String(exportCenter.bundles.length)} detail={`${readyBundles} ready for handoff`} />
-        <MetricCard label="Checklist blockers" value={String(blockedChecklistItems)} detail={`${watchChecklistItems} items still on watch`} />
-        <MetricCard label={exportCenter.source === "convex" ? "Persisted history" : "Demo history"} value={String(exportCenter.history.length)} detail={`${sentBundles} bundles already marked sent in the current packet lineup`} />
-        <MetricCard label="Workflow agents" value={String(exportCenter.agents.length)} detail="Static automation definitions attached to the handoff center" />
+        <MetricCard label="Period state" value={`${exportCenter.periodState.closeReadiness}%`} detail={`${exportCenter.periodState.periodLabel} close readiness`} />
+        <MetricCard label="Export manifest" value={`${manifestAttached}/${exportCenter.manifest.length}`} detail={`${manifestMissing} missing, ${exportCenter.manifest.filter(i => i.status === "watch").length} on watch`} />
+        <MetricCard label="Question queue" value={String(openQuestions)} detail={`${exportCenter.questionQueue.filter(i => i.status === "in_progress").length} in progress`} />
+        <MetricCard label="Override rollup" value={String(exportCenter.overrideRollup.length)} detail={`Total deductible deltas documented`} />
       </div>
 
       <div className="mt-6 rounded-2xl border border-border bg-surface-mid p-5">
@@ -50,15 +53,20 @@ export default async function ExportsPage() {
 
       <div className="mt-6">
         <CpaExportCenter
-          companySlug={DEMO_COMPANY_SLUG}
-          historySource={exportCenter.source}
-          bundles={exportCenter.bundles}
-          checklist={exportCenter.checklist}
-          history={exportCenter.history}
-          auditTrail={exportCenter.auditTrail}
-          agents={exportCenter.agents}
-          featuredReconciliationHref={featuredReconciliationHref}
-        />
+        companySlug={DEMO_COMPANY_SLUG}
+        historySource={exportCenter.source}
+        bundles={exportCenter.bundles}
+        checklist={exportCenter.checklist}
+        history={exportCenter.history}
+        auditTrail={exportCenter.auditTrail}
+        agents={exportCenter.agents}
+        manifest={exportCenter.manifest}
+        questionQueue={exportCenter.questionQueue}
+        overrideRollup={exportCenter.overrideRollup}
+        periodState={exportCenter.periodState}
+        memoPreviews={exportCenter.memoPreviews}
+        featuredReconciliationHref={featuredReconciliationHref}
+      />
       </div>
     </AppShell>
   );

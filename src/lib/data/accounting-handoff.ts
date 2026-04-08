@@ -6,10 +6,20 @@ import {
   demoExportBundles,
   demoGenerationHistory,
   demoPacketChecklist,
+  demoExportManifest,
+  demoQuestionQueue,
+  demoOverrideRollup,
+  demoPeriodState,
+  demoMemoPreviews,
   type DemoAutomationAgent,
   type DemoExportBundle,
   type DemoGenerationHistoryItem,
   type DemoPacketChecklistItem,
+  type DemoManifestItem,
+  type DemoQuestionQueueItem,
+  type DemoOverrideRollupEntry,
+  type DemoPeriodState,
+  type DemoMemoPreview,
 } from "@/lib/demo/accounting-handoff";
 import { DEMO_COMPANY_SLUG } from "@/lib/data/accounting-core";
 import { getAuthenticatedConvexClient, withTimeout } from "@/lib/data/convex-client";
@@ -22,6 +32,11 @@ export type ExportCenterData = {
   history: DemoGenerationHistoryItem[];
   agents: DemoAutomationAgent[];
   auditTrail: DemoGenerationHistoryItem[];
+  manifest: DemoManifestItem[];
+  questionQueue: DemoQuestionQueueItem[];
+  overrideRollup: DemoOverrideRollupEntry[];
+  periodState: DemoPeriodState;
+  memoPreviews: DemoMemoPreview[];
 };
 
 function formatTimestamp(timestamp: number) {
@@ -60,6 +75,11 @@ function buildDemoExportCenterData(): ExportCenterData {
     history: demoGenerationHistory,
     agents: demoAutomationAgents,
     auditTrail: [],
+    manifest: demoExportManifest,
+    questionQueue: demoQuestionQueue,
+    overrideRollup: demoOverrideRollup,
+    periodState: demoPeriodState,
+    memoPreviews: demoMemoPreviews,
   };
 }
 
@@ -91,6 +111,11 @@ export async function loadExportCenterData(slug = DEMO_COMPANY_SLUG): Promise<Ex
       history: runs.length > 0 ? runs.map(toHistoryItem) : demoGenerationHistory,
       agents: demoAutomationAgents,
       auditTrail: auditEvents.map(toAuditHistoryItem),
+      manifest: demoExportManifest,
+      questionQueue: demoQuestionQueue,
+      overrideRollup: demoOverrideRollup,
+      periodState: demoPeriodState,
+      memoPreviews: demoMemoPreviews,
     };
   } catch {
     return buildDemoExportCenterData();

@@ -10,6 +10,11 @@ import type {
   DemoExportBundle,
   DemoGenerationHistoryItem,
   DemoPacketChecklistItem,
+  DemoManifestItem,
+  DemoQuestionQueueItem,
+  DemoOverrideRollupEntry,
+  DemoPeriodState,
+  DemoMemoPreview,
 } from "@/lib/demo/accounting-handoff";
 
 type BuilderState = {
@@ -81,6 +86,11 @@ export function CpaExportCenter({
   history,
   auditTrail,
   agents,
+  manifest,
+  questionQueue,
+  overrideRollup,
+  periodState,
+  memoPreviews,
   featuredReconciliationHref,
 }: {
   companySlug: string;
@@ -90,6 +100,11 @@ export function CpaExportCenter({
   history: DemoGenerationHistoryItem[];
   auditTrail: DemoGenerationHistoryItem[];
   agents: DemoAutomationAgent[];
+  manifest: DemoManifestItem[];
+  questionQueue: DemoQuestionQueueItem[];
+  overrideRollup: DemoOverrideRollupEntry[];
+  periodState: DemoPeriodState;
+  memoPreviews: DemoMemoPreview[];
   featuredReconciliationHref: string;
 }) {
   const fallbackBundle = bundles[0];
@@ -455,6 +470,222 @@ export function CpaExportCenter({
             </div>
           </section>
         </div>
+      </section>
+
+      {/* ── Readiness Banner ──────────────────────────────────────── */}
+      {(() => {
+        const manifestMissing = manifest.filter((i) => i.status === "missing");
+        const manifestWatch = manifest.filter((i) => i.status === "watch");
+        const openOperatorQs = questionQueue.filter((q) => q.category === "operator_followup" && q.status === "open");
+        const isReady = manifestMissing.length === 0 && openOperatorQs.length === 0;
+        return (
+          <section className={`rounded-2xl border p-5 ${isReady ? "border-emerald-500/30 bg-emerald-500/5" : "border-amber-500/30 bg-amber-500/5"}`}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-3">
+                <span className={`text-2xl ${isReady ? "text-emerald-400" : "text-amber-400"}`}>{isReady ? "✓" : "⚠"}</span>
+                <div>
+                  <div className={`text-sm font-semibold ${isReady ? "text-emerald-200" : "text-amber-200"}`}>
+                    {isReady ? "Packet ready for CPA handoff" : "Packet has gaps — cannot send yet"}
+                  </div>
+                  <div className="mt-1 text-sm text-text-muted">
+                    {manifestMissing.length} missing doc{manifestMissing.length === 1 ? "" : "s"}, {manifestWatch.length} watch item{manifestWatch.length === 1 ? "" : "s"}, {openOperatorQs.length} operator question{openOperatorQs.length === 1 ? "" : "s"} open
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <EvidenceBadge tone={isReady ? "verified" : "partial"} label={isReady ? "Ready to send" : "Gaps remaining"} />
+                <AccountingStatusBadge label={periodState.periodLabel} tone="slate" />
+              </div>
+            </div>
+            {manifestMissing.length > 0 ? (
+              <div className="mt-4 rounded-xl border border-rose-500/20 bg-rose-500/5 px-4 py-3">
+                <div className="text-xs uppercase tracking-[0.2em] text-rose-300">Blocking missing docs</div>
+                <ul className="mt-2 space-y-1 text-sm text-rose-200">
+                  {manifestMissing.map((doc) => (
+                    <li key={doc.scheduleRef}>• {doc.label} — {doc.note}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+          </section>
+        );
+      })()}
+
+      {/* ── Evidence-First: Period State + Support Schedule ──────── */}
+      <section className="rounded-2xl border border-border bg-surface-mid p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-xs uppercase tracking-[0.2em] text-accent">Evidence-first view</div>
+          <EvidenceBadge tone="verified" label="Current period state" />
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-xl border border-border bg-surface px-4 py-3">
+            <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Close readiness</div>
+            <div className="mt-1 text-lg font-semibold text-text-primary">{periodState.closeReadiness}%</div>
+            <div className="mt-1 text-xs text-text-muted">{periodState.periodLabel}</div>
+          </div>
+          <div className="rounded-xl border border-border bg-surface px-4 py-3">
+            <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Support schedule</div>
+            <div className="mt-1 text-lg font-semibold text-emerald-200">{periodState.supportScheduleComplete ? "Complete" : "Incomplete"}</div>
+            <div className="mt-1 text-xs text-text-muted">280E support finalized</div>
+          </div>
+          <div className="rounded-xl border border-border bg-surface px-4 py-3">
+            <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Missing docs</div>
+            <div className="mt-1 text-lg font-semibold text-rose-200">{periodState.missingDocCount}</div>
+            <div className="mt-1 text-xs text-text-muted">{periodState.watchItemCount} on watch</div>
+          </div>
+          <div className="rounded-xl border border-border bg-surface px-4 py-3">
+            <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Overrides</div>
+            <div className="mt-1 text-lg font-semibold text-text-primary">{periodState.overrideCount}</div>
+            <div className="mt-1 text-xs text-text-muted">This period</div>
+          </div>
+        </div>
+        <div className="mt-3 text-sm text-text-muted">Last refresh: {periodState.lastRefreshLabel}</div>
+      </section>
+
+      {/* ── Question Queue ──────────────────────────────────────── */}
+      <section className="rounded-2xl border border-border bg-surface-mid p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-xs uppercase tracking-[0.2em] text-accent">Question queue</div>
+          <AccountingStatusBadge label={`${questionQueue.filter((q) => q.status === "open").length} open`} tone="amber" />
+        </div>
+        <p className="mt-2 text-sm text-text-muted">Items that must be resolved before the packet can be sent. Operator items block delivery; CPA items can be addressed during review.</p>
+
+        {/* Operator follow-up items */}
+        <div className="mt-4">
+          <div className="text-xs uppercase tracking-[0.2em] text-rose-300">Operator follow-up (blocks send)</div>
+          <div className="mt-3 space-y-3">
+            {questionQueue.filter((q) => q.category === "operator_followup").map((q) => (
+              <div key={q.id} className={`rounded-xl border px-4 py-3 ${q.status === "open" ? "border-rose-500/20 bg-rose-500/5" : q.status === "in_progress" ? "border-amber-500/20 bg-amber-500/5" : "border-border bg-surface"}`}>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="text-sm text-text-primary">{q.question}</div>
+                  <AccountingStatusBadge label={q.status} tone={q.status === "resolved" ? "emerald" : q.status === "in_progress" ? "amber" : "rose"} />
+                </div>
+                <div className="mt-2 flex flex-wrap gap-3 text-xs text-text-muted">
+                  <span>Asker: {q.asker}</span>
+                  <span>Assignee: {q.assignee}</span>
+                  <span>Ref: {q.linkedSchedule}</span>
+                  <span>Due: {q.dueLabel}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* CPA review items */}
+        <div className="mt-5">
+          <div className="text-xs uppercase tracking-[0.2em] text-blue-300">CPA review (can address during review)</div>
+          <div className="mt-3 space-y-3">
+            {questionQueue.filter((q) => q.category === "cpa_review").map((q) => (
+              <div key={q.id} className="rounded-xl border border-blue-500/20 bg-blue-500/5 px-4 py-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="text-sm text-text-primary">{q.question}</div>
+                  <AccountingStatusBadge label={q.status} tone={q.status === "resolved" ? "emerald" : "blue"} />
+                </div>
+                <div className="mt-2 flex flex-wrap gap-3 text-xs text-text-muted">
+                  <span>Asker: {q.asker}</span>
+                  <span>Assignee: {q.assignee}</span>
+                  <span>Ref: {q.linkedSchedule}</span>
+                  <span>Due: {q.dueLabel}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Export Manifest ──────────────────────────────────────── */}
+      <section className="rounded-2xl border border-border bg-surface-mid p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-xs uppercase tracking-[0.2em] text-accent">Export manifest</div>
+          <div className="flex items-center gap-2">
+            <EvidenceBadge tone="verified" label={`${manifest.filter((i) => i.status === "attached").length} attached`} />
+            {manifest.filter((i) => i.status === "watch").length > 0 ? <EvidenceBadge tone="partial" label={`${manifest.filter((i) => i.status === "watch").length} watch`} /> : null}
+            {manifest.filter((i) => i.status === "missing").length > 0 ? <EvidenceBadge tone="missing" label={`${manifest.filter((i) => i.status === "missing").length} missing`} /> : null}
+          </div>
+        </div>
+        <p className="mt-2 text-sm text-text-muted">Explicit inventory of what files and schedules would be in the packet, with their current attachment status.</p>
+        <div className="mt-4 space-y-2">
+          {manifest.map((item) => (
+            <div key={item.scheduleRef} className={`rounded-xl border px-4 py-3 ${item.status === "missing" ? "border-rose-500/20 bg-rose-500/5" : item.status === "watch" ? "border-amber-500/20 bg-amber-500/5" : "border-border bg-surface"}`}>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="font-medium text-sm text-text-primary">{item.label}</div>
+                  <div className="mt-0.5 text-xs text-text-muted">{item.documentType} · {item.owner} · Ref: {item.scheduleRef}</div>
+                </div>
+                <EvidenceBadge tone={item.status === "attached" ? "verified" : item.status === "watch" ? "partial" : "missing"} label={item.status} />
+              </div>
+              <p className="mt-2 text-xs text-text-muted">{item.note}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Override History Rollup ──────────────────────────────── */}
+      <section className="rounded-2xl border border-border bg-surface-mid p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-xs uppercase tracking-[0.2em] text-accent">Override history rollup</div>
+          <EvidenceBadge tone="info" label={`${overrideRollup.length} overrides documented`} />
+        </div>
+        <p className="mt-2 text-sm text-text-muted">Who changed what and why, linked to the allocation and transaction context. Each override shows the dollar impact on deductible treatment.</p>
+        <div className="mt-4 space-y-3">
+          {overrideRollup.map((entry) => {
+            const deltaSign = entry.deductibleDelta < 0 ? "-" : "+";
+            const deltaAbs = Math.abs(entry.deductibleDelta);
+            return (
+              <div key={entry.id} className="rounded-xl border border-border bg-surface px-4 py-3">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <div className="font-medium text-sm text-text-primary">{entry.allocationContext}</div>
+                    <div className="mt-1 text-xs text-text-muted">
+                      <span className="font-medium text-text-primary">{entry.actor}</span> ({entry.role}) · {entry.timestampLabel}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-semibold ${entry.deductibleDelta < 0 ? "text-rose-300" : "text-emerald-300"}`}>
+                      {deltaSign}${deltaAbs.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                    </span>
+                    <EvidenceBadge tone="info" label={`${entry.evidenceCount} evidence`} />
+                  </div>
+                </div>
+                <div className="mt-2 rounded-lg bg-background px-3 py-2">
+                  <div className="text-xs text-text-muted">
+                    <span className="font-medium text-text-primary">Basis change:</span> {entry.fromBasis} → {entry.toBasis}
+                  </div>
+                  <div className="mt-1 text-xs text-text-muted">
+                    <span className="font-medium text-text-primary">Reason:</span> {entry.reason}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ── Memo Draft Preview ──────────────────────────────────── */}
+      <section className="rounded-2xl border border-border bg-surface-mid p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-xs uppercase tracking-[0.2em] text-accent">Memo draft preview</div>
+          <AccountingStatusBadge label={builderState.coverMemoMode.replaceAll("_", " ")} tone="violet" />
+        </div>
+        <p className="mt-2 text-sm text-text-muted">Preview of what a client-ready memo would contain, based on the selected framing mode. Not just a bundle name — actual section content.</p>
+        {(() => {
+          const preview = memoPreviews.find((m) => m.mode === builderState.coverMemoMode) ?? memoPreviews[0];
+          if (!preview) return null;
+          return (
+            <div className="mt-4 rounded-xl border border-border bg-surface p-4">
+              <div className="font-medium text-text-primary">{preview.title}</div>
+              <div className="mt-1 text-xs text-text-muted">Generated: {preview.generatedAt}</div>
+              <div className="mt-4 space-y-4">
+                {preview.sections.map((section) => (
+                  <div key={section.heading} className="rounded-lg border border-border bg-background px-4 py-3">
+                    <div className="text-xs font-semibold uppercase tracking-wider text-accent">{section.heading}</div>
+                    <p className="mt-2 text-sm text-text-muted">{section.body}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
