@@ -9,6 +9,7 @@ import {
   DemoCloseWorkflow,
 } from "@/lib/demo/accounting-workflows";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
+import { EvidenceBadge, AuditContextBar, ConfidenceIndicator } from "@/components/accounting/trust-markers";
 import type { ReportingPeriodMutation, WriteResult } from "@/lib/accounting-write-contracts";
 
 type LocalWorkflowState = DemoCloseWorkflow & {
@@ -258,8 +259,17 @@ export function ReportingPeriodsOverview({
                   {workflow ? <AccountingStatusBadge label={workflow.reviewStatus.replaceAll("_", " ")} tone={getReviewTone(workflow.reviewStatus)} className="capitalize" /> : null}
                   {blockers.length > 0 ? <AccountingStatusBadge label={`${blockers.length} blockers`} tone="rose" /> : null}
                   {isPending ? <AccountingStatusBadge label="syncing" tone="blue" /> : null}
+                  <EvidenceBadge tone={period.status === "closed" ? "verified" : blockers.length > 0 ? "missing" : period.status === "review" ? "partial" : "pending"} />
                 </div>
                 <p className="mt-2 text-sm text-text-muted">{formatRange(period.startDate, period.endDate)} • Owner: {period.closeOwner} • Target close in {period.closeWindowDays} days</p>
+                <div className="mt-3">
+                  <AuditContextBar
+                    sourceSystem="Close workflow"
+                    lastVerified={period.lockedAt ?? "Open period"}
+                    documentCount={period.taskSummary.total}
+                    confidence={period.taskSummary.total === 0 ? 0 : period.taskSummary.completed / period.taskSummary.total}
+                  />
+                </div>
               </div>
               <div className="min-w-[240px] rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-muted">
                 <div className="flex items-center justify-between gap-4">
@@ -269,8 +279,11 @@ export function ReportingPeriodsOverview({
                 <div className="mt-3 h-2 rounded-full bg-background">
                   <div className="h-2 rounded-full bg-accent" style={{ width: progressWidth }} />
                 </div>
-                <div className="mt-3 text-xs">
-                  {period.lockedAt ? `Locked ${period.lockedAt}` : workflow?.reviewStatus === "ready_for_review" ? `Waiting on ${workflow.reviewer} review` : "Still editable for manual journals and reconciliations"}
+                <div className="mt-3 flex items-center justify-between">
+                  <span className="text-xs">
+                    {period.lockedAt ? `Locked ${period.lockedAt}` : workflow?.reviewStatus === "ready_for_review" ? `Waiting on ${workflow.reviewer} review` : "Still editable for manual journals and reconciliations"}
+                  </span>
+                  <ConfidenceIndicator value={period.taskSummary.total === 0 ? 0 : period.taskSummary.completed / period.taskSummary.total} />
                 </div>
               </div>
             </div>

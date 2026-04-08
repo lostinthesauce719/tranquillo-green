@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AppShell } from "@/components/shell/app-shell";
+import { IntegrationTrustBadge } from "@/components/accounting/trust-markers";
 
 /* ── Demo data ────────────────────────────────────────────────── */
 
@@ -37,6 +38,8 @@ const integrations = [
     status: "Connected",
     statusColor: "bg-emerald-500/20 text-emerald-300",
     detail: "Last sync: Apr 6 2026, 7:42 PM PST",
+    trustStatus: "connected" as const,
+    lastSync: "Apr 6, 7:42 PM",
   },
   {
     name: "POS System (Dutchie)",
@@ -44,6 +47,7 @@ const integrations = [
     status: "Not Configured",
     statusColor: "bg-neutral-500/20 text-neutral-400",
     detail: null,
+    trustStatus: "disconnected" as const,
   },
   {
     name: "Banking (SVB)",
@@ -51,6 +55,8 @@ const integrations = [
     status: "CSV Import",
     statusColor: "bg-amber-500/20 text-amber-300",
     detail: "Last import: Apr 4 2026 — 218 transactions",
+    trustStatus: "partial" as const,
+    lastSync: "Apr 4, CSV import",
   },
   {
     name: "Payroll (Gusto)",
@@ -58,6 +64,7 @@ const integrations = [
     status: "Not Configured",
     statusColor: "bg-neutral-500/20 text-neutral-400",
     detail: null,
+    trustStatus: "disconnected" as const,
   },
 ];
 
@@ -213,7 +220,14 @@ export default function SettingsPage() {
                 className="flex items-center justify-between rounded-xl border border-border/50 px-4 py-3"
               >
                 <div>
-                  <div className="text-sm font-medium">{integ.name}</div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-sm font-medium">{integ.name}</div>
+                    <IntegrationTrustBadge
+                      status={integ.trustStatus}
+                      label={integ.status}
+                      lastSync={integ.lastSync}
+                    />
+                  </div>
                   <div className="text-xs text-text-muted">
                     {integ.description}
                   </div>

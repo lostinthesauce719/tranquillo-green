@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
+import { EvidenceBadge, SourceLinkBadge, ConfidenceIndicator } from "@/components/accounting/trust-markers";
 import { DemoTransaction } from "@/lib/demo/accounting";
 
 function formatCurrency(value: number) {
@@ -36,6 +37,22 @@ function getReviewTone(state: DemoTransaction["reviewState"]) {
   }
 }
 
+function getEvidenceTone(transaction: DemoTransaction): "verified" | "partial" | "pending" | "missing" {
+  if (transaction.status === "posted" && !transaction.needsReceipt) return "verified";
+  if (transaction.needsReceipt) return "missing";
+  if (transaction.status === "in_review" || transaction.status === "ready_to_post") return "partial";
+  return "pending";
+}
+
+function getConfidence(transaction: DemoTransaction): number {
+  if (transaction.status === "posted" && !transaction.needsReceipt) return 0.98;
+  if (transaction.status === "posted") return 0.92;
+  if (transaction.status === "ready_to_post" && !transaction.needsReceipt) return 0.85;
+  if (transaction.needsReceipt) return 0.55;
+  if (transaction.reviewState === "needs_mapping") return 0.4;
+  return 0.7;
+}
+
 export function TransactionsTable({ transactions }: { transactions: DemoTransaction[] }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-surface-mid">
@@ -53,6 +70,7 @@ export function TransactionsTable({ transactions }: { transactions: DemoTransact
               <th className="px-4 py-3 font-medium">Suggested entry</th>
               <th className="px-4 py-3 font-medium">Amount</th>
               <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium">Trust</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -94,6 +112,13 @@ export function TransactionsTable({ transactions }: { transactions: DemoTransact
                     <AccountingStatusBadge label={transaction.status.replaceAll("_", " ")} tone={getStatusTone(transaction.status)} className="capitalize" />
                     <AccountingStatusBadge label={transaction.reviewState.replaceAll("_", " ")} tone={getReviewTone(transaction.reviewState)} className="capitalize" />
                     {transaction.readyForManualEntry ? <AccountingStatusBadge label="manual entry candidate" tone="violet" /> : null}
+                  </div>
+                </td>
+                <td className="px-4 py-4">
+                  <div className="flex flex-col gap-2">
+                    <EvidenceBadge tone={getEvidenceTone(transaction)} />
+                    <ConfidenceIndicator value={getConfidence(transaction)} />
+                    <SourceLinkBadge sourceName={transaction.source} sourceRef={transaction.reference} href={`/dashboard/accounting/transactions/${transaction.id}`} />
                   </div>
                 </td>
               </tr>

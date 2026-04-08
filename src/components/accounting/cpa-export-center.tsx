@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
+import { VersionLineageBadge, AuditContextBar, EvidenceBadge } from "@/components/accounting/trust-markers";
 import type { ExportPacketMutation, WriteResult } from "@/lib/accounting-write-contracts";
 import type {
   DemoAutomationAgent,
@@ -359,7 +360,13 @@ export function CpaExportCenter({
                   <div className="mt-2 font-medium text-text-primary">{selectedBundle.name}</div>
                   <p className="mt-2 text-sm text-text-muted">{selectedBundle.description}</p>
                 </div>
-                <AccountingStatusBadge label={selectedBundle.status.replaceAll("_", " ")} tone={bundleTone(selectedBundle.status)} />
+                <div className="flex flex-col items-end gap-2">
+                  <AccountingStatusBadge label={selectedBundle.status.replaceAll("_", " ")} tone={bundleTone(selectedBundle.status)} />
+                  <EvidenceBadge tone={selectedBundle.status === "ready" || selectedBundle.status === "sent" ? "verified" : selectedBundle.status === "needs_support" ? "partial" : "pending"} />
+                </div>
+              </div>
+              <div className="mt-3">
+                <VersionLineageBadge version={`${builderState.buildCount + 1}.0`} generatedAt={selectedBundle.generatedAt} owner={selectedBundle.owner} />
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {packetSummary.map((line) => (
@@ -458,6 +465,13 @@ export function CpaExportCenter({
               <AccountingStatusBadge label={historySource === "convex" ? "persisted" : "demo"} tone={historySource === "convex" ? "emerald" : "slate"} className="capitalize" />
             </div>
             <p className="mt-2 text-sm text-text-muted">This timeline shows packet builds and holds. In demo mode it is illustrative; in Convex mode it reflects saved packet events.</p>
+            <div className="mt-3">
+              <AuditContextBar
+                sourceSystem={historySource === "convex" ? "Convex persisted" : "Demo fallback"}
+                lastVerified={demoHistory[0]?.timestampLabel ?? "No builds yet"}
+                documentCount={demoHistory.length}
+              />
+            </div>
             <div className="mt-4 space-y-3">
               {demoHistory.map((entry) => (
                 <div key={`${entry.timestampLabel}-${entry.action}`} className="rounded-2xl border border-border bg-surface p-4">

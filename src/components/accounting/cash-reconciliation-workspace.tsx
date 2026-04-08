@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
+import { EvidenceBadge, ConfidenceIndicator, SourceLinkBadge } from "@/components/accounting/trust-markers";
 import { californiaOperatorDemo } from "@/lib/demo/accounting";
 import type { DemoCashReconciliationItem } from "@/lib/demo/accounting-operations";
 import type { ReconciliationMutation, WriteResult } from "@/lib/accounting-write-contracts";
@@ -107,6 +108,8 @@ export function CashReconciliationWorkspace({ items }: { items: DemoCashReconcil
                 <AccountingStatusBadge label={item.status.replaceAll("_", " ")} tone={statusTone(item.status)} />
                 <AccountingStatusBadge label={accountTypeLabel(item.accountType)} tone="slate" />
                 {isPending ? <AccountingStatusBadge label="syncing" tone="blue" /> : null}
+                <EvidenceBadge tone={item.varianceAmount === 0 ? "verified" : item.status === "exception" ? "missing" : "partial"} />
+                <ConfidenceIndicator value={item.varianceAmount === 0 ? 0.98 : item.status === "balanced" ? 0.92 : 0.65} />
               </div>
             </div>
 

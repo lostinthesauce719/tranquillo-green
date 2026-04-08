@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
+import { EvidenceBadge, AuditContextBar, ReviewerTimestamp, WhatChangedRationale, SourceLinkBadge } from "@/components/accounting/trust-markers";
 import { demoAllocationReviewQueue } from "@/lib/demo/accounting-operations";
 import { type DemoTransaction } from "@/lib/demo/accounting";
 import { getRelatedAccounts, type DemoTransactionDetail } from "@/lib/demo/transaction-workflows";
@@ -96,7 +97,19 @@ export function TransactionDetailWorkspace({ transaction, detail }: { transactio
             <AccountingStatusBadge label={transaction.reviewState.replaceAll("_", " ")} tone={getReviewTone(transaction.reviewState)} className="capitalize" />
             <AccountingStatusBadge label={transaction.source} tone="slate" className="capitalize" />
             {transaction.needsReceipt ? <AccountingStatusBadge label="support gap" tone="amber" /> : null}
+            {transaction.needsReceipt ? <EvidenceBadge tone="missing" label="Support gap" /> : null}
+            {!transaction.needsReceipt && transaction.status === "posted" ? <EvidenceBadge tone="verified" /> : null}
+            {!transaction.needsReceipt && transaction.status !== "posted" ? <EvidenceBadge tone="partial" /> : null}
           </div>
+        </div>
+
+        <div className="mt-4">
+          <AuditContextBar
+            sourceSystem={transaction.source.toUpperCase()}
+            lastVerified={transaction.postedDate}
+            documentCount={detail.supportingDocs.items.length}
+            confidence={transaction.status === "posted" && !transaction.needsReceipt ? 0.98 : transaction.needsReceipt ? 0.55 : 0.78}
+          />
         </div>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -140,6 +153,11 @@ export function TransactionDetailWorkspace({ transaction, detail }: { transactio
               <div className="mt-2 font-medium text-text-primary">{transaction.description}</div>
               <p className="mt-2 text-sm text-text-muted">{transaction.journalHint}</p>
               <div className="mt-3 rounded-xl border border-accent/20 bg-accent/5 px-3 py-3 text-sm text-text-primary">Tax lens: {detail.amountImpact.taxView}</div>
+              {detail.whatChanged && detail.whatChanged.length > 0 ? (
+                <div className="mt-4">
+                  <WhatChangedRationale changes={detail.whatChanged} />
+                </div>
+              ) : null}
             </div>
           </section>
 
@@ -193,6 +211,11 @@ export function TransactionDetailWorkspace({ transaction, detail }: { transactio
                   </div>
                   <div className="mt-2 text-sm text-text-muted">Owner: {step.owner}</div>
                   <div className="mt-1 text-sm text-text-muted">{step.detail}</div>
+                  {step.state === "completed" || step.state === "current" ? (
+                    <div className="mt-2">
+                      <ReviewerTimestamp reviewer={step.owner} timestamp={step.timestamp ?? "Verified"} action={step.state === "current" ? "In progress" : "Completed"} />
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>

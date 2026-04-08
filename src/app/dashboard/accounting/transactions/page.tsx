@@ -3,6 +3,7 @@ import { AppShell } from "@/components/shell/app-shell";
 import { ManualJournalEntryForm } from "@/components/accounting/manual-journal-entry-form";
 import { TransactionsTable } from "@/components/accounting/transactions-table";
 import { MetricCard } from "@/components/ui/metric-card";
+import { AuditContextBar } from "@/components/accounting/trust-markers";
 import { summarizeDemoTransactions } from "@/lib/demo/accounting";
 import { loadAccountingWorkspace } from "@/lib/data/accounting-core";
 
@@ -29,6 +30,15 @@ export default async function AccountingTransactionsPage() {
         <MetricCard label="Needs mapping" value={String(summary.needsMapping)} detail="Transactions that still need account review or supporting docs" />
         <MetricCard label="Manual queue" value={String(summary.manualQueue)} detail="Unposted rows that are realistic candidates for manual journal prep" />
         <MetricCard label="Workspace value" value={formatCurrency(summary.totalValue)} detail="Gross transaction value represented in the current demo queue" />
+      </div>
+
+      <div className="mt-4">
+        <AuditContextBar
+          sourceSystem={workspace.source === "convex" ? "Convex persisted" : "Demo fallback"}
+          lastVerified="Apr 8, 2026 02:42 AM"
+          documentCount={summary.total}
+          confidence={summary.posted / Math.max(summary.total, 1)}
+        />
       </div>
 
       <div className="mt-6 grid gap-4 xl:grid-cols-[1.75fr_1fr]">
