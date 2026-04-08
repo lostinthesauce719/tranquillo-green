@@ -347,11 +347,11 @@ export function CsvImportWorkflow({
 
   return (
     <div className="grid gap-6">
-      <section className="rounded-2xl border border-border bg-surface-mid p-5">
+      <section className="rounded-2xl border border-border bg-surface-mid p-6">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">{workspace.sourceLabel}</div>
-            <h2 className="mt-2 text-xl font-semibold">CSV import mapping workspace</h2>
+            <div className="text-[11px] uppercase tracking-[0.15em] text-accent/70">{workspace.sourceLabel}</div>
+            <h2 className="mt-1.5 text-lg font-semibold">CSV import mapping</h2>
             <p className="mt-2 max-w-3xl text-sm text-text-muted">
               {workspace.sourceDetail}
             </p>
@@ -390,47 +390,37 @@ export function CsvImportWorkflow({
         </div>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">Source</div>
-            <div className="mt-3 font-medium text-text-primary">{dataset.source}</div>
-            <div className="mt-1">{dataset.fileName}</div>
+          <div className="rounded-2xl border border-border bg-surface p-5 text-sm text-text-muted/60">
+            <div className="text-[11px] uppercase tracking-[0.15em] text-accent/70">Source</div>
+            <div className="mt-2 font-medium text-text-primary">{dataset.source}</div>
+            <div className="mt-0.5">{dataset.fileName}</div>
           </div>
-          <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">Rows staged</div>
-            <div className="mt-3 font-medium text-text-primary">{dataset.rows.length}</div>
-            <div className="mt-1">Uploaded {dataset.uploadedAt}</div>
+          <div className="rounded-2xl border border-border bg-surface p-5 text-sm text-text-muted/60">
+            <div className="text-[11px] uppercase tracking-[0.15em] text-accent/70">Rows</div>
+            <div className="mt-2 font-medium text-text-primary">{dataset.rows.length}</div>
+            <div className="mt-0.5">{dataset.uploadedAt}</div>
           </div>
-          <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">Lifecycle</div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <AccountingStatusBadge label={backendMeta.label} tone={backendMeta.tone} />
-              <AccountingStatusBadge label={persistedMeta.label} tone={persistedMeta.tone} />
-              <AccountingStatusBadge label={profileMeta.label} tone={profileMeta.tone} />
+          <div className="rounded-2xl border border-border bg-surface p-5 text-sm text-text-muted/60">
+            <div className="text-[11px] uppercase tracking-[0.15em] text-accent/70">Lifecycle</div>
+            <div className="mt-2 font-medium text-text-primary">
+              {dataset.promotedRowCount} / {dataset.rows.length} promoted
             </div>
-            <div className="mt-1">Promoted {dataset.promotedRowCount} / {dataset.rows.length} rows • {dataset.promotionReadyCount} ready next</div>
-            {dataset.persistedStatusReason ? <div className="mt-1 text-xs">{dataset.persistedStatusReason}</div> : null}
-            <div className="mt-2 text-xs text-text-muted">
-              {dataset.backendMode === "persisted"
-                ? "You can reopen this job, keep refining the mapping, and only promote the rows that are clean enough for accounting review."
-                : "This sample file is a safe rehearsal job: fix the mapping, inspect row issues, then persist it when you are ready to test the live handoff."}
-            </div>
+            <div className="mt-0.5">{dataset.promotionReadyCount} ready next</div>
           </div>
-          <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">Validation summary</div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <AccountingStatusBadge label={`${previewStats.ready} ready`} tone="emerald" />
-              <AccountingStatusBadge label={`${previewStats.warning} warning`} tone="amber" />
-              <AccountingStatusBadge label={`${previewStats.error} error`} tone="rose" />
+          <div className="rounded-2xl border border-border bg-surface p-5 text-sm text-text-muted/60">
+            <div className="text-[11px] uppercase tracking-[0.15em] text-accent/70">Validation</div>
+            <div className="mt-2 font-medium text-text-primary">
+              {previewStats.ready} ready
             </div>
-            <div className="mt-2 text-xs">{dataset.blockedRowCount} blocked • {dataset.promotionReadyCount} can move forward after review</div>
+            <div className="mt-0.5">{dataset.blockedRowCount} blocked</div>
           </div>
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border bg-surface-mid p-5">
+      <section className="rounded-2xl border border-border bg-surface-mid p-6">
         <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">Field mapping</div>
+            <div className="text-[11px] uppercase tracking-[0.15em] text-accent/70">Field mapping</div>
             <p className="mt-2 text-sm text-text-muted">
               Map source columns into accounting fields. Required fields must be present before the file can move into review or promotion.
             </p>
@@ -503,30 +493,23 @@ export function CsvImportWorkflow({
             <AccountingStatusBadge label={`Missing: ${requiredFieldIssues.map(humanizeTargetField).join(", ")}`} tone="rose" />
           )}
           {amountStrategyFieldIssues.length === 0 ? (
-            <AccountingStatusBadge label="Amount columns valid" tone="emerald" />
+            <AccountingStatusBadge label="Amounts valid" tone="emerald" />
           ) : (
             <AccountingStatusBadge label={`Amount issue: ${amountStrategyFieldIssues.map((field) => humanizeTargetField(field as DemoImportTargetField)).join(", ")}`} tone="amber" />
           )}
-          <AccountingStatusBadge label={`${mappingCoverageCount}/${dataset.columns.length} columns mapped`} tone="slate" />
-          {dataset.selectedProfileName ? <AccountingStatusBadge label={`Selected profile ${dataset.selectedProfileName}`} tone="slate" /> : null}
-          <AccountingStatusBadge label={`Delimiter ${dataset.delimiter}`} tone="slate" />
-          {sourceFileSizeLabel ? <AccountingStatusBadge label={sourceFileSizeLabel} tone="slate" /> : null}
-          {dataset.uploadedBy ? <AccountingStatusBadge label={`Uploaded by ${dataset.uploadedBy}`} tone="slate" /> : null}
         </div>
       </section>
 
       <section className="grid gap-4 xl:grid-cols-[1.45fr_1fr]">
-        <div className="rounded-2xl border border-border bg-surface-mid p-5">
+        <div className="rounded-2xl border border-border bg-surface-mid p-6">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <div className="text-xs uppercase tracking-[0.2em] text-accent">Row validation preview</div>
+              <div className="text-[11px] uppercase tracking-[0.15em] text-accent/70">Row preview</div>
               <p className="mt-2 text-sm text-text-muted">
                 Review confidence, suggested posting accounts, and row issues before submitting for accounting review.
               </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <AccountingStatusBadge label={`${previewStats.promoted} already promoted`} tone="violet" />
-                <AccountingStatusBadge label={`${dataset.promotionReadyCount} promotion-ready`} tone="emerald" />
-                <AccountingStatusBadge label={`${dataset.blockedRowCount} blocked`} tone={dataset.blockedRowCount > 0 ? "rose" : "slate"} />
+              <div className="mt-2 text-sm text-text-muted/50">
+                {previewStats.promoted} promoted · {dataset.promotionReadyCount} ready · {dataset.blockedRowCount} blocked
               </div>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -588,10 +571,7 @@ export function CsvImportWorkflow({
                       </td>
                       <td className="px-4 py-4 text-text-primary">{formatPercent(row.confidence)}</td>
                       <td className="px-4 py-4">
-                        <div className="flex flex-wrap gap-2">
-                          <AccountingStatusBadge label={row.status} tone={getRowTone(row.status)} className="capitalize" />
-                          {row.promotedTransactionId ? <AccountingStatusBadge label="promoted" tone="violet" /> : null}
-                        </div>
+                        <AccountingStatusBadge label={row.status} tone={getRowTone(row.status)} className="capitalize" />
                       </td>
                     </tr>
                   ))}
@@ -603,8 +583,8 @@ export function CsvImportWorkflow({
         </div>
 
         <div className="grid gap-4">
-          <section className="rounded-2xl border border-border bg-surface-mid p-5">
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">Selected row detail</div>
+          <section className="rounded-2xl border border-border bg-surface-mid p-6">
+            <div className="text-[11px] uppercase tracking-[0.15em] text-accent/70">Row detail</div>
             <div className="mt-4 space-y-4 text-sm text-text-muted">
               <div>
                 <div className="font-medium text-text-primary">
@@ -613,13 +593,8 @@ export function CsvImportWorkflow({
                 <div className="mt-1 font-mono text-xs">
                   {selectedRow.values.bank_reference ?? selectedRow.values.batch_reference ?? "No reference"}
                 </div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <AccountingStatusBadge label={`${formatPercent(selectedRow.confidence)} confidence`} tone={selectedRow.confidence >= 0.9 ? "emerald" : selectedRow.confidence >= 0.7 ? "amber" : "rose"} />
+                <div className="mt-2 flex flex-wrap gap-1.5">
                   <AccountingStatusBadge label={humanizeLabel(selectedRow.status)} tone={getRowTone(selectedRow.status)} className="capitalize" />
-                  <AccountingStatusBadge label={rowDispositionLabel(selectedRow.status)} tone={getRowTone(selectedRow.status)} />
-                  {selectedRowIssueBuckets.map((bucket) => (
-                    <AccountingStatusBadge key={bucket} label={bucket} tone={bucket === "duplicate risk" ? "rose" : bucket === "mapping gap" ? "amber" : bucket === "support gap" ? "violet" : "slate"} />
-                  ))}
                 </div>
               </div>
               <div className="grid gap-2">
@@ -658,8 +633,8 @@ export function CsvImportWorkflow({
             </div>
           </section>
 
-          <section className="rounded-2xl border border-border bg-surface-mid p-5">
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">Available account targets</div>
+          <section className="rounded-2xl border border-border bg-surface-mid p-6">
+            <div className="text-[11px] uppercase tracking-[0.15em] text-accent/70">Account targets</div>
             <div className="mt-4 space-y-2 text-sm text-text-muted">
               {activeAccounts.slice(0, 6).map((account) => (
                 <div key={account.code} className="rounded-xl border border-border bg-surface px-4 py-3">

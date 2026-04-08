@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
-import { EvidenceBadge, SourceLinkBadge, ConfidenceIndicator } from "@/components/accounting/trust-markers";
 import { DemoTransaction } from "@/lib/demo/accounting";
 
 function formatCurrency(value: number) {
@@ -24,35 +23,6 @@ function getStatusTone(status: DemoTransaction["status"]) {
   }
 }
 
-function getReviewTone(state: DemoTransaction["reviewState"]) {
-  switch (state) {
-    case "ready":
-      return "emerald" as const;
-    case "needs_mapping":
-      return "rose" as const;
-    case "drafted":
-      return "violet" as const;
-    case "posted":
-      return "blue" as const;
-  }
-}
-
-function getEvidenceTone(transaction: DemoTransaction): "verified" | "partial" | "pending" | "missing" {
-  if (transaction.status === "posted" && !transaction.needsReceipt) return "verified";
-  if (transaction.needsReceipt) return "missing";
-  if (transaction.status === "in_review" || transaction.status === "ready_to_post") return "partial";
-  return "pending";
-}
-
-function getConfidence(transaction: DemoTransaction): number {
-  if (transaction.status === "posted" && !transaction.needsReceipt) return 0.98;
-  if (transaction.status === "posted") return 0.92;
-  if (transaction.status === "ready_to_post" && !transaction.needsReceipt) return 0.85;
-  if (transaction.needsReceipt) return 0.55;
-  if (transaction.reviewState === "needs_mapping") return 0.4;
-  return 0.7;
-}
-
 export function TransactionsTable({ transactions }: { transactions: DemoTransaction[] }) {
   return (
     <div className="overflow-hidden rounded-2xl border border-border bg-surface-mid">
@@ -61,16 +31,15 @@ export function TransactionsTable({ transactions }: { transactions: DemoTransact
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-border text-left text-sm">
-          <thead className="bg-surface/80 text-xs uppercase tracking-[0.2em] text-text-muted">
+          <thead className="bg-surface/80 text-[10px] uppercase tracking-[0.15em] text-text-muted/50">
             <tr>
               <th className="px-4 py-3 font-medium">Date</th>
               <th className="px-4 py-3 font-medium">Source</th>
               <th className="px-4 py-3 font-medium">Reference</th>
               <th className="px-4 py-3 font-medium">Description</th>
-              <th className="px-4 py-3 font-medium">Suggested entry</th>
+              <th className="px-4 py-3 font-medium">Suggested</th>
               <th className="px-4 py-3 font-medium">Amount</th>
               <th className="px-4 py-3 font-medium">Status</th>
-              <th className="px-4 py-3 font-medium">Trust</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -94,13 +63,11 @@ export function TransactionsTable({ transactions }: { transactions: DemoTransact
                   <div className="mt-1 max-w-md text-xs text-text-muted">{transaction.description}</div>
                   <div className="mt-2 text-xs text-text-muted">{transaction.journalHint}</div>
                 </td>
-                <td className="px-4 py-4 text-xs text-text-muted">
+                <td className="px-4 py-4 text-xs text-text-muted/60">
                   <div>Dr {transaction.suggestedDebitAccountCode}</div>
-                  <div className="mt-1">Cr {transaction.suggestedCreditAccountCode}</div>
+                  <div className="mt-0.5">Cr {transaction.suggestedCreditAccountCode}</div>
                   {transaction.needsReceipt ? (
-                    <div className="mt-2 inline-flex rounded-full border border-amber-500/20 bg-amber-500/10 px-2 py-1 text-[11px] text-amber-200">
-                      Receipt follow-up
-                    </div>
+                    <div className="mt-1 text-[10px] text-amber-300/50">receipt needed</div>
                   ) : null}
                 </td>
                 <td className="whitespace-nowrap px-4 py-4">
@@ -108,17 +75,9 @@ export function TransactionsTable({ transactions }: { transactions: DemoTransact
                   <div className="mt-1 text-xs text-text-muted">{transaction.periodLabel}</div>
                 </td>
                 <td className="px-4 py-4">
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1.5">
                     <AccountingStatusBadge label={transaction.status.replaceAll("_", " ")} tone={getStatusTone(transaction.status)} className="capitalize" />
-                    <AccountingStatusBadge label={transaction.reviewState.replaceAll("_", " ")} tone={getReviewTone(transaction.reviewState)} className="capitalize" />
-                    {transaction.readyForManualEntry ? <AccountingStatusBadge label="manual entry candidate" tone="violet" /> : null}
-                  </div>
-                </td>
-                <td className="px-4 py-4">
-                  <div className="flex flex-col gap-2">
-                    <EvidenceBadge tone={getEvidenceTone(transaction)} />
-                    <ConfidenceIndicator value={getConfidence(transaction)} />
-                    <SourceLinkBadge sourceName={transaction.source} sourceRef={transaction.reference} href={`/dashboard/accounting/transactions/${transaction.id}`} />
+                    {transaction.readyForManualEntry ? <AccountingStatusBadge label="manual" tone="violet" /> : null}
                   </div>
                 </td>
               </tr>

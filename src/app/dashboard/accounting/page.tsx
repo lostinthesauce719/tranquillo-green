@@ -68,49 +68,48 @@ export default async function AccountingPage() {
   return (
     <AppShell
       title="Accounting"
-      description={`California-first accounting workspace for close, 280E review, transaction prep, and reporting period control. Rendering from ${workspace.source === "convex" ? "persisted Convex accounting data" : "demo fallback data"} so static builds stay safe while the backend path matures.`}
+      description="Close, 280E review, transaction prep, and reporting period control."
     >
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Ledger accounts" value={String(accountSummary.total)} detail={`${accountSummary.active} active, ${accountSummary.inactive} inactive`} />
-        <MetricCard label="Periods in motion" value={String(periodSummary.open + periodSummary.review)} detail={`${periodSummary.closed} closed and ${periodSummary.blocked} currently blocked`} />
-        <MetricCard label="Manual entry queue" value={String(transactionSummary.manualQueue)} detail={`${transactionSummary.needsMapping} transactions still need mapping review`} />
-        <MetricCard label="Current period" value={currentPeriod?.label ?? "No period"} detail={`${(currentPeriod?.status ?? "open").toUpperCase()} close for ${workspace.company.name}`} />
+      <div className="grid gap-5 md:grid-cols-3">
+        <MetricCard label="Ledger accounts" value={String(accountSummary.total)} detail={`${accountSummary.active} active`} />
+        <MetricCard label="Periods in motion" value={String(periodSummary.open + periodSummary.review)} detail={`${periodSummary.closed} closed, ${periodSummary.blocked} blocked`} />
+        <MetricCard label="Current period" value={currentPeriod?.label ?? "No period"} detail={`${(currentPeriod?.status ?? "open").toUpperCase()} for ${workspace.company.name}`} />
       </div>
 
-      <div className="mt-6 grid gap-4 xl:grid-cols-[1.7fr_1fr]">
-        <section className="rounded-2xl border border-border bg-surface-mid p-5">
+      <div className="mt-8 grid gap-5 xl:grid-cols-[1.7fr_1fr]">
+        <section className="rounded-2xl border border-border bg-surface-mid p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <div className="text-xs uppercase tracking-[0.2em] text-accent">{workspace.source === "convex" ? "Persisted Convex source" : "Demo fallback source"}</div>
-              <h2 className="mt-2 text-xl font-semibold">Chart of accounts</h2>
-              <p className="mt-2 max-w-2xl text-sm text-text-muted">
-                Realistic default ledger for a vertically integrated California operator. The route now prefers persisted Convex data on the server and falls back to demo records when runtime config is unavailable.
+              <div className="text-[11px] uppercase tracking-[0.15em] text-accent/70">Chart of accounts</div>
+              <h2 className="mt-1.5 text-lg font-semibold">Ledger</h2>
+              <p className="mt-1 max-w-2xl text-sm text-text-muted/60">
+                Default accounts for a vertically integrated California operator.
               </p>
             </div>
-            <div className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-muted">
-              {workspace.company.operatorType} operator • {workspace.company.defaultAccountingMethod} basis
+            <div className="rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text-muted/60">
+              {workspace.company.operatorType} · {workspace.company.defaultAccountingMethod}
             </div>
           </div>
-          <div className="mt-5">
+          <div className="mt-6">
             <ChartOfAccountsTable accounts={workspace.chartOfAccounts} />
           </div>
         </section>
 
-        <div className="grid gap-4">
-          <section className="rounded-2xl border border-border bg-surface-mid p-5">
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">Workspace entry points</div>
-            <div className="mt-4 grid gap-3">
+        <div className="grid gap-5">
+          <section className="rounded-2xl border border-border bg-surface-mid p-6">
+            <div className="text-[11px] uppercase tracking-[0.15em] text-accent/70">Workspaces</div>
+            <div className="mt-4 space-y-2.5">
               {workspaceLinks.map((item) => (
-                <Link key={item.href} href={item.href} className="rounded-2xl border border-border bg-surface px-4 py-4 transition hover:bg-surface/70">
-                  <div className="font-medium text-text-primary">{item.label}</div>
-                  <div className="mt-2 text-sm text-text-muted">{item.detail}</div>
+                <Link key={item.href} href={item.href} className="block rounded-2xl border border-border bg-surface px-5 py-4 transition hover:bg-surface/70">
+                  <div className="text-sm font-medium text-text-primary">{item.label}</div>
+                  <div className="mt-1 text-sm text-text-muted/60">{item.detail}</div>
                 </Link>
               ))}
             </div>
           </section>
 
-          <section className="rounded-2xl border border-border bg-surface-mid p-5">
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">Entity snapshot</div>
+          <section className="rounded-2xl border border-border bg-surface-mid p-6">
+            <div className="text-[11px] uppercase tracking-[0.15em] text-accent/70">Entity</div>
             <h2 className="mt-2 text-lg font-semibold">{workspace.company.name}</h2>
             <dl className="mt-4 space-y-3 text-sm">
               <div className="flex items-center justify-between gap-4">
@@ -132,16 +131,15 @@ export default async function AccountingPage() {
             </dl>
           </section>
 
-          <section className="rounded-2xl border border-border bg-surface-mid p-5">
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">Close checklist alignment</div>
-            <ul className="mt-3 space-y-3 text-sm text-text-muted">
-              <li>• Reporting periods now show open, review, and closed states with checklist progress and blockers.</li>
-              <li>• Transactions table includes imported activity, suggested entry codes, and receipt follow-up flags.</li>
-              <li>• New imported-to-posted pipeline board shows staged handoff from import validation into reviewer and posting lanes.</li>
-              <li>• New month-end close dashboard connects periods, imports, posting, reconciliations, allocations, and support schedule readiness.</li>
-              <li>• Manual journal entry flow now restores working drafts and keeps a recent local draft list.</li>
-              <li>• CSV import staging adds mapping profiles, required-field validation, and row-level preview without backend jobs.</li>
-              <li>• Static-safe demo data still mirrors companies, locations, licenses, accounts, periods, and transaction prep.</li>
+          <section className="rounded-2xl border border-border bg-surface-mid p-6">
+            <div className="text-[11px] uppercase tracking-[0.15em] text-accent/70">Close checklist</div>
+            <ul className="mt-3 space-y-2 text-sm text-text-muted/60">
+              <li>Periods with open, review, and closed states.</li>
+              <li>Transactions with imported activity and suggested entries.</li>
+              <li>Import-to-posted pipeline board.</li>
+              <li>Month-end close dashboard.</li>
+              <li>Manual journal entry with local drafts.</li>
+              <li>CSV import staging with mapping profiles.</li>
             </ul>
           </section>
         </div>

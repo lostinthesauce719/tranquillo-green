@@ -9,7 +9,6 @@ import {
   DemoCloseWorkflow,
 } from "@/lib/demo/accounting-workflows";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
-import { EvidenceBadge, AuditContextBar, ConfidenceIndicator } from "@/components/accounting/trust-markers";
 import type { ReportingPeriodMutation, WriteResult } from "@/lib/accounting-write-contracts";
 
 type LocalWorkflowState = DemoCloseWorkflow & {
@@ -254,22 +253,11 @@ export function ReportingPeriodsOverview({
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-3">
-                  <h2 className="text-xl font-semibold">{period.label}</h2>
-                  <AccountingStatusBadge label={period.status.toUpperCase()} tone={getStatusTone(period.status)} />
-                  {workflow ? <AccountingStatusBadge label={workflow.reviewStatus.replaceAll("_", " ")} tone={getReviewTone(workflow.reviewStatus)} className="capitalize" /> : null}
+                  <h2 className="text-lg font-semibold">{period.label}</h2>
+                  <AccountingStatusBadge label={period.status} tone={getStatusTone(period.status)} className="capitalize" />
                   {blockers.length > 0 ? <AccountingStatusBadge label={`${blockers.length} blockers`} tone="rose" /> : null}
-                  {isPending ? <AccountingStatusBadge label="syncing" tone="blue" /> : null}
-                  <EvidenceBadge tone={period.status === "closed" ? "verified" : blockers.length > 0 ? "missing" : period.status === "review" ? "partial" : "pending"} />
                 </div>
-                <p className="mt-2 text-sm text-text-muted">{formatRange(period.startDate, period.endDate)} • Owner: {period.closeOwner} • Target close in {period.closeWindowDays} days</p>
-                <div className="mt-3">
-                  <AuditContextBar
-                    sourceSystem="Close workflow"
-                    lastVerified={period.lockedAt ?? "Open period"}
-                    documentCount={period.taskSummary.total}
-                    confidence={period.taskSummary.total === 0 ? 0 : period.taskSummary.completed / period.taskSummary.total}
-                  />
-                </div>
+                <p className="mt-1 text-sm text-text-muted/60">{formatRange(period.startDate, period.endDate)} · {period.closeOwner} · {period.closeWindowDays} day target</p>
               </div>
               <div className="min-w-[240px] rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-muted">
                 <div className="flex items-center justify-between gap-4">
@@ -279,11 +267,8 @@ export function ReportingPeriodsOverview({
                 <div className="mt-3 h-2 rounded-full bg-background">
                   <div className="h-2 rounded-full bg-accent" style={{ width: progressWidth }} />
                 </div>
-                <div className="mt-3 flex items-center justify-between">
-                  <span className="text-xs">
-                    {period.lockedAt ? `Locked ${period.lockedAt}` : workflow?.reviewStatus === "ready_for_review" ? `Waiting on ${workflow.reviewer} review` : "Still editable for manual journals and reconciliations"}
-                  </span>
-                  <ConfidenceIndicator value={period.taskSummary.total === 0 ? 0 : period.taskSummary.completed / period.taskSummary.total} />
+                <div className="mt-2 text-xs text-text-muted/40">
+                  {period.lockedAt ? `Locked ${period.lockedAt}` : workflow?.reviewStatus === "ready_for_review" ? `Waiting on ${workflow.reviewer}` : "Editable"}
                 </div>
               </div>
             </div>
@@ -297,11 +282,11 @@ export function ReportingPeriodsOverview({
                       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                         <div>
                           <div className="flex flex-wrap items-center gap-2">
-                            <div className="font-medium text-text-primary">{item.title}</div>
+                            <div className="text-sm font-medium text-text-primary">{item.title}</div>
                             <AccountingStatusBadge label={item.status.replaceAll("_", " ")} tone={getChecklistTone(item.status)} className="capitalize" />
                           </div>
-                          <div className="mt-2 text-sm text-text-muted">{item.guidance}</div>
-                          <div className="mt-2 text-xs text-text-muted">Owner: {item.owner} • Due {item.dueLabel}</div>
+                          <div className="mt-1 text-sm text-text-muted/60">{item.guidance}</div>
+                          <div className="mt-1 text-xs text-text-muted/40">{item.owner} · {item.dueLabel}</div>
                           {item.blocker ? <div className="mt-2 text-xs text-rose-200">Blocker: {item.blocker}</div> : null}
                         </div>
                         <div className="flex flex-wrap gap-2">

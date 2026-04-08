@@ -35,7 +35,7 @@ export default async function ExportsPage() {
       <div className="mt-6 rounded-2xl border border-border bg-surface-mid p-5">
         <div className="text-xs uppercase tracking-[0.2em] text-accent">{exportCenter.source === "convex" ? "Persisted Convex source" : "Demo fallback source"}</div>
         <p className="mt-3 text-sm text-text-muted">{exportCenter.sourceSummary}</p>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <div className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-muted">
             Generation timeline source: {exportCenter.source === "convex" ? "persisted export packet runs" : "demo handoff history"}
           </div>

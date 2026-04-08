@@ -3,7 +3,6 @@ import { AppShell } from "@/components/shell/app-shell";
 import { ManualJournalEntryForm } from "@/components/accounting/manual-journal-entry-form";
 import { TransactionsTable } from "@/components/accounting/transactions-table";
 import { MetricCard } from "@/components/ui/metric-card";
-import { AuditContextBar } from "@/components/accounting/trust-markers";
 import { summarizeDemoTransactions } from "@/lib/demo/accounting";
 import { loadAccountingWorkspace } from "@/lib/data/accounting-core";
 
@@ -23,46 +22,30 @@ export default async function AccountingTransactionsPage() {
   return (
     <AppShell
       title="Transactions"
-      description={`Transaction review workspace for the Phase 1 MVP. Imported activity now prefers ${workspace.source === "convex" ? "persisted Convex data" : "demo fallback data"} while the manual journal flow remains static-safe.`}
+      description="Review imported activity, inspect suggested entries, and prepare manual journals."
     >
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Imported transactions" value={String(summary.total)} detail={`${summary.ready} ready, ${summary.posted} already posted`} />
-        <MetricCard label="Needs mapping" value={String(summary.needsMapping)} detail="Transactions that still need account review or supporting docs" />
-        <MetricCard label="Manual queue" value={String(summary.manualQueue)} detail="Unposted rows that are realistic candidates for manual journal prep" />
-        <MetricCard label="Workspace value" value={formatCurrency(summary.totalValue)} detail="Gross transaction value represented in the current demo queue" />
+      <div className="grid gap-5 md:grid-cols-3">
+        <MetricCard label="Imported" value={String(summary.total)} detail={`${summary.ready} ready, ${summary.posted} posted`} />
+        <MetricCard label="Needs mapping" value={String(summary.needsMapping)} detail="Still need account review or docs" />
+        <MetricCard label="Manual queue" value={String(summary.manualQueue)} detail="Candidates for journal prep" />
       </div>
 
-      <div className="mt-4">
-        <AuditContextBar
-          sourceSystem={workspace.source === "convex" ? "Convex persisted" : "Demo fallback"}
-          lastVerified="Apr 8, 2026 02:42 AM"
-          documentCount={summary.total}
-          confidence={summary.posted / Math.max(summary.total, 1)}
-        />
-      </div>
-
-      <div className="mt-6 grid gap-4 xl:grid-cols-[1.75fr_1fr]">
-        <section className="rounded-2xl border border-border bg-surface-mid p-5">
+      <div className="mt-8 grid gap-5 xl:grid-cols-[1.75fr_1fr]">
+        <section className="rounded-2xl border border-border bg-surface-mid p-6">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <div className="text-xs uppercase tracking-[0.2em] text-accent">Review queue</div>
-              <h2 className="mt-2 text-xl font-semibold">Imported activity table</h2>
-              <p className="mt-2 max-w-2xl text-sm text-text-muted">
-                Rows are modeled after POS batches, bank activity, payroll, inventory movements, and manual accruals. Each row includes realistic suggested entry codes to support manual posting work.
-              </p>
+              <div className="text-[11px] uppercase tracking-[0.15em] text-accent/70">Review</div>
+              <h2 className="mt-1.5 text-lg font-semibold">Imported activity</h2>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Link href="/dashboard/accounting/pipeline" className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-4 py-3 text-sm text-violet-100 transition hover:bg-violet-500/20">
-                Open pipeline board
+              <Link href="/dashboard/accounting/pipeline" className="rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text-muted transition hover:text-text-primary hover:bg-surface/70">
+                Pipeline
               </Link>
-              <Link href="/dashboard/accounting/imports" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
-                Open imports
+              <Link href="/dashboard/accounting/imports" className="rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text-muted transition hover:text-text-primary hover:bg-surface/70">
+                Imports
               </Link>
-              <Link href="/dashboard/accounting/periods" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
-                View reporting periods
-              </Link>
-              <Link href={`/dashboard/accounting/transactions/${workspace.transactions[1]?.id ?? workspace.transactions[0]?.id ?? "txn_002"}`} className="rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-3 text-sm text-blue-100 transition hover:bg-blue-500/20">
-                Open sample approval detail
+              <Link href={`/dashboard/accounting/transactions/${workspace.transactions[1]?.id ?? workspace.transactions[0]?.id ?? "txn_002"}`} className="rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text-muted transition hover:text-text-primary hover:bg-surface/70">
+                Sample detail
               </Link>
             </div>
           </div>
@@ -71,19 +54,19 @@ export default async function AccountingTransactionsPage() {
           </div>
         </section>
 
-        <div className="grid gap-4">
-          <section className="rounded-2xl border border-border bg-surface-mid p-5">
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">Manual entry candidates</div>
-            <ul className="mt-4 space-y-3 text-sm text-text-muted">
+        <div className="grid gap-5">
+          <section className="rounded-2xl border border-border bg-surface-mid p-6">
+            <div className="text-[11px] uppercase tracking-[0.15em] text-accent/70">Manual entries</div>
+            <ul className="mt-4 space-y-2.5 text-sm text-text-muted/60">
               {manualCandidates.map((transaction) => (
                 <li key={transaction.id} className="rounded-xl border border-border bg-surface px-4 py-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="font-medium text-text-primary">{transaction.reference}</div>
-                      <div className="mt-1">{transaction.description}</div>
-                      <div className="mt-2 text-xs">Dr {transaction.suggestedDebitAccountCode} / Cr {transaction.suggestedCreditAccountCode}</div>
+                      <div className="text-sm font-medium text-text-primary">{transaction.reference}</div>
+                      <div className="mt-0.5 text-xs">{transaction.description}</div>
+                      <div className="mt-1 text-[10px] text-text-muted/40">Dr {transaction.suggestedDebitAccountCode} / Cr {transaction.suggestedCreditAccountCode}</div>
                     </div>
-                    <Link href={`/dashboard/accounting/transactions/${transaction.id}`} className="rounded-lg border border-border px-3 py-2 text-xs text-text-primary transition hover:bg-surface-mid">
+                    <Link href={`/dashboard/accounting/transactions/${transaction.id}`} className="rounded-lg border border-border px-3 py-1.5 text-xs text-text-muted transition hover:text-text-primary hover:bg-surface-mid">
                       Review
                     </Link>
                   </div>
@@ -92,19 +75,18 @@ export default async function AccountingTransactionsPage() {
             </ul>
           </section>
 
-          <section className="rounded-2xl border border-border bg-surface-mid p-5">
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">Why this is static-safe</div>
-            <ul className="mt-3 space-y-3 text-sm text-text-muted">
-              <li>• No client-side Convex hook or NEXT_PUBLIC_CONVEX_URL is required.</li>
-              <li>• Manual draft creation and persistence run entirely in browser state and local storage.</li>
-              <li>• Server loaders now prefer persisted Convex rows and fall back to the seeded demo story when no runtime is configured.</li>
-              <li>• CSV import staging lives in its own route and stays local/demo-backed.</li>
+          <section className="rounded-2xl border border-border bg-surface-mid p-6">
+            <div className="text-[11px] uppercase tracking-[0.15em] text-accent/70">Notes</div>
+            <ul className="mt-3 space-y-1.5 text-sm text-text-muted/50">
+              <li>No Convex runtime required for static builds.</li>
+              <li>Manual drafts run in browser state.</li>
+              <li>CSV staging stays local.</li>
             </ul>
           </section>
         </div>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-8">
         <ManualJournalEntryForm accounts={workspace.chartOfAccounts} periods={workspace.reportingPeriods} />
       </div>
     </AppShell>

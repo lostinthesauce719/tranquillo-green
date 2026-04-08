@@ -188,8 +188,8 @@ export function CpaExportCenter({
 
   return (
     <div className="space-y-6">
-      <section className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <div className="rounded-2xl border border-border bg-surface-mid p-5">
+      <section className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="min-w-0 rounded-2xl border border-border bg-surface-mid p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <div className="text-xs uppercase tracking-[0.2em] text-accent">Packet builder</div>
@@ -213,7 +213,7 @@ export function CpaExportCenter({
             </div>
           </div>
 
-          <div className="mt-5 grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+          <div className="mt-5 grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
             <section className="rounded-2xl border border-border bg-surface p-4">
               <div className="text-xs uppercase tracking-[0.2em] text-text-muted">1. Choose packet</div>
               <div className="mt-3 space-y-3">
@@ -365,7 +365,7 @@ export function CpaExportCenter({
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           <section className="rounded-2xl border border-border bg-surface-mid p-5">
             <div className="text-xs uppercase tracking-[0.2em] text-accent">Assembly preview</div>
             <div className="mt-4 rounded-2xl border border-border bg-surface p-4">
@@ -423,7 +423,7 @@ export function CpaExportCenter({
           <section className="rounded-2xl border border-border bg-surface-mid p-5">
             <div className="text-xs uppercase tracking-[0.2em] text-accent">3. Attach checklist items</div>
             <p className="mt-2 text-sm text-text-muted">Attach what the recipient should see. Leaving a watch or missing item selected is useful when you want the packet cover memo to explain why delivery is being held.</p>
-            <div className="mt-4 space-y-3">
+            <div className="mt-4 max-h-[32rem] space-y-3 overflow-y-auto pr-1">
               {checklist.map((item) => (
                 <label key={item.title} className="flex cursor-pointer items-start gap-3 rounded-2xl border border-border bg-surface p-4">
                   <input
@@ -517,7 +517,7 @@ export function CpaExportCenter({
           <div className="text-xs uppercase tracking-[0.2em] text-accent">Evidence-first view</div>
           <EvidenceBadge tone="verified" label="Current period state" />
         </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-xl border border-border bg-surface px-4 py-3">
             <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Close readiness</div>
             <div className="mt-1 text-lg font-semibold text-text-primary">{periodState.closeReadiness}%</div>
@@ -688,8 +688,8 @@ export function CpaExportCenter({
         })()}
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
-        <div className="space-y-6">
+      <section className="grid gap-6 lg:grid-cols-[0.95fr_1.05fr]">
+        <div className="min-w-0 space-y-6">
           <div className="rounded-2xl border border-border bg-surface-mid p-5">
             <div className="flex items-center justify-between gap-3">
               <div className="text-xs uppercase tracking-[0.2em] text-accent">Generation history</div>
@@ -739,7 +739,7 @@ export function CpaExportCenter({
           </div>
         </div>
 
-        <section className="rounded-2xl border border-border bg-surface-mid p-5">
+        <section className="min-w-0 rounded-2xl border border-border bg-surface-mid p-5">
           <div className="text-xs uppercase tracking-[0.2em] text-accent">Automation definitions</div>
           <p className="mt-2 text-sm text-text-muted">Optional static control surface for Green workflows. These are demo definitions only and do not run background jobs.</p>
           <div className="mt-4 space-y-4">

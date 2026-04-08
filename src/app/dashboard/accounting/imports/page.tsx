@@ -27,34 +27,26 @@ export default async function AccountingImportsPage() {
   return (
     <AppShell
       title="Imports"
-      description={importWorkspace.sourceDetail}
+      description="Stage files, apply mappings, and validate rows before posting."
     >
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label={importWorkspace.source === "convex" ? "Persisted jobs" : "Demo files"} value={String(importWorkspace.datasets.length)} detail={importWorkspace.source === "convex" ? `${persistedJobs} jobs are loading from Convex persistence` : "Bank and payroll source formats staged for review"} />
-        <MetricCard label="Rows previewed" value={String(totalRows)} detail="Total staged transactions across current imports" />
-        <MetricCard label="Warnings" value={String(warningRows)} detail="Rows that need support or accounting review before post" />
-        <MetricCard label="Ready to promote" value={String(readyToPromoteRows)} detail={`${errorRows} blocked row${errorRows === 1 ? "" : "s"} still need repair • ${promotedRows} already promoted`} />
+      <div className="grid gap-5 md:grid-cols-3">
+        <MetricCard label="Files" value={String(importWorkspace.datasets.length)} detail="Bank and payroll sources staged" />
+        <MetricCard label="Rows" value={String(totalRows)} detail="Total staged transactions" />
+        <MetricCard label="Ready" value={String(readyToPromoteRows)} detail={`${promotedRows} already promoted`} />
       </div>
 
-      {importWorkspace.fallbackReason ? (
-        <section className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100">
-          Demo fallback active: {importWorkspace.fallbackReason}
-        </section>
-      ) : null}
-
-      <div className="mt-6 grid gap-4 xl:grid-cols-[1.7fr_1fr]">
-        <section className="rounded-2xl border border-border bg-surface-mid p-5">
-          <div className="text-xs uppercase tracking-[0.2em] text-accent">Workflow coverage</div>
-          <ul className="mt-4 space-y-3 text-sm text-text-muted">
-            <li>• Choose a staged source file and apply a reusable mapping profile.</li>
-            <li>• Persist source-file metadata, profile mappings, and row-level validation results when Convex is available.</li>
-            <li>• Review row-level posting suggestions, confidence, warnings, and blocking errors.</li>
-            <li>• Promote eligible import rows into transactions with a safe demo fallback when the backend path is unavailable.</li>
+      <div className="mt-8 grid gap-5 xl:grid-cols-[1.7fr_1fr]">
+        <section className="rounded-2xl border border-border bg-surface-mid p-6">
+          <div className="text-[11px] uppercase tracking-[0.15em] text-accent/70">Workflow</div>
+          <ul className="mt-4 space-y-1.5 text-sm text-text-muted/60">
+            <li>Choose a source file and apply a mapping profile.</li>
+            <li>Review posting suggestions and validation results.</li>
+            <li>Promote clean rows into transactions.</li>
           </ul>
         </section>
 
-        <section className="rounded-2xl border border-border bg-surface-mid p-5">
-          <div className="text-xs uppercase tracking-[0.2em] text-accent">Continue recent jobs</div>
+        <section className="rounded-2xl border border-border bg-surface-mid p-6">
+          <div className="text-[11px] uppercase tracking-[0.15em] text-accent/70">Recent jobs</div>
           <div className="mt-4 grid gap-3">
             {recentDatasets.map((dataset) => (
               <div key={dataset.id} className="rounded-xl border border-border bg-surface px-4 py-3 text-sm">
@@ -75,19 +67,16 @@ export default async function AccountingImportsPage() {
               </div>
             ))}
           </div>
-          <div className="mt-5 text-xs uppercase tracking-[0.2em] text-accent">Related workspaces</div>
-          <div className="mt-4 grid gap-3">
-            <Link href="/dashboard/accounting/pipeline" className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-4 py-3 text-sm text-violet-100 transition hover:bg-violet-500/20">
-              Open transaction pipeline
+          <div className="mt-5 text-[11px] uppercase tracking-[0.15em] text-accent/70">Workspaces</div>
+          <div className="mt-3 space-y-2">
+            <Link href="/dashboard/accounting/pipeline" className="block rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text-muted transition hover:text-text-primary hover:bg-surface/70">
+              Pipeline
             </Link>
-            <Link href="/dashboard/accounting/transactions" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
-              Open transactions review
+            <Link href="/dashboard/accounting/transactions" className="block rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text-muted transition hover:text-text-primary hover:bg-surface/70">
+              Transactions
             </Link>
-            <Link href="/dashboard/accounting/periods" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
-              Open close periods
-            </Link>
-            <Link href="/dashboard/accounting/close" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
-              Open month-end close dashboard
+            <Link href="/dashboard/accounting/periods" className="block rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text-muted transition hover:text-text-primary hover:bg-surface/70">
+              Periods
             </Link>
           </div>
         </section>

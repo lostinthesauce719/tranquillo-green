@@ -11,25 +11,25 @@ import { AccountingStatusBadge } from "./accounting-status-badge";
 type EvidenceTone = "verified" | "partial" | "pending" | "missing" | "info";
 
 const evidenceConfig: Record<EvidenceTone, { label: string; tone: "emerald" | "amber" | "slate" | "rose" | "blue"; icon: string }> = {
-  verified: { label: "Evidence verified", tone: "emerald", icon: "✓" },
-  partial: { label: "Partial evidence", tone: "amber", icon: "◐" },
-  pending: { label: "Evidence pending", tone: "slate", icon: "◌" },
-  missing: { label: "Evidence missing", tone: "rose", icon: "!" },
-  info: { label: "Source-linked", tone: "blue", icon: "◎" },
+  verified: { label: "Verified", tone: "emerald", icon: "✓" },
+  partial: { label: "Partial", tone: "amber", icon: "◐" },
+  pending: { label: "Pending", tone: "slate", icon: "" },
+  missing: { label: "Missing", tone: "rose", icon: "!" },
+  info: { label: "Linked", tone: "blue", icon: "◎" },
 };
 
 export function EvidenceBadge({ tone = "info", label }: { tone?: EvidenceTone; label?: string }) {
   const config = evidenceConfig[tone];
   return (
     <span className={cn(
-      "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium",
-      tone === "verified" && "border-emerald-500/20 bg-emerald-500/10 text-emerald-200",
-      tone === "partial" && "border-amber-500/20 bg-amber-500/10 text-amber-200",
-      tone === "pending" && "border-slate-500/20 bg-slate-500/10 text-slate-300",
-      tone === "missing" && "border-rose-500/20 bg-rose-500/10 text-rose-200",
-      tone === "info" && "border-blue-500/20 bg-blue-500/10 text-blue-200",
+      "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium",
+      tone === "verified" && "border-emerald-500/15 bg-emerald-500/5 text-emerald-300/70",
+      tone === "partial" && "border-amber-500/15 bg-amber-500/5 text-amber-300/70",
+      tone === "pending" && "border-slate-500/15 bg-slate-500/5 text-slate-300/50",
+      tone === "missing" && "border-rose-500/15 bg-rose-500/5 text-rose-300/70",
+      tone === "info" && "border-blue-500/15 bg-blue-500/5 text-blue-300/70",
     )}>
-      <span className="text-xs">{config.icon}</span>
+      {config.icon ? <span className="text-[10px]">{config.icon}</span> : null}
       {label ?? config.label}
     </span>
   );
@@ -102,31 +102,26 @@ export function AuditContextBar({
   confidence?: number;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-surface px-4 py-2.5">
-      <div className="flex items-center gap-1.5 text-[11px] text-text-muted">
-        <span className="text-accent">◎</span>
-        <span className="font-medium">Source:</span>
-        <span className="text-text-primary">{sourceSystem}</span>
+    <div className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-surface px-4 py-2.5">
+      <div className="text-[11px] text-text-muted/60">
+        {sourceSystem}
       </div>
-      <span className="text-text-muted/30">|</span>
-      <div className="flex items-center gap-1.5 text-[11px] text-text-muted">
-        <span className="text-emerald-400">✓</span>
-        <span className="font-medium">Last verified:</span>
-        <span>{lastVerified}</span>
+      <span className="text-text-muted/20">·</span>
+      <div className="text-[11px] text-text-muted/60">
+        {lastVerified}
       </div>
       {documentCount != null ? (
         <>
-          <span className="text-text-muted/30">|</span>
-          <div className="flex items-center gap-1.5 text-[11px] text-text-muted">
-            <span className="font-medium">Docs:</span>
-            <span className="text-text-primary">{documentCount}</span>
+          <span className="text-text-muted/20">·</span>
+          <div className="text-[11px] text-text-muted/60">
+            {documentCount} docs
           </div>
         </>
       ) : null}
       {confidence != null ? (
         <>
-          <span className="text-text-muted/30">|</span>
-          <ConfidenceIndicator value={confidence} label="Confidence" />
+          <span className="text-text-muted/20">·</span>
+          <ConfidenceIndicator value={confidence} />
         </>
       ) : null}
     </div>

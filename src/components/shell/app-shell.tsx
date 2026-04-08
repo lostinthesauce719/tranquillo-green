@@ -101,21 +101,17 @@ export function AppShell({
             ))}
           </nav>
         </aside>
-        <main className="flex-1 rounded-3xl border border-border bg-surface/90 p-6 shadow-2xl shadow-black/20">
-          <header className="mb-8 flex flex-col gap-3 border-b border-border pb-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <div className="text-xs uppercase tracking-[0.2em] text-text-muted/60">Where you are</div>
-                <div className="mt-1 text-sm text-text-muted">{title} in {tenant?.companyName ?? "Tranquillo Green"}</div>
-              </div>
+        <main className="flex-1 rounded-3xl border border-border bg-surface/90 p-8 shadow-2xl shadow-black/20">
+          <header className="mb-10 flex flex-col gap-4 pb-8">
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-semibold">{title}</h1>
               {tenant && (
-                <div className="text-xs text-text-muted">
-                  {tenant.companyName} &middot; <span className="capitalize">{tenant.role}</span>
+                <div className="text-xs text-text-muted/50">
+                  {tenant.companyName}
                 </div>
               )}
             </div>
-            <h1 className="text-3xl font-semibold">{title}</h1>
-            <p className="max-w-3xl text-sm text-text-muted">{description}</p>
+            <p className="max-w-2xl text-sm leading-relaxed text-text-muted/70">{description}</p>
           </header>
           {children}
         </main>
