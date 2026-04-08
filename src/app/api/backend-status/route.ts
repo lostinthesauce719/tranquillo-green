@@ -13,6 +13,7 @@ const CONVEX_URL = process.env.NEXT_PUBLIC_CONVEX_URL?.trim();
 export async function GET() {
   const convexUrl = CONVEX_URL;
 
+  console.log('Backend Status: Using Convex URL:', convexUrl); // DEBUG LOG
   if (!convexUrl || !/^https?:\/\//.test(convexUrl)) {
     return NextResponse.json(
       {
