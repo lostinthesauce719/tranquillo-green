@@ -52,6 +52,26 @@ function humanizeTargetField(value: DemoImportTargetField) {
   return targetFieldLabels[value].toLowerCase();
 }
 
+function issueBucket(issue: string) {
+  const lower = issue.toLowerCase();
+  if (lower.includes("duplicate") || lower.includes("already imported")) return "duplicate risk";
+  if (lower.includes("mapping") || lower.includes("account") || lower.includes("location")) return "mapping gap";
+  if (lower.includes("support") || lower.includes("receipt") || lower.includes("document")) return "support gap";
+  if (lower.includes("date") || lower.includes("amount") || lower.includes("debit") || lower.includes("credit")) return "source-data anomaly";
+  return "review item";
+}
+
+function rowDispositionLabel(status: "ready" | "warning" | "error") {
+  switch (status) {
+    case "ready":
+      return "Can move into accounting review";
+    case "warning":
+      return "Needs human judgment before posting";
+    case "error":
+      return "Blocked until repaired";
+  }
+}
+
 function getRowTone(status: "ready" | "warning" | "error") {
   switch (status) {
     case "ready":
@@ -206,6 +226,7 @@ export function CsvImportWorkflow({
   );
 
   const selectedRow = dataset.rows.find((row) => row.id === selectedRowId) ?? dataset.rows[0]!;
+  const selectedRowIssueBuckets = Array.from(new Set(selectedRow.validationIssues.map(issueBucket)));
   const mappingCoverageCount = dataset.columns.filter((column) => {
     const mappedField = effectiveMappings[column.key] ?? column.suggestedTarget;
     return mappedField !== "ignore";
@@ -388,6 +409,11 @@ export function CsvImportWorkflow({
             </div>
             <div className="mt-1">Promoted {dataset.promotedRowCount} / {dataset.rows.length} rows • {dataset.promotionReadyCount} ready next</div>
             {dataset.persistedStatusReason ? <div className="mt-1 text-xs">{dataset.persistedStatusReason}</div> : null}
+            <div className="mt-2 text-xs text-text-muted">
+              {dataset.backendMode === "persisted"
+                ? "You can reopen this job, keep refining the mapping, and only promote the rows that are clean enough for accounting review."
+                : "This sample file is a safe rehearsal job: fix the mapping, inspect row issues, then persist it when you are ready to test the live handoff."}
+            </div>
           </div>
           <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">
             <div className="text-xs uppercase tracking-[0.2em] text-accent">Validation summary</div>
@@ -590,6 +616,10 @@ export function CsvImportWorkflow({
                 <div className="mt-2 flex flex-wrap gap-2">
                   <AccountingStatusBadge label={`${formatPercent(selectedRow.confidence)} confidence`} tone={selectedRow.confidence >= 0.9 ? "emerald" : selectedRow.confidence >= 0.7 ? "amber" : "rose"} />
                   <AccountingStatusBadge label={humanizeLabel(selectedRow.status)} tone={getRowTone(selectedRow.status)} className="capitalize" />
+                  <AccountingStatusBadge label={rowDispositionLabel(selectedRow.status)} tone={getRowTone(selectedRow.status)} />
+                  {selectedRowIssueBuckets.map((bucket) => (
+                    <AccountingStatusBadge key={bucket} label={bucket} tone={bucket === "duplicate risk" ? "rose" : bucket === "mapping gap" ? "amber" : bucket === "support gap" ? "violet" : "slate"} />
+                  ))}
                 </div>
               </div>
               <div className="grid gap-2">
@@ -613,11 +643,16 @@ export function CsvImportWorkflow({
                     Row is ready to advance to accounting review.
                   </div>
                 ) : (
-                  <ul className="mt-3 space-y-2">
-                    {selectedRow.validationIssues.map((issue) => (
-                      <li key={issue}>• {issue}</li>
-                    ))}
-                  </ul>
+                  <>
+                    <div className="mt-3 text-xs text-text-muted">
+                      These issues explain why the row is blocked, needs human judgment, or cannot yet move into the transaction review queue.
+                    </div>
+                    <ul className="mt-3 space-y-2">
+                      {selectedRow.validationIssues.map((issue) => (
+                        <li key={issue}>• {issue}</li>
+                      ))}
+                    </ul>
+                  </>
                 )}
               </div>
             </div>

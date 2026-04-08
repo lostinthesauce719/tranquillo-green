@@ -22,6 +22,7 @@ export default async function AccountingImportsPage() {
   const promotedRows = importWorkspace.datasets.reduce((sum, dataset) => sum + dataset.promotedRowCount, 0);
   const readyToPromoteRows = importWorkspace.datasets.reduce((sum, dataset) => sum + dataset.promotionReadyCount, 0);
   const persistedJobs = importWorkspace.datasets.filter((dataset) => dataset.backendMode === "persisted").length;
+  const recentDatasets = [...importWorkspace.datasets].slice(0, 3);
 
   return (
     <AppShell
@@ -53,7 +54,28 @@ export default async function AccountingImportsPage() {
         </section>
 
         <section className="rounded-2xl border border-border bg-surface-mid p-5">
-          <div className="text-xs uppercase tracking-[0.2em] text-accent">Related workspaces</div>
+          <div className="text-xs uppercase tracking-[0.2em] text-accent">Continue recent jobs</div>
+          <div className="mt-4 grid gap-3">
+            {recentDatasets.map((dataset) => (
+              <div key={dataset.id} className="rounded-xl border border-border bg-surface px-4 py-3 text-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-medium text-text-primary">{dataset.fileName}</div>
+                    <div className="mt-1 text-xs text-text-muted">
+                      {dataset.source} • {dataset.uploadedAt} • {dataset.periodLabel}
+                    </div>
+                  </div>
+                  <div className="text-right text-xs text-text-muted">
+                    {dataset.promotionReadyCount} ready • {dataset.blockedRowCount} blocked
+                  </div>
+                </div>
+                <div className="mt-2 text-xs text-text-muted">
+                  {dataset.persistedStatusReason ?? "Review mappings, clear issues, and move the clean rows into accounting review."}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 text-xs uppercase tracking-[0.2em] text-accent">Related workspaces</div>
           <div className="mt-4 grid gap-3">
             <Link href="/dashboard/accounting/pipeline" className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-4 py-3 text-sm text-violet-100 transition hover:bg-violet-500/20">
               Open transaction pipeline
