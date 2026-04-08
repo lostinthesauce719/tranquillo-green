@@ -41,6 +41,11 @@ const workspaceLinks = [
     detail: "Work deterministic deductible vs nondeductible allocation cases with policy support and reviewer actions.",
   },
   {
+    href: "/dashboard/allocations/cogs-review",
+    label: "COGS intelligence",
+    detail: "Review every shiftable expense category, dollar impact, IRS risk, and IRC 263A absorption guidance for 280E survival.",
+  },
+  {
     href: "/dashboard/reconciliations",
     label: "Cash reconciliations",
     detail: "Tie drawers, vault, armored clearing, and bank balances with variance investigation workflow.",

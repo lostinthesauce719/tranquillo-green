@@ -59,6 +59,9 @@ export default function AllocationsPage() {
               </ol>
             </div>
             <div className="grid gap-3">
+              <Link href="/dashboard/allocations/cogs-review" className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100 transition hover:bg-emerald-500/20">
+                COGS intelligence
+              </Link>
               <Link href="/dashboard/allocations/support-schedule" className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-4 py-3 text-sm text-violet-100 transition hover:bg-violet-500/20">
                 Open support schedule
               </Link>
