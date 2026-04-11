@@ -90,7 +90,7 @@ Acceptance criteria:
 - support schedule ties to persisted source records
 
 ## Phase 5 — Multi-user, tenant-aware, deploy credible
-Status: 10%
+Status: 70%
 Target completion: 92%
 
 Objective:
@@ -104,9 +104,9 @@ Scope:
 - seeded multi-tenant demo story
 
 Acceptance criteria:
-- authenticated app shell exists
-- user role affects visible actions
-- company data is isolated by tenant
+- authenticated app shell exists [DONE]
+- user role affects visible actions [DONE]
+- company data is isolated by tenant [DONE — Convex queries use auth context]
 
 ## Phase 6 — Production hardening and live automation
 Status: 5%
@@ -143,6 +143,6 @@ Acceptance criteria:
 - Cannabis accounting domain modeling: 75%
 - 280E moat features: 80%
 - Backend persistence: 40%
-- Auth/multi-tenant readiness: 10%
+- Auth/multi-tenant readiness: 75%
 - Deployment readiness: 25%
 - QA/production hardening: 45%
