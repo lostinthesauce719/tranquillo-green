@@ -1,6 +1,5 @@
 import "server-only";
 
-import { ConvexHttpClient } from "convex/browser";
 import { anyApi } from "convex/server";
 import type { DemoCashReconciliationItem } from "@/lib/demo/accounting-operations";
 import type { DemoReportingPeriod } from "@/lib/demo/accounting";
@@ -11,42 +10,7 @@ import type {
   WriteResult,
 } from "@/lib/accounting-write-contracts";
 import { DEMO_COMPANY_SLUG, loadAccountingWorkspace } from "@/lib/data/accounting-core";
-
-function getConvexUrl() {
-  const url = process.env.NEXT_PUBLIC_CONVEX_URL?.trim();
-  if (!url || !/^https?:\/\//.test(url)) {
-    return null;
-  }
-  return url;
-}
-
-async function withTimeout<T>(promise: Promise<T>, timeoutMs = 5000): Promise<T> {
-  return await Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      setTimeout(() => reject(new Error(`Timed out after ${timeoutMs}ms`)), timeoutMs);
-    }),
-  ]);
-}
-
-async function getConvexContext(companySlug: string) {
-  const url = getConvexUrl();
-  if (!url) {
-    return null;
-  }
-
-  const client = new ConvexHttpClient(url);
-  const [company, workspace] = await Promise.all([
-    withTimeout(client.query((anyApi as any).cannabisCompanies.getBySlug, { slug: companySlug })),
-    withTimeout(client.query((anyApi as any).accountingCore.getWorkspaceBySlug, { slug: companySlug })),
-  ]);
-
-  if (!company || !workspace) {
-    return null;
-  }
-
-  return { client, company, workspace };
-}
+import { getConvexContext, withTimeout } from "@/lib/data/convex-client";
 
 function dedupeStrings(values: string[]) {
   return Array.from(new Set(values.map((value) => value.trim()).filter(Boolean)));
@@ -172,11 +136,18 @@ export async function submitManualJournal(
       };
     }
 
-    const period = convex.workspace.reportingPeriods.find((entry: any) => entry.label === payload.periodLabel);
+    const workspace = await withTimeout(
+      convex.client.query((anyApi as any).accountingCore.getWorkspaceBySlug, { slug: payload.companySlug || DEMO_COMPANY_SLUG }),
+    );
+    if (!workspace) {
+      throw new Error("Accounting workspace was not found.");
+    }
+
+    const period = workspace.reportingPeriods.find((entry: any) => entry.label === payload.periodLabel);
     if (!period) {
       throw new Error(`Reporting period ${payload.periodLabel} was not found.`);
     }
-    const accountIdsByCode = new Map(convex.workspace.chartOfAccounts.map((account: any) => [account.code, account._id]));
+    const accountIdsByCode = new Map(workspace.chartOfAccounts.map((account: any) => [account.code, account._id]));
     const lines = payload.lines.map((line, index) => {
       const accountId = accountIdsByCode.get(line.accountCode);
       if (!accountId) {
@@ -237,7 +208,14 @@ export async function persistReportingPeriodState(
       };
     }
 
-    const period = convex.workspace.reportingPeriods.find((entry: any) => entry.label === payload.periodLabel);
+    const workspace = await withTimeout(
+      convex.client.query((anyApi as any).accountingCore.getWorkspaceBySlug, { slug: payload.companySlug || DEMO_COMPANY_SLUG }),
+    );
+    if (!workspace) {
+      throw new Error("Accounting workspace was not found.");
+    }
+
+    const period = workspace.reportingPeriods.find((entry: any) => entry.label === payload.periodLabel);
     if (!period) {
       throw new Error(`Reporting period ${payload.periodLabel} was not found.`);
     }
@@ -293,7 +271,14 @@ export async function mutateReconciliationState(
       };
     }
 
-    const reconciliation = convex.workspace.cashReconciliations.find((entry: any) => {
+    const workspace = await withTimeout(
+      convex.client.query((anyApi as any).accountingCore.getWorkspaceBySlug, { slug: payload.companySlug || DEMO_COMPANY_SLUG }),
+    );
+    if (!workspace) {
+      throw new Error("Accounting workspace was not found.");
+    }
+
+    const reconciliation = workspace.cashReconciliations.find((entry: any) => {
       const candidateId = entry.publicId ?? entry.externalRef ?? entry._id;
       return candidateId === payload.reconciliationId;
     });

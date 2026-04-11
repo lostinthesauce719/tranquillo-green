@@ -1,45 +1,13 @@
 import "server-only";
 
-import { ConvexHttpClient } from "convex/browser";
 import { anyApi } from "convex/server";
 import { DEMO_COMPANY_SLUG } from "@/lib/data/accounting-core";
+import { getConvexContext, withTimeout } from "@/lib/data/convex-client";
 import type {
   ImportJobPromotionSubmission,
   ImportJobStageSubmission,
   ImportJobWriteResult,
 } from "@/lib/import-job-types";
-
-function getConvexUrl() {
-  const url = process.env.NEXT_PUBLIC_CONVEX_URL?.trim();
-  if (!url || !/^https?:\/\//.test(url)) {
-    return null;
-  }
-  return url;
-}
-
-async function withTimeout<T>(promise: Promise<T>, timeoutMs = 5000): Promise<T> {
-  return await Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      setTimeout(() => reject(new Error(`Timed out after ${timeoutMs}ms`)), timeoutMs);
-    }),
-  ]);
-}
-
-async function getConvexContext(companySlug: string) {
-  const url = getConvexUrl();
-  if (!url) {
-    return null;
-  }
-
-  const client = new ConvexHttpClient(url);
-  const company = await withTimeout(client.query((anyApi as any).cannabisCompanies.getBySlug, { slug: companySlug }));
-  if (!company) {
-    throw new Error(`Configured Convex backend could not find company ${companySlug}.`);
-  }
-
-  return { client, company };
-}
 
 export async function stageImportJob(
   payload: ImportJobStageSubmission,

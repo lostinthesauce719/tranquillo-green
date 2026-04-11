@@ -1,8 +1,8 @@
 import "server-only";
 
-import { ConvexHttpClient } from "convex/browser";
 import { anyApi } from "convex/server";
 import { DEMO_COMPANY_SLUG } from "@/lib/data/accounting-core";
+import { getAuthenticatedConvexClient, getConvexContext, withTimeout } from "@/lib/data/convex-client";
 import {
   demoAllocationReviewQueue,
   type DemoAllocationReviewItem,
@@ -90,42 +90,6 @@ export type AuditTrailWorkspace = {
   };
 };
 
-// ─── Convex client helpers ─────────────────────────────────────────────
-
-function getConvexUrl() {
-  const url = process.env.NEXT_PUBLIC_CONVEX_URL?.trim();
-  if (!url || !/^https?:\/\//.test(url)) {
-    return null;
-  }
-  return url;
-}
-
-async function withTimeout<T>(promise: Promise<T>, timeoutMs = 5000): Promise<T> {
-  return await Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      setTimeout(() => reject(new Error(`Timed out after ${timeoutMs}ms`)), timeoutMs);
-    }),
-  ]);
-}
-
-async function getConvexClient() {
-  const url = getConvexUrl();
-  if (!url) return null;
-  return new ConvexHttpClient(url);
-}
-
-async function getCompanyId(client: ConvexHttpClient, companySlug: string) {
-  try {
-    const company = await withTimeout(
-      client.query((anyApi as any).cannabisCompanies.getBySlug, { slug: companySlug }),
-    );
-    return company?._id ?? null;
-  } catch {
-    return null;
-  }
-}
-
 // ─── Demo data converters ──────────────────────────────────────────────
 
 function demoOverrideHistoryToEvents(items: DemoAllocationReviewItem[]): AuditTrailEvent[] {
@@ -198,55 +162,52 @@ function demoHistoryToPacketRecords(history: DemoGenerationHistoryItem[]): Packe
 export async function loadAuditTrailWorkspace(
   companySlug: string = DEMO_COMPANY_SLUG,
 ): Promise<AuditTrailWorkspace> {
-  const client = await getConvexClient();
+  const context = await getConvexContext(companySlug);
 
-  if (client) {
-    const companyId = await getCompanyId(client, companySlug);
-    if (companyId) {
-      try {
-        const [events, overrides, packetRecords] = await Promise.all([
-          withTimeout(
-            client.query((anyApi as any).auditTrail.getRecentEvents, {
-              companyId,
-              limit: 100,
-            }),
-          ),
-          withTimeout(
-            client.query((anyApi as any).auditTrail.getRecentOverrides, {
-              companyId,
-              limit: 100,
-            }),
-          ),
-          withTimeout(
-            client.query((anyApi as any).auditTrail.getRecentPacketRecords, {
-              companyId,
-              limit: 50,
-            }),
-          ),
-        ]);
+  if (context) {
+    try {
+      const [events, overrides, packetRecords] = await Promise.all([
+        withTimeout(
+          context.client.query((anyApi as any).auditTrail.getRecentEvents, {
+            companyId: context.company._id,
+            limit: 100,
+          }),
+        ),
+        withTimeout(
+          context.client.query((anyApi as any).auditTrail.getRecentOverrides, {
+            companyId: context.company._id,
+            limit: 100,
+          }),
+        ),
+        withTimeout(
+          context.client.query((anyApi as any).auditTrail.getRecentPacketRecords, {
+            companyId: context.company._id,
+            limit: 50,
+          }),
+        ),
+      ]);
 
-        const allEvents = events ?? [];
-        const allOverrides = overrides ?? [];
-        const allPackets = packetRecords ?? [];
+      const allEvents = events ?? [];
+      const allOverrides = overrides ?? [];
+      const allPackets = packetRecords ?? [];
 
-        if (allEvents.length > 0 || allOverrides.length > 0 || allPackets.length > 0) {
-          const recentEvent = allEvents[0];
-          return {
-            source: "convex",
-            events: allEvents,
-            overrides: allOverrides,
-            packetRecords: allPackets,
-            summary: {
-              totalEvents: allEvents.length,
-              totalOverrides: allOverrides.length,
-              totalPacketRecords: allPackets.length,
-              recentActor: recentEvent?.actor ?? null,
-            },
-          };
-        }
-      } catch {
-        // fall through to demo
+      if (allEvents.length > 0 || allOverrides.length > 0 || allPackets.length > 0) {
+        const recentEvent = allEvents[0];
+        return {
+          source: "convex",
+          events: allEvents,
+          overrides: allOverrides,
+          packetRecords: allPackets,
+          summary: {
+            totalEvents: allEvents.length,
+            totalOverrides: allOverrides.length,
+            totalPacketRecords: allPackets.length,
+            recentActor: recentEvent?.actor ?? null,
+          },
+        };
       }
+    } catch {
+      // fall through to demo
     }
   }
 
@@ -274,27 +235,24 @@ export async function loadAuditTrailWorkspace(
 export async function loadOverrideDecisions(
   companySlug: string = DEMO_COMPANY_SLUG,
 ): Promise<{ source: "convex" | "demo"; items: DemoAllocationReviewItem[] }> {
-  const client = await getConvexClient();
+  const context = await getConvexContext(companySlug);
 
-  if (client) {
-    const companyId = await getCompanyId(client, companySlug);
-    if (companyId) {
-      try {
-        const overrides = await withTimeout(
-          client.query((anyApi as any).auditTrail.getRecentOverrides, {
-            companyId,
-            limit: 200,
-          }),
-        );
+  if (context) {
+    try {
+      const overrides = await withTimeout(
+        context.client.query((anyApi as any).auditTrail.getRecentOverrides, {
+          companyId: context.company._id,
+          limit: 200,
+        }),
+      );
 
-        if (overrides && overrides.length > 0) {
-          // Return demo items enriched with persisted overrides
-          // Full UI mapping would happen here in a real refactor
-          return { source: "convex", items: demoAllocationReviewQueue };
-        }
-      } catch {
-        // fall through
+      if (overrides && overrides.length > 0) {
+        // Return demo items enriched with persisted overrides
+        // Full UI mapping would happen here in a real refactor
+        return { source: "convex", items: demoAllocationReviewQueue };
       }
+    } catch {
+      // fall through
     }
   }
 
@@ -311,43 +269,40 @@ export async function loadPacketGenerationHistory(
   checklist: DemoPacketChecklistItem[];
   history: DemoGenerationHistoryItem[];
 }> {
-  const client = await getConvexClient();
+  const context = await getConvexContext(companySlug);
 
-  if (client) {
-    const companyId = await getCompanyId(client, companySlug);
-    if (companyId) {
-      try {
-        const records = await withTimeout(
-          client.query((anyApi as any).auditTrail.getRecentPacketRecords, {
-            companyId,
-            limit: 50,
-          }),
-        );
+  if (context) {
+    try {
+      const records = await withTimeout(
+        context.client.query((anyApi as any).auditTrail.getRecentPacketRecords, {
+          companyId: context.company._id,
+          limit: 50,
+        }),
+      );
 
-        if (records && records.length > 0) {
-          // Convert persisted records to demo history items for UI compat
-          const history: DemoGenerationHistoryItem[] = records.map((r: PacketGenerationRecord) => ({
-            timestampLabel: new Intl.DateTimeFormat("en-US", {
-              month: "short",
-              day: "numeric",
-              hour: "numeric",
-              minute: "2-digit",
-            }).format(new Date(r.timestamp)),
-            actor: r.actor,
-            action: r.bundleName,
-            detail: r.detail ?? `${r.action} with ${r.exportFormats.length} formats`,
-          }));
+      if (records && records.length > 0) {
+        // Convert persisted records to demo history items for UI compat
+        const history: DemoGenerationHistoryItem[] = records.map((r: PacketGenerationRecord) => ({
+          timestampLabel: new Intl.DateTimeFormat("en-US", {
+            month: "short",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+          }).format(new Date(r.timestamp)),
+          actor: r.actor,
+          action: r.bundleName,
+          detail: r.detail ?? `${r.action} with ${r.exportFormats.length} formats`,
+        }));
 
-          return {
-            source: "convex",
-            bundles: demoExportBundles,
-            checklist: demoPacketChecklist,
-            history,
-          };
-        }
-      } catch {
-        // fall through
+        return {
+          source: "convex",
+          bundles: demoExportBundles,
+          checklist: demoPacketChecklist,
+          history,
+        };
       }
+    } catch {
+      // fall through
     }
   }
 
@@ -364,20 +319,15 @@ export async function loadPacketGenerationHistory(
 export async function recordAuditEvent(
   input: AuditTrailEventInput,
 ): Promise<WriteResult<AuditTrailEventInput>> {
-  const client = await getConvexClient();
-  if (!client) {
+  const context = await getConvexContext(input.companySlug);
+  if (!context) {
     return { ok: true, mode: "demo", message: "Audit event recorded locally (demo mode)." };
-  }
-
-  const companyId = await getCompanyId(client, input.companySlug);
-  if (!companyId) {
-    return { ok: true, mode: "demo", message: "Company not found, recorded locally." };
   }
 
   try {
     await withTimeout(
-      client.mutation((anyApi as any).auditTrail.recordEvent, {
-        companyId,
+      context.client.mutation((anyApi as any).auditTrail.recordEvent, {
+        companyId: context.company._id,
         entityType: input.entityType,
         entityId: input.entityId,
         action: input.action,
@@ -398,20 +348,15 @@ export async function recordAuditEvent(
 export async function recordOverrideDecision(
   input: OverrideDecisionInput,
 ): Promise<WriteResult<OverrideDecisionInput>> {
-  const client = await getConvexClient();
-  if (!client) {
+  const context = await getConvexContext(input.companySlug);
+  if (!context) {
     return { ok: true, mode: "demo", message: "Override decision recorded locally (demo mode)." };
-  }
-
-  const companyId = await getCompanyId(client, input.companySlug);
-  if (!companyId) {
-    return { ok: true, mode: "demo", message: "Company not found, recorded locally." };
   }
 
   try {
     await withTimeout(
-      client.mutation((anyApi as any).auditTrail.recordOverride, {
-        companyId,
+      context.client.mutation((anyApi as any).auditTrail.recordOverride, {
+        companyId: context.company._id,
         allocationId: input.allocationId,
         transactionId: input.transactionId,
         periodId: input.periodId,
@@ -438,20 +383,15 @@ export async function recordOverrideDecision(
 export async function recordPacketGeneration(
   input: PacketGenerationInput,
 ): Promise<WriteResult<PacketGenerationInput>> {
-  const client = await getConvexClient();
-  if (!client) {
+  const context = await getConvexContext(input.companySlug);
+  if (!context) {
     return { ok: true, mode: "demo", message: "Packet generation recorded locally (demo mode)." };
-  }
-
-  const companyId = await getCompanyId(client, input.companySlug);
-  if (!companyId) {
-    return { ok: true, mode: "demo", message: "Company not found, recorded locally." };
   }
 
   try {
     await withTimeout(
-      client.mutation((anyApi as any).auditTrail.recordPacketGeneration, {
-        companyId,
+      context.client.mutation((anyApi as any).auditTrail.recordPacketGeneration, {
+        companyId: context.company._id,
         periodId: input.periodId,
         bundleId: input.bundleId,
         bundleName: input.bundleName,

@@ -75,6 +75,33 @@ export const getCurrentUser = queryGeneric({
   },
 });
 
+/**
+ * linkToCompany: Explicitly links the authenticated user to a company.
+ * Called during onboarding after the company is created via the API route.
+ */
+export const linkToCompany = authMutation(
+  {
+    companyId: v.id("cannabisCompanies"),
+    role: v.union(
+      v.literal("owner"),
+      v.literal("controller"),
+      v.literal("accountant"),
+      v.literal("viewer"),
+    ),
+  },
+  async (ctx: any, args: any, identity: any) => {
+    const user = await getUserByClerkId(ctx, identity.subject);
+    if (!user) {
+      throw new Error("User not found. Call getOrCreateUser first.");
+    }
+    await ctx.db.patch(user._id, {
+      companyId: args.companyId,
+      role: args.role,
+    });
+    return await ctx.db.get(user._id);
+  },
+);
+
 export const getCurrentTenant = authQuery(
   {},
   async (ctx: any, _args: any, identity: any) => {

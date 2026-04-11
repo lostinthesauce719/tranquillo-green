@@ -2,7 +2,6 @@ import { currentUser } from "@clerk/nextjs/server";
 import { anyApi } from "convex/server";
 import { redirect } from "next/navigation";
 import { TenantShell } from "@/components/shell/tenant-shell";
-import { DEMO_COMPANY_SLUG } from "@/lib/data/accounting-core";
 import { getAuthenticatedConvexClient } from "@/lib/data/convex-client";
 
 export const dynamic = "force-dynamic";
@@ -42,22 +41,16 @@ export default async function DashboardLayout({
     // User sync is best-effort; the dashboard should still render.
   }
 
-  const companySlug =
-    persistedTenant?.companySlug ||
-    (user.publicMetadata?.companySlug as string) ||
-    DEMO_COMPANY_SLUG;
-  const companyName =
-    persistedTenant?.companyName ||
-    (user.publicMetadata?.companyName as string) ||
-    "Golden State Greens, LLC";
-  const companyId =
-    persistedTenant?.companyId ||
-    (user.publicMetadata?.companyId as string) ||
-    DEMO_COMPANY_SLUG;
-  const role =
-    persistedTenant?.role ||
-    (user.publicMetadata?.role as "owner" | "controller" | "accountant" | "viewer") ||
-    "owner";
+  // If no tenant is found, redirect to onboarding to create a company.
+  // The onboarding page lives outside /dashboard/ to avoid a redirect loop.
+  if (!persistedTenant) {
+    redirect("/onboarding");
+  }
+
+  const companySlug = persistedTenant.companySlug;
+  const companyName = persistedTenant.companyName;
+  const companyId = persistedTenant.companyId;
+  const role = persistedTenant.role;
 
   return (
     <TenantShell

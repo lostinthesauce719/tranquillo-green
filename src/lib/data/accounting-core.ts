@@ -1,6 +1,5 @@
 import "server-only";
 
-import { ConvexHttpClient } from "convex/browser";
 import { anyApi } from "convex/server";
 import {
   californiaOperatorDemo,
@@ -17,6 +16,7 @@ import {
   type DemoCashReconciliationItem,
 } from "@/lib/demo/accounting-operations";
 import { getDemoTransactionDetail, type DemoTransactionDetail } from "@/lib/demo/transaction-workflows";
+import { getAuthenticatedConvexClient, withTimeout } from "@/lib/data/convex-client";
 
 export const DEMO_COMPANY_SLUG = californiaOperatorDemo.company.slug;
 
@@ -40,24 +40,6 @@ function buildDemoWorkspace(): AccountingWorkspace {
     transactions: demoTransactions,
     cashReconciliations: demoCashReconciliations,
   };
-}
-
-function getConvexUrl() {
-  const url = process.env.NEXT_PUBLIC_CONVEX_URL?.trim();
-  if (!url) {
-    return null;
-  }
-
-  return /^https?:\/\//.test(url) ? url : null;
-}
-
-async function withTimeout<T>(promise: Promise<T>, timeoutMs = 5000): Promise<T> {
-  return await Promise.race([
-    promise,
-    new Promise<T>((_, reject) => {
-      setTimeout(() => reject(new Error(`Timed out after ${timeoutMs}ms`)), timeoutMs);
-    }),
-  ]);
 }
 
 function toDemoAccount(account: any): DemoChartOfAccount {
@@ -168,12 +150,10 @@ function toDemoReconciliation(reconciliation: any): DemoCashReconciliationItem {
 }
 
 async function loadConvexWorkspace(slug: string): Promise<AccountingWorkspace | null> {
-  const url = getConvexUrl();
-  if (!url) {
+  const client = await getAuthenticatedConvexClient();
+  if (!client) {
     return null;
   }
-
-  const client = new ConvexHttpClient(url);
   const result = await withTimeout(client.query((anyApi as any).accountingCore.getWorkspaceBySlug, { slug }));
   if (!result) {
     return null;
