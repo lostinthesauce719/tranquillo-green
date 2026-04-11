@@ -69,7 +69,7 @@ Acceptance criteria:
 - transaction detail pages reflect live posting state
 
 ## Phase 4 — Live close engine + auditability
-Status: 20%
+Status: 65%
 Target completion: 82%
 
 Objective:
@@ -142,7 +142,7 @@ Acceptance criteria:
 - Product UX/workflow shell: 85%
 - Cannabis accounting domain modeling: 75%
 - 280E moat features: 80%
-- Backend persistence: 20%
+- Backend persistence: 40%
 - Auth/multi-tenant readiness: 10%
 - Deployment readiness: 25%
 - QA/production hardening: 45%
