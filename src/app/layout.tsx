@@ -1,17 +1,24 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
+
 export const metadata: Metadata = {
   title: "Tranquillo Green",
-  description: "Cannabis accounting, compliance, and operations platform.",
+  description: "Cannabis accounting, compliance, and 280E defensibility OS.",
 };
 
 export const dynamic = "force-dynamic";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <body>
         <ClerkProvider>{children}</ClerkProvider>
       </body>
