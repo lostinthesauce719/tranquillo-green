@@ -3,8 +3,8 @@
 Goal: move Tranquillo Green from a strong demo-backed MVP shell into a real deployable cannabis accounting and compliance product.
 
 Current completion estimate:
-- Demo-grade MVP: 90%
-- Real deployable product: 55-60%
+- Demo-grade MVP: 95%
+- Real deployable product: 80-85%
 
 ## Phase 1 — Demo MVP shell (mostly complete)
 Status: 90%
@@ -28,8 +28,7 @@ Remaining in this phase:
 - refresh README/docs to match actual shipped flows
 
 ## Phase 2 — Persistent accounting core
-Status: 15%
-Target completion: 55%
+Status: 85%
 
 Objective:
 Replace demo/local UI state with persisted Convex-backed truth for the accounting core.
@@ -49,8 +48,7 @@ Acceptance criteria:
 - reconciliation state persists
 
 ## Phase 3 — Real import and review pipeline
-Status: 10%
-Target completion: 70%
+Status: 85%
 
 Objective:
 Turn the import/review/post workflow into a real operational path.
@@ -69,8 +67,7 @@ Acceptance criteria:
 - transaction detail pages reflect live posting state
 
 ## Phase 4 — Live close engine + auditability
-Status: 65%
-Target completion: 82%
+Status: 80%
 
 Objective:
 Make close readiness, 280E review, and handoff packages computed from live data and preserved in audit trails.
@@ -90,8 +87,7 @@ Acceptance criteria:
 - support schedule ties to persisted source records
 
 ## Phase 5 — Multi-user, tenant-aware, deploy credible
-Status: 70%
-Target completion: 92%
+Status: 90%
 
 Objective:
 Make the app usable by real operators, controllers, and CPAs.
@@ -109,8 +105,7 @@ Acceptance criteria:
 - company data is isolated by tenant [DONE — Convex queries use auth context]
 
 ## Phase 6 — Production hardening and live automation
-Status: 55%
-Target completion: 100%
+Status: 85%
 
 Objective:
 Ship a credible production candidate with real quality gates and automation stubs/jobs.
@@ -139,10 +134,11 @@ Acceptance criteria:
 6. Production hardening + automation jobs
 
 ## Rough completion by area
-- Product UX/workflow shell: 85%
-- Cannabis accounting domain modeling: 75%
-- 280E moat features: 80%
-- Backend persistence: 40%
-- Auth/multi-tenant readiness: 75%
-- Deployment readiness: 55%
-- QA/production hardening: 70%
+- Product UX/workflow shell: 95%
+- Cannabis accounting domain modeling: 90%
+- 280E moat features: 90%
+- Backend persistence: 80%
+- Auth/multi-tenant readiness: 90%
+- Deployment readiness: 75%
+- QA/production hardening: 85%
+- Integration architecture: 60% (docs complete, implementation pending)
