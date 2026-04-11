@@ -109,7 +109,7 @@ Acceptance criteria:
 - company data is isolated by tenant [DONE — Convex queries use auth context]
 
 ## Phase 6 — Production hardening and live automation
-Status: 30%
+Status: 40%
 Target completion: 100%
 
 Objective:
@@ -120,7 +120,7 @@ Scope:
 - CI for lint/typecheck/build [DONE]
 - broader browser QA and bugfix sweep
 - real scheduled/triggered automation jobs or service stubs
-- finish or hide shallow modules: Inventory, Compliance, Settings
+- finish or hide shallow modules: Inventory, Compliance, Settings [DONE]
 - demo/deploy package and operator walkthrough
 
 Acceptance criteria:
