@@ -109,15 +109,15 @@ Acceptance criteria:
 - company data is isolated by tenant [DONE — Convex queries use auth context]
 
 ## Phase 6 — Production hardening and live automation
-Status: 5%
+Status: 30%
 Target completion: 100%
 
 Objective:
 Ship a credible production candidate with real quality gates and automation stubs/jobs.
 
 Scope:
-- deployment-ready env setup
-- CI for lint/typecheck/build
+- deployment-ready env setup [DONE]
+- CI for lint/typecheck/build [DONE]
 - broader browser QA and bugfix sweep
 - real scheduled/triggered automation jobs or service stubs
 - finish or hide shallow modules: Inventory, Compliance, Settings
@@ -144,5 +144,5 @@ Acceptance criteria:
 - 280E moat features: 80%
 - Backend persistence: 40%
 - Auth/multi-tenant readiness: 75%
-- Deployment readiness: 25%
-- QA/production hardening: 45%
+- Deployment readiness: 55%
+- QA/production hardening: 55%
