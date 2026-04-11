@@ -119,7 +119,7 @@ export default async function AccountingPage() {
               </div>
               <div className="flex items-center justify-between gap-4">
                 <dt className="text-text-muted">Locations</dt>
-                <dd>{new Set(workspace.transactions.map((transaction) => transaction.location)).size || 0}</dd>
+                <dd>{new Set((workspace.transactions ?? []).map((transaction) => transaction.location)).size || 0}</dd>
               </div>
               <div className="flex items-center justify-between gap-4">
                 <dt className="text-text-muted">Licenses</dt>
