@@ -431,6 +431,217 @@ export const seedCaliforniaOperator = mutationGeneric({
       }
     }
 
+    // ─── Audit trail seed data ────────────────────────────────────────
+
+    const existingAuditEvents = await ctx.db
+      .query("auditTrailEvents")
+      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .collect();
+
+    if (existingAuditEvents.length === 0) {
+      const now = Date.now();
+      const auditSeedEvents = [
+        {
+          entityType: "allocation" as const,
+          entityId: "alloc_sqft_001",
+          action: "override_recorded",
+          actor: "Tax Manager",
+          actorRole: "tax_manager",
+          reason: "Square footage methodology adjusted after site inspection confirmed reduced cultivation area due to remediation zone.",
+          beforeState: "deductible:42500/nondeductible:18200",
+          afterState: "deductible:38700/nondeductible:22000",
+          metadata: { decisionType: "override", deductibleShift: "-3800", nondeductibleShift: "3800" },
+          timestamp: now - 86400000,
+        },
+        {
+          entityType: "allocation" as const,
+          entityId: "alloc_labor_002",
+          action: "approval_recorded",
+          actor: "Controller",
+          actorRole: "controller",
+          reason: "Labor allocation approved as recommended. Time tracking records support the 73/27 split between cultivation and retail operations.",
+          beforeState: "deductible:31200/nondeductible:11500",
+          afterState: "deductible:31200/nondeductible:11500",
+          metadata: { decisionType: "approval" },
+          timestamp: now - 172800000,
+        },
+        {
+          entityType: "allocation" as const,
+          entityId: "alloc_custom_003",
+          action: "policy_exception_recorded",
+          actor: "Controller",
+          actorRole: "controller",
+          reason: "Custom policy exception for event sponsorship expense. Marketing directly supports retail revenue; treated as partially deductible under revised memo.",
+          beforeState: "deductible:0/nondeductible:8500",
+          afterState: "deductible:5100/nondeductible:3400",
+          metadata: { decisionType: "policy_exception", deductibleShift: "5100", nondeductibleShift: "-5100" },
+          timestamp: now - 259200000,
+        },
+        {
+          entityType: "reconciliation" as const,
+          entityId: "rec_operating_cash",
+          action: "status_changed",
+          actor: "Staff Accountant",
+          actorRole: "staff_accountant",
+          reason: "Operating cash reconciliation balanced after correcting misapplied POS deposit from Apr 12.",
+          beforeState: "investigating",
+          afterState: "resolved",
+          timestamp: now - 43200000,
+        },
+        {
+          entityType: "transaction" as const,
+          entityId: "txn_2026_0415_payroll",
+          action: "status_changed",
+          actor: "Assistant Controller",
+          actorRole: "assistant_controller",
+          reason: "Payroll journal entry reviewed and posted. Allocations verified against labor timecards.",
+          beforeState: "needs_review",
+          afterState: "posted",
+          timestamp: now - 7200000,
+        },
+        {
+          entityType: "packet" as const,
+          entityId: "bundle_280e",
+          action: "packet_assembled",
+          actor: "Tax Manager",
+          actorRole: "tax_manager",
+          reason: "Published 280E support + override binder for CPA review with PDF, CSV, and evidence ZIP outputs.",
+          afterState: "3 formats, 4 schedules",
+          metadata: { bundleName: "280E support + override binder", action: "assembled", scheduleCount: "4", formatCount: "3" },
+          timestamp: now - 3600000,
+        },
+        {
+          entityType: "packet" as const,
+          entityId: "bundle_close",
+          action: "packet_refreshed",
+          actor: "Assistant Controller",
+          actorRole: "assistant_controller",
+          reason: "Rebuilt close handoff packet after bank reconciliation tied, leaving clearing support as the remaining blocker.",
+          afterState: "2 formats, 4 schedules",
+          metadata: { bundleName: "Month-end close handoff packet", action: "refreshed", scheduleCount: "4", formatCount: "2" },
+          timestamp: now - 5400000,
+        },
+      ];
+
+      for (const event of auditSeedEvents) {
+        await ctx.db.insert("auditTrailEvents", {
+          companyId,
+          ...event,
+        });
+      }
+
+      // Seed override decisions
+      const overrideSeedData = [
+        {
+          allocationId: undefined,
+          transactionId: undefined,
+          decisionType: "override" as const,
+          actor: "Tax Manager",
+          actorRole: "tax_manager",
+          reason: "Square footage methodology adjusted after site inspection confirmed reduced cultivation area due to remediation zone.",
+          fromBasis: "square_footage",
+          toBasis: "square_footage",
+          originalDeductibleAmount: 42500,
+          originalNondeductibleAmount: 18200,
+          revisedDeductibleAmount: 38700,
+          revisedNondeductibleAmount: 22000,
+          evidence: ["Site inspection report dated Apr 10", "Updated floor plan showing remediation zone", "Memo from facilities manager"],
+          resultingPolicyTrail: "Exception memo filed. Standing square footage methodology retained for non-remediation areas; remediation zone carved out with 0% deductibility until Q3 reassessment.",
+          timestamp: now - 86400000,
+        },
+        {
+          allocationId: undefined,
+          transactionId: undefined,
+          decisionType: "approval" as const,
+          actor: "Controller",
+          actorRole: "controller",
+          reason: "Labor allocation approved as recommended. Time tracking records support the 73/27 split.",
+          fromBasis: "labor_hours",
+          toBasis: "labor_hours",
+          originalDeductibleAmount: 31200,
+          originalNondeductibleAmount: 11500,
+          revisedDeductibleAmount: 31200,
+          revisedNondeductibleAmount: 11500,
+          evidence: ["March timecards", "Payroll register tie-out"],
+          resultingPolicyTrail: "Approved on standing labor methodology. No exception needed.",
+          timestamp: now - 172800000,
+        },
+        {
+          allocationId: undefined,
+          transactionId: undefined,
+          decisionType: "policy_exception" as const,
+          actor: "Controller",
+          actorRole: "controller",
+          reason: "Custom policy exception for event sponsorship expense. Marketing directly supports retail revenue.",
+          fromBasis: "custom_policy",
+          toBasis: "custom_policy",
+          originalDeductibleAmount: 0,
+          originalNondeductibleAmount: 8500,
+          revisedDeductibleAmount: 5100,
+          revisedNondeductibleAmount: 3400,
+          evidence: ["Event ROI analysis", "Marketing spend allocation memo", "CPA standing memo reference"],
+          resultingPolicyTrail: "Exception memo filed. 60% of event sponsorship treated as deductible retail marketing expense under revised standing memo effective April 1.",
+          timestamp: now - 259200000,
+        },
+      ];
+
+      for (const override of overrideSeedData) {
+        await ctx.db.insert("overrideDecisions", {
+          companyId,
+          ...override,
+        });
+      }
+
+      // Seed packet generation records
+      const packetSeedData = [
+        {
+          bundleId: "bundle_280e",
+          bundleName: "280E support + override binder",
+          action: "assembled" as const,
+          actor: "Tax Manager",
+          actorRole: "tax_manager",
+          exportFormats: ["PDF binder", "CSV line-item support", "ZIP evidence packet"],
+          includedSchedules: ["280E support schedule", "Allocation override history workspace", "Policy memo index", "Reviewer sign-off summary"],
+          coverMemoMode: "cpa_handoff",
+          checklistSnapshot: [
+            { title: "Close dashboard readiness snapshot exported", status: "done", owner: "Assistant Controller" },
+            { title: "280E support schedule included", status: "done", owner: "Tax Manager" },
+            { title: "Allocation override audit trail attached", status: "done", owner: "Controller" },
+          ],
+          detail: "Published 280E support + override binder for CPA review with PDF, CSV, and evidence ZIP outputs.",
+          timestamp: now - 3600000,
+        },
+        {
+          bundleId: "bundle_close",
+          bundleName: "Month-end close handoff packet",
+          action: "refreshed" as const,
+          actor: "Assistant Controller",
+          actorRole: "assistant_controller",
+          exportFormats: ["PDF close pack", "XLSX lead sheet export"],
+          includedSchedules: ["Close dashboard summary", "Bank and cash reconciliation tie-outs", "Open blocker list", "Journal entry recap"],
+          coverMemoMode: "controller_summary",
+          checklistSnapshot: [
+            { title: "Close dashboard readiness snapshot exported", status: "done", owner: "Assistant Controller" },
+            { title: "Bank and cash reconciliation PDFs attached", status: "watch", owner: "Staff Accountant" },
+            { title: "Recipient delivery notes reviewed", status: "watch", owner: "Controller" },
+          ],
+          detail: "Rebuilt close handoff packet after bank reconciliation tied, leaving clearing support as the remaining blocker.",
+          timestamp: now - 5400000,
+        },
+      ];
+
+      for (const packet of packetSeedData) {
+        await ctx.db.insert("packetGenerationRecords", {
+          companyId,
+          ...packet,
+        });
+      }
+    }
+
+    const auditEventsSeeded = existingAuditEvents.length === 0 ? 7 : 0;
+    const overrideDecisionsSeeded = existingAuditEvents.length === 0 ? 3 : 0;
+    const packetRecordsSeeded = existingAuditEvents.length === 0 ? 2 : 0;
+
     return {
       companyId,
       companySlug: slug,
@@ -444,6 +655,9 @@ export const seedCaliforniaOperator = mutationGeneric({
       transactionsSeeded: demoTransactions.length,
       transactionLinesSeeded: demoTransactions.length * 2,
       cashReconciliationsSeeded: demoCashReconciliations.length,
+      auditEventsSeeded,
+      overrideDecisionsSeeded,
+      packetRecordsSeeded,
     };
   },
 });

@@ -33,6 +33,68 @@ export type ReconciliationMutation = {
   action: "log_note" | "toggle_case" | "toggle_review";
 };
 
+export type AuditTrailEntityType =
+  | "transaction"
+  | "allocation"
+  | "reconciliation"
+  | "reporting_period"
+  | "import_job"
+  | "packet"
+  | "system";
+
+export type AuditTrailEventInput = {
+  companySlug: string;
+  entityType: AuditTrailEntityType;
+  entityId: string;
+  action: string;
+  actor: string;
+  actorRole?: string;
+  reason?: string;
+  beforeState?: string;
+  afterState?: string;
+  metadata?: Record<string, string>;
+};
+
+export type OverrideDecisionInput = {
+  companySlug: string;
+  allocationId?: string;
+  transactionId?: string;
+  periodId?: string;
+  decisionType: "recommendation" | "override" | "approval" | "support_request" | "policy_exception";
+  actor: string;
+  actorRole?: string;
+  reason: string;
+  fromBasis?: string;
+  toBasis?: string;
+  originalDeductibleAmount: number;
+  originalNondeductibleAmount: number;
+  revisedDeductibleAmount: number;
+  revisedNondeductibleAmount: number;
+  evidence?: string[];
+  resultingPolicyTrail?: string;
+};
+
+export type PacketChecklistSnapshotItem = {
+  title: string;
+  status: string;
+  owner: string;
+};
+
+export type PacketGenerationInput = {
+  companySlug: string;
+  periodId?: string;
+  bundleId: string;
+  bundleName: string;
+  action: "assembled" | "refreshed" | "queued" | "sent" | "dry_run";
+  actor: string;
+  actorRole?: string;
+  exportFormats: string[];
+  includedSchedules: string[];
+  coverMemoMode?: string;
+  checklistSnapshot: PacketChecklistSnapshotItem[];
+  detail?: string;
+};
+
 export type WriteResult<T> = {
   ok: true;
   mode: "persisted" | "demo";

@@ -2,7 +2,8 @@ import Link from "next/link";
 import { AllocationOverrideHistoryWorkspace } from "@/components/accounting/allocation-override-history-workspace";
 import { AppShell } from "@/components/shell/app-shell";
 import { MetricCard } from "@/components/ui/metric-card";
-import { demoAllocationReviewQueue, summarizeAllocationHistory } from "@/lib/demo/accounting-operations";
+import { summarizeAllocationHistory } from "@/lib/demo/accounting-operations";
+import { loadOverrideDecisions } from "@/lib/data/audit-trail";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -10,13 +11,14 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 2,
 });
 
-export default function AllocationHistoryPage() {
-  const summary = summarizeAllocationHistory(demoAllocationReviewQueue);
+export default async function AllocationHistoryPage() {
+  const { source, items } = await loadOverrideDecisions();
+  const summary = summarizeAllocationHistory(items);
 
   return (
     <AppShell
       title="Allocation override history"
-      description="Audit-trail workspace for 280E overrides, reviewer approvals, support requests, and resulting policy trail. Everything is static and demo-backed for CPA/compliance walkthroughs."
+      description={`Audit-trail workspace for 280E overrides, reviewer approvals, support requests, and resulting policy trail. Source: ${source}.`}
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Items with history" value={String(summary.itemCount)} detail="Recommendation, override, and approval events preserved" />
@@ -52,7 +54,7 @@ export default function AllocationHistoryPage() {
       </div>
 
       <div className="mt-6">
-        <AllocationOverrideHistoryWorkspace items={demoAllocationReviewQueue} />
+        <AllocationOverrideHistoryWorkspace items={items} />
       </div>
     </AppShell>
   );
