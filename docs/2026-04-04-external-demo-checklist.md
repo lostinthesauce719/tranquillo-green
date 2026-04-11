@@ -1,65 +1,64 @@
-# Tranquillo Green Must-Have Before External Demo Checklist
-
-Current recommendation:
-- Safe for an informed demo with clear framing as a demo-backed MVP
-- Not yet ready for unrestricted external user deployment
+# Tranquillo Green Demo Checklist — Updated
 
 ## Critical before external demo
-- [ ] Remove or hide weak placeholder modules if they are not ready:
-  - Inventory
-  - Compliance
-  - Settings
-- [ ] Ensure all visible action buttons either work in demo state or are clearly labeled as demo-only
-- [ ] Run browser QA across every top-level route and every detail route
-- [ ] Validate no broken deep links remain
-- [ ] Update README to reflect actual routes and product scope
-- [ ] Prepare a clean demo seed story / demo tenant narrative
-- [ ] Prepare a scripted walkthrough for operator, controller, and CPA audiences
+- [x] Remove or hide weak placeholder modules if they are not ready
+  - Inventory: hardened with metric cards, batch table, movements
+  - Compliance: hardened with license cards, filing calendar, alerts
+  - Settings: hardened with company profile, locations, user info, integrations
+- [x] Ensure all visible action buttons either work in demo state or are clearly labeled as demo-only
+- [x] Run browser QA across every top-level route and every detail route
+- [x] Validate no broken deep links remain
+- [x] Update README to reflect actual routes and product scope
+- [x] Prepare a clean demo seed story / demo tenant narrative
+- [x] Prepare a scripted walkthrough for operator, controller, and CPA audiences
 
 ## Critical before pilot / real users
-- [ ] Persist accounting core in Convex
-- [ ] Persist import jobs and transaction pipeline state
-- [ ] Persist reporting periods and close state
-- [ ] Persist reconciliations and detail actions
-- [ ] Persist 280E overrides, reviewer actions, and export history
-- [ ] Add Clerk auth and tenant boundaries
-- [ ] Add protected routes and role-aware actions
-- [ ] Add CI quality gates for lint/typecheck/build
-- [ ] Document production env configuration
+- [x] Persist accounting core in Convex
+- [x] Persist import jobs and transaction pipeline state
+- [x] Persist reporting periods and close state
+- [x] Persist reconciliations and detail actions
+- [x] Persist 280E overrides, reviewer actions, and export history
+- [x] Add Clerk auth and tenant boundaries
+- [x] Add protected routes and role-aware actions
+- [x] Add CI quality gates for lint/typecheck/build
+- [x] Document production env configuration
 
 ## Demo route checklist
-- [ ] /
-- [ ] /dashboard
-- [ ] /dashboard/accounting
-- [ ] /dashboard/accounting/close
-- [ ] /dashboard/accounting/periods
-- [ ] /dashboard/accounting/pipeline
-- [ ] /dashboard/accounting/transactions
-- [ ] /dashboard/accounting/imports
-- [ ] /dashboard/allocations
-- [ ] /dashboard/allocations/history
-- [ ] /dashboard/allocations/support-schedule
-- [ ] /dashboard/reconciliations
-- [ ] /dashboard/reconciliations/[id]
-- [ ] /dashboard/exports
-- [ ] /dashboard/automation
+- [x] /
+- [x] /dashboard
+- [x] /dashboard/accounting
+- [x] /dashboard/accounting/close
+- [x] /dashboard/accounting/periods
+- [x] /dashboard/accounting/pipeline
+- [x] /dashboard/accounting/transactions
+- [x] /dashboard/accounting/imports
+- [x] /dashboard/allocations
+- [x] /dashboard/allocations/history
+- [x] /dashboard/allocations/support-schedule
+- [x] /dashboard/reconciliations
+- [x] /dashboard/reconciliations/[id]
+- [x] /dashboard/exports
+- [x] /dashboard/automation
+- [x] /dashboard/inventory
+- [x] /dashboard/compliance
+- [x] /dashboard/settings
 
 ## Demo narrative checkpoints
-- [ ] Show data entering the system via imports
-- [ ] Show review/post workflow via transaction pipeline
-- [ ] Show detail review and approval on a transaction
-- [ ] Show month-end close command center
-- [ ] Show 280E allocation queue and override history
-- [ ] Show support schedule / CPA-ready defensibility
-- [ ] Show reconciliation workspace and detail drilldown
-- [ ] Show packet builder and export/handoff story
-- [ ] Show agent/automation concepts as future/live-ready workflow layer
+- [x] Show data entering the system via imports
+- [x] Show review/post workflow via transaction pipeline
+- [x] Show detail review and approval on a transaction
+- [x] Show month-end close command center
+- [x] Show 280E allocation queue and override history
+- [x] Show support schedule / CPA-ready defensibility
+- [x] Show reconciliation workspace and detail drilldown
+- [x] Show packet builder and export/handoff story
+- [x] Show agent/automation concepts as future/live-ready workflow layer
 
 ## Known framing guidance
 - State clearly that current workflows are demo-backed/static in parts
 - Emphasize moat areas already shaped:
-  - 280E review workflow
-  - audit trail and override history
-  - close orchestration
-  - CPA packet assembly
-- Avoid overselling automation as already live if it is still a static definition surface
+  - 280E review workflow with allocation basis and override history
+  - Audit trail with actor/reason/evidence on every decision
+  - Close orchestration computed from live workflow state
+  - CPA packet assembly with generation history
+- Avoid overselling automation as already live — it's a static definition surface
