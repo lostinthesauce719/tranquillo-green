@@ -471,5 +471,20 @@ export default defineSchema({
     })),
     detail: v.optional(v.string()),
     timestamp: v.number(),
-  }).index("by_company", ["companyId"]).index("by_company_bundle", ["companyId", "bundleId"]).index("by_company_timestamp", ["companyId", "timestamp"]),
+    }).index("by_company", ["companyId"]).index("by_company_bundle", ["companyId", "bundleId"]).index("by_company_timestamp", ["companyId", "timestamp"]),
+
+  users: defineTable({
+    clerkId: v.optional(v.string()),
+    email: v.string(),
+    name: v.optional(v.string()),
+    companyId: v.optional(v.id("cannabisCompanies")),
+    role: v.optional(v.union(
+      v.literal("owner"),
+      v.literal("controller"),
+      v.literal("accountant"),
+      v.literal("viewer")
+    )),
+    status: v.optional(v.union(v.literal("active"), v.literal("invited"), v.literal("deactivated"))),
+    lastLoginAt: v.optional(v.number()),
+  }).index("by_clerk_id", ["clerkId"]).index("by_company", ["companyId"]).index("by_email", ["email"]),
 });
