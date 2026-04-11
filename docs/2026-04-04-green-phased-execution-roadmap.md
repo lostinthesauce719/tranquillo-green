@@ -3,8 +3,8 @@
 Goal: move Tranquillo Green from a strong demo-backed MVP shell into a real deployable cannabis accounting and compliance product.
 
 Current completion estimate:
-- Demo-grade MVP: 60%
-- Real deployable product: 30-35%
+- Demo-grade MVP: 90%
+- Real deployable product: 55-60%
 
 ## Phase 1 — Demo MVP shell (mostly complete)
 Status: 90%
@@ -109,7 +109,7 @@ Acceptance criteria:
 - company data is isolated by tenant [DONE — Convex queries use auth context]
 
 ## Phase 6 — Production hardening and live automation
-Status: 40%
+Status: 55%
 Target completion: 100%
 
 Objective:
@@ -118,15 +118,15 @@ Ship a credible production candidate with real quality gates and automation stub
 Scope:
 - deployment-ready env setup [DONE]
 - CI for lint/typecheck/build [DONE]
-- broader browser QA and bugfix sweep
+- broader browser QA and bugfix sweep [DONE]
 - real scheduled/triggered automation jobs or service stubs
 - finish or hide shallow modules: Inventory, Compliance, Settings [DONE]
-- demo/deploy package and operator walkthrough
+- demo/deploy package and operator walkthrough [DONE]
 
 Acceptance criteria:
 - CI blocks broken changes
 - production config documented
-- major routes QA’d
+- major routes QA'd
 - automation is no longer purely descriptive
 - app is ready for a controlled external demo or pilot
 
@@ -145,4 +145,4 @@ Acceptance criteria:
 - Backend persistence: 40%
 - Auth/multi-tenant readiness: 75%
 - Deployment readiness: 55%
-- QA/production hardening: 55%
+- QA/production hardening: 70%
