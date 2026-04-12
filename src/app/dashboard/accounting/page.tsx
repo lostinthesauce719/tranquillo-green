@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { AppShell } from "@/components/shell/app-shell";
 import { ChartOfAccountsTable } from "@/components/accounting/chart-of-accounts-table";
-import { MetricCard } from "@/components/ui/metric-card";
+import { LiveMetricCard } from "@/components/ui/live-metric-card";
+import { StaggerContainer } from "@/components/ui/stagger-container";
+import { AnimatedCounter } from "@/components/ui/animated-counter";
+import { PulseDot } from "@/components/ui/pulse-dot";
 import {
   summarizeDemoChartOfAccounts,
   summarizeDemoReportingPeriods,
@@ -65,17 +68,28 @@ export default async function AccountingPage() {
   const currentPeriod =
     workspace.reportingPeriods.find((period) => period.status === "open" || period.status === "review") ?? workspace.reportingPeriods[0];
 
+  const isLive = workspace.source === "convex";
+
   return (
     <AppShell
       title="Accounting"
       description={`California-first accounting workspace for close, 280E review, transaction prep, and reporting period control. Rendering from ${workspace.source === "convex" ? "persisted Convex accounting data" : "demo fallback data"} so static builds stay safe while the backend path matures.`}
     >
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Ledger accounts" value={String(accountSummary.total)} detail={`${accountSummary.active} active, ${accountSummary.inactive} inactive`} />
-        <MetricCard label="Periods in motion" value={String(periodSummary.open + periodSummary.review)} detail={`${periodSummary.closed} closed and ${periodSummary.blocked} currently blocked`} />
-        <MetricCard label="Manual entry queue" value={String(transactionSummary.manualQueue)} detail={`${transactionSummary.needsMapping} transactions still need mapping review`} />
-        <MetricCard label="Current period" value={currentPeriod?.label ?? "No period"} detail={`${(currentPeriod?.status ?? "open").toUpperCase()} close for ${workspace.company.name}`} />
-      </div>
+      <StaggerContainer className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <LiveMetricCard label="Ledger accounts" value={accountSummary.total} detail={`${accountSummary.active} active, ${accountSummary.inactive} inactive`} dotColor={isLive ? "green" : undefined} />
+        <LiveMetricCard label="Periods in motion" value={periodSummary.open + periodSummary.review} detail={`${periodSummary.closed} closed and ${periodSummary.blocked} currently blocked`} dotColor={isLive ? "green" : undefined} />
+        <LiveMetricCard label="Manual entry queue" value={transactionSummary.manualQueue} detail={`${transactionSummary.needsMapping} transactions still need mapping review`} dotColor={transactionSummary.needsMapping > 0 ? "amber" : "green"} />
+        <div className="rounded-2xl border border-border bg-surface-mid p-5">
+          <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Current period</div>
+          <div className="mt-3 flex items-center text-3xl font-semibold">
+            <span>{currentPeriod?.label ?? "No period"}</span>
+          </div>
+          <div className="mt-2 flex items-center gap-2 text-sm text-text-muted">
+            {isLive && <PulseDot color="green" size="sm" />}
+            {(currentPeriod?.status ?? "open").toUpperCase()} close for {workspace.company.name}
+          </div>
+        </div>
+      </StaggerContainer>
 
       <div className="mt-6 grid gap-4 xl:grid-cols-[1.7fr_1fr]">
         <section className="rounded-2xl border border-border bg-surface-mid p-5">
@@ -99,14 +113,14 @@ export default async function AccountingPage() {
         <div className="grid gap-4">
           <section className="rounded-2xl border border-border bg-surface-mid p-5">
             <div className="text-xs uppercase tracking-[0.2em] text-accent">Workspace entry points</div>
-            <div className="mt-4 grid gap-3">
+            <StaggerContainer className="mt-4 grid gap-3" staggerMs={60} baseDelayMs={50}>
               {workspaceLinks.map((item) => (
                 <Link key={item.href} href={item.href} className="rounded-2xl border border-border bg-surface px-4 py-4 transition hover:bg-surface/70">
                   <div className="font-medium text-text-primary">{item.label}</div>
                   <div className="mt-2 text-sm text-text-muted">{item.detail}</div>
                 </Link>
               ))}
-            </div>
+            </StaggerContainer>
           </section>
 
           <section className="rounded-2xl border border-border bg-surface-mid p-5">
@@ -119,7 +133,7 @@ export default async function AccountingPage() {
               </div>
               <div className="flex items-center justify-between gap-4">
                 <dt className="text-text-muted">Locations</dt>
-                <dd>{new Set((workspace.transactions ?? []).map((transaction) => transaction.location)).size || 0}</dd>
+                <dd><AnimatedCounter value={new Set((workspace.transactions ?? []).map((transaction) => transaction.location)).size || 0} /></dd>
               </div>
               <div className="flex items-center justify-between gap-4">
                 <dt className="text-text-muted">Licenses</dt>

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { AppShell } from "@/components/shell/app-shell";
-import { MetricCard } from "@/components/ui/metric-card";
+import { LiveMetricCard } from "@/components/ui/live-metric-card";
+import { StaggerContainer } from "@/components/ui/stagger-container";
+import { ActivityFeed, type ActivityItem } from "@/components/ui/activity-feed";
 import { demoAllocationReviewQueue, demoCashReconciliations, getFeaturedCashReconciliationHref, summarizeAllocationQueue, summarizeCashReconciliations } from "@/lib/demo/accounting-operations";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
@@ -8,6 +10,14 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
   currency: "USD",
   maximumFractionDigits: 0,
 });
+
+const recentActivity: ActivityItem[] = [
+  { id: 1, time: "2 min ago", actor: "Controller", action: "approved allocation override for Cost of Goods — Cultivation", color: "var(--success)" },
+  { id: 2, time: "8 min ago", actor: "System", action: "flagged cash vault variance ($1,240) for Oakland location", color: "var(--warning)" },
+  { id: 3, time: "15 min ago", actor: "Reviewer", action: "signed off on reconciliation for Sacramento drawer", color: "var(--brand)" },
+  { id: 4, time: "23 min ago", actor: "System", action: "imported 842 transactions from bank feed (Mercury)", color: "var(--info)" },
+  { id: 5, time: "1 hr ago", actor: "Controller", action: "locked reporting period for March 2026", color: "var(--violet)" },
+];
 
 export default function DashboardPage() {
   const allocationSummary = summarizeAllocationQueue(demoAllocationReviewQueue);
@@ -19,12 +29,12 @@ export default function DashboardPage() {
       title="Overview"
       description="Phase 1 dashboard for accounting/compliance MVP: close period status, 280E exceptions, reconciliation health, and filing deadlines."
     >
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Allocation queue" value={String(allocationSummary.ready + allocationSummary.needsSupport + allocationSummary.pendingController)} detail={`${allocationSummary.approved} items already approved`} />
-        <MetricCard label="Unreconciled cash" value={currencyFormatter.format(reconciliationSummary.absoluteVariance)} detail={`${reconciliationSummary.investigating + reconciliationSummary.exception} cash workspaces need follow-up`} />
-        <MetricCard label="Inventory drift" value="3.1%" detail="Book vs package-level movement mismatch" />
-        <MetricCard label="Upcoming filings" value="2" detail="California excise + sales tax due in 9 days" />
-      </div>
+      <StaggerContainer className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <LiveMetricCard label="Allocation queue" value={allocationSummary.ready + allocationSummary.needsSupport + allocationSummary.pendingController} detail={`${allocationSummary.approved} items already approved`} />
+        <LiveMetricCard label="Unreconciled cash" value={reconciliationSummary.absoluteVariance} detail={`${reconciliationSummary.investigating + reconciliationSummary.exception} cash workspaces need follow-up`} prefix="$" />
+        <LiveMetricCard label="Inventory drift" value={3.1} detail="Book vs package-level movement mismatch" suffix="%" decimals={1} />
+        <LiveMetricCard label="Upcoming filings" value={2} detail="California excise + sales tax due in 9 days" />
+      </StaggerContainer>
 
       <div className="mt-6 grid gap-4 xl:grid-cols-3">
         <Link href="/dashboard/allocations/history" className="rounded-2xl border border-border bg-surface-mid px-5 py-4 transition hover:bg-surface/70">
@@ -43,6 +53,14 @@ export default function DashboardPage() {
           <div className="mt-2 text-sm text-violet-100/80">Build demo-backed close packets, included schedules, and handoff checklist history.</div>
         </Link>
       </div>
+
+      <section className="mt-6 rounded-2xl border border-border bg-surface-mid p-5">
+        <div className="text-xs uppercase tracking-[0.2em] text-accent">Recent activity</div>
+        <p className="mt-2 text-sm text-text-muted">Latest audit trail events across the accounting workspace.</p>
+        <div className="mt-4">
+          <ActivityFeed items={recentActivity} maxItems={5} />
+        </div>
+      </section>
     </AppShell>
   );
 }
