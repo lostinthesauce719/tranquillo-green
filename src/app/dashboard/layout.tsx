@@ -20,6 +20,7 @@ export default async function DashboardLayout({
         companySlug: string;
         companyName: string;
         role: "owner" | "controller" | "accountant" | "viewer";
+        operatorType: "dispensary" | "cultivator" | "manufacturer" | "distributor" | "vertical";
       }
     | null = null;
 
@@ -34,6 +35,7 @@ export default async function DashboardLayout({
           companySlug: tenant.company.slug,
           companyName: tenant.company.name,
           role: (tenant.user?.role ?? "viewer") as "owner" | "controller" | "accountant" | "viewer",
+          operatorType: (tenant.company?.operatorType ?? "vertical") as "dispensary" | "cultivator" | "manufacturer" | "distributor" | "vertical",
         };
       }
     }
@@ -51,6 +53,7 @@ export default async function DashboardLayout({
   const companyName = persistedTenant.companyName;
   const companyId = persistedTenant.companyId;
   const role = persistedTenant.role;
+  const operatorType = persistedTenant.operatorType;
 
   return (
     <TenantShell
@@ -59,6 +62,7 @@ export default async function DashboardLayout({
         companySlug,
         companyName,
         role,
+        operatorType,
       }}
     >
       {children}

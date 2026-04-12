@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
-import { moduleLinks, type NavLink } from "@/lib/navigation";
+import { moduleLinks, filterLinksByOperator, type NavLink } from "@/lib/navigation";
 import { useTenantMaybe } from "@/lib/auth/tenant-context";
 import { ROLE_LABELS, canAccess, type TenantRole } from "@/lib/auth/roles";
 
@@ -160,7 +160,7 @@ export function AppShell({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const visibleLinks = tenant
-    ? moduleLinks.filter((l) => canAccess(role, l.href))
+    ? filterLinksByOperator(moduleLinks, tenant.operatorType).filter((l) => canAccess(role, l.href))
     : moduleLinks;
 
   const sections = groupBySection(visibleLinks);
