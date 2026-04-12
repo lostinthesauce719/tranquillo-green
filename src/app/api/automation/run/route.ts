@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { runAutomationAgent } from "@/lib/data/automation";
+import { withAuth, securityHeaders, corsHeaders } from "@/lib/api-helpers";
 
-export async function POST(request: Request) {
+export const POST = withAuth(async (request) => {
   try {
     const payload = (await request.json()) as {
       agentId: string;
@@ -9,9 +10,11 @@ export async function POST(request: Request) {
     };
 
     if (!payload.agentId) {
-      return NextResponse.json(
-        { ok: false, message: "agentId is required." },
-        { status: 400 },
+      return securityHeaders(
+        NextResponse.json(
+          { ok: false, message: "agentId is required." },
+          { status: 400 },
+        ),
       );
     }
 
@@ -20,17 +23,24 @@ export async function POST(request: Request) {
       payload.companySlug,
     );
 
-    return NextResponse.json(result);
+    return securityHeaders(NextResponse.json(result));
   } catch (error) {
-    return NextResponse.json(
-      {
-        ok: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : "Could not run automation agent.",
-      },
-      { status: 400 },
+    return securityHeaders(
+      NextResponse.json(
+        {
+          ok: false,
+          message:
+            error instanceof Error
+              ? error.message
+              : "Could not run automation agent.",
+        },
+        { status: 400 },
+      ),
     );
   }
+});
+
+export async function OPTIONS(request: Request) {
+  const origin = request.headers.get("Origin") ?? undefined;
+  return corsHeaders(new NextResponse(null, { status: 204 }), origin);
 }

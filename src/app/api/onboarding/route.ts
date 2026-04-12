@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import { anyApi } from "convex/server";
 import { getAuthenticatedConvexClient } from "@/lib/data/convex-client";
+import { securityHeaders, corsHeaders } from "@/lib/api-helpers";
 
 function slugify(input: string): string {
   return input
@@ -15,9 +16,11 @@ export async function POST(request: Request) {
   try {
     const { userId } = auth();
     if (!userId) {
-      return NextResponse.json(
-        { ok: false, message: "Unauthenticated." },
-        { status: 401 },
+      return securityHeaders(
+        NextResponse.json(
+          { ok: false, message: "Unauthenticated." },
+          { status: 401 },
+        ),
       );
     }
 
@@ -30,9 +33,11 @@ export async function POST(request: Request) {
     };
 
     if (!name || !name.trim()) {
-      return NextResponse.json(
-        { ok: false, message: "Company name is required." },
-        { status: 400 },
+      return securityHeaders(
+        NextResponse.json(
+          { ok: false, message: "Company name is required." },
+          { status: 400 },
+        ),
       );
     }
 
@@ -66,17 +71,21 @@ export async function POST(request: Request) {
     const slug = slugify(name.trim());
 
     if (!slug) {
-      return NextResponse.json(
-        { ok: false, message: "Company name must contain alphanumeric characters." },
-        { status: 400 },
+      return securityHeaders(
+        NextResponse.json(
+          { ok: false, message: "Company name must contain alphanumeric characters." },
+          { status: 400 },
+        ),
       );
     }
 
     const client = await getAuthenticatedConvexClient();
     if (!client) {
-      return NextResponse.json(
-        { ok: false, message: "Convex client unavailable." },
-        { status: 500 },
+      return securityHeaders(
+        NextResponse.json(
+          { ok: false, message: "Convex client unavailable." },
+          { status: 500 },
+        ),
       );
     }
 
@@ -108,18 +117,25 @@ export async function POST(request: Request) {
       companyId,
     });
 
-    return NextResponse.json({ ok: true, slug });
+    return securityHeaders(NextResponse.json({ ok: true, slug }));
   } catch (error) {
     console.error("[onboarding]", error);
-    return NextResponse.json(
-      {
-        ok: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : "Onboarding failed. Please try again.",
-      },
-      { status: 500 },
+    return securityHeaders(
+      NextResponse.json(
+        {
+          ok: false,
+          message:
+            error instanceof Error
+              ? error.message
+              : "Onboarding failed. Please try again.",
+        },
+        { status: 500 },
+      ),
     );
   }
+}
+
+export async function OPTIONS(request: Request) {
+  const origin = request.headers.get("Origin") ?? undefined;
+  return corsHeaders(new NextResponse(null, { status: 204 }), origin);
 }
