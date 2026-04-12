@@ -12,8 +12,21 @@ export default defineSchema({
       v.literal("cultivator"),
       v.literal("manufacturer"),
       v.literal("distributor"),
-      v.literal("vertical")
+      v.literal("vertical"),
     ),
+    additionalOperatorTypes: v.optional(v.array(v.union(
+      v.literal("dispensary"),
+      v.literal("cultivator"),
+      v.literal("manufacturer"),
+      v.literal("distributor"),
+    ))),
+    primaryOperatorType: v.optional(v.union(
+      v.literal("dispensary"),
+      v.literal("cultivator"),
+      v.literal("manufacturer"),
+      v.literal("distributor"),
+      v.literal("vertical"),
+    )),
     defaultAccountingMethod: v.union(v.literal("cash"), v.literal("accrual")),
     status: v.union(v.literal("onboarding"), v.literal("active"), v.literal("inactive")),
   }).index("by_slug", ["slug"]),

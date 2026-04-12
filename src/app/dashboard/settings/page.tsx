@@ -6,6 +6,7 @@ import { useTenant } from "@/lib/auth/tenant-context";
 import { ROLE_LABELS } from "@/lib/auth/roles";
 import { AppShell } from "@/components/shell/app-shell";
 import { californiaOperatorDemo } from "@/lib/demo/accounting";
+import { LocationManager } from "@/components/shell/location-manager";
 
 const OPERATOR_TYPES = [
   { value: "dispensary", label: "Dispensary" },
@@ -244,29 +245,8 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        {/* Locations */}
-        <section className="rounded-2xl border border-border bg-surface-mid p-5">
-          <div className="text-xs uppercase tracking-[0.2em] text-accent">Locations</div>
-          <h2 className="mt-2 text-xl font-semibold">Licensed Facilities</h2>
-          <ul className="mt-5 space-y-3">
-            {locations.map((location) => (
-              <li key={location.licenseNumber} className="rounded-xl border border-border bg-surface px-4 py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-text-primary">{location.name}</span>
-                      {location.isPrimary && (
-                        <Badge className="bg-accent/20 text-accent">Primary</Badge>
-                      )}
-                    </div>
-                    <div className="mt-1 text-xs text-text-muted">{location.city}, {location.state}</div>
-                    <div className="mt-2 text-xs font-mono text-text-muted">{location.licenseNumber}</div>
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
+        {/* Locations — managed */}
+        <LocationManager />
 
         {/* Integration Status */}
         <section className="rounded-2xl border border-border bg-surface-mid p-5">

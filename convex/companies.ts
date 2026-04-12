@@ -11,6 +11,12 @@ export const updateCompany = mutationGeneric({
       v.literal("distributor"),
       v.literal("vertical"),
     )),
+    additionalOperatorTypes: v.optional(v.array(v.union(
+      v.literal("dispensary"),
+      v.literal("cultivator"),
+      v.literal("manufacturer"),
+      v.literal("distributor"),
+    ))),
     defaultAccountingMethod: v.optional(v.union(v.literal("cash"), v.literal("accrual"))),
     state: v.optional(v.string()),
   },
@@ -25,7 +31,12 @@ export const updateCompany = mutationGeneric({
 
     if (updates.operatorType && updates.operatorType !== company.operatorType) {
       patch.operatorType = updates.operatorType;
+      patch.primaryOperatorType = updates.operatorType;
       changed.push(`operator type: ${company.operatorType} → ${updates.operatorType}`);
+    }
+    if (updates.additionalOperatorTypes !== undefined) {
+      patch.additionalOperatorTypes = updates.additionalOperatorTypes;
+      changed.push(`additional types: [${updates.additionalOperatorTypes.join(", ")}]`);
     }
     if (updates.defaultAccountingMethod && updates.defaultAccountingMethod !== company.defaultAccountingMethod) {
       patch.defaultAccountingMethod = updates.defaultAccountingMethod;

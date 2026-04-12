@@ -7,6 +7,7 @@ import { UserButton } from "@clerk/nextjs";
 import { moduleLinks, filterLinksByOperator, type NavLink } from "@/lib/navigation";
 import { useTenantMaybe } from "@/lib/auth/tenant-context";
 import { ROLE_LABELS, canAccess, type TenantRole } from "@/lib/auth/roles";
+import { OperatorBanner } from "@/components/shell/operator-banner";
 
 /* ── role badge tokens ─────────────────────────────────────────────── */
 
