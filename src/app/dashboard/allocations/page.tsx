@@ -1,8 +1,12 @@
+"use client";
+
 import Link from "next/link";
 import { AllocationReviewQueue } from "@/components/accounting/allocation-review-queue";
 import { AppShell } from "@/components/shell/app-shell";
 import { MetricCard } from "@/components/ui/metric-card";
 import { demoAllocationReviewQueue, summarizeAllocationQueue } from "@/lib/demo/accounting-operations";
+import { useTenant } from "@/lib/auth/tenant-context";
+import { getOperatorProfile, getCogsCategories, getNondeductibleCategories, getDefaultAllocationMethod } from "@/lib/operator-profiles";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -12,6 +16,11 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
 
 export default function AllocationsPage() {
   const summary = summarizeAllocationQueue(demoAllocationReviewQueue);
+  const tenant = useTenant();
+  const profile = getOperatorProfile(tenant.operatorType);
+  const cogsCategories = getCogsCategories(tenant.operatorType);
+  const nondeductibleCategories = getNondeductibleCategories(tenant.operatorType);
+  const defaultMethod = getDefaultAllocationMethod(tenant.operatorType);
 
   return (
     <AppShell
@@ -25,19 +34,53 @@ export default function AllocationsPage() {
         <MetricCard label="280E-limited" value={currencyFormatter.format(summary.nondeductible)} detail={`${summary.approved} items already approved`} />
       </div>
 
+      {/* Operator profile banner */}
+      <div className="mt-6 rounded-2xl border border-border bg-surface-mid p-5">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">{profile.icon}</span>
+          <div>
+            <div className="text-sm font-semibold text-text-primary">{profile.label} — 280E Allocation Profile</div>
+            <div className="text-xs text-text-muted">{profile.tagline}</div>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-3 text-sm">
+          <div className="rounded-xl border border-border bg-surface p-3">
+            <div className="text-xs text-text-muted uppercase tracking-wider">Default method</div>
+            <div className="mt-1 font-medium text-text-primary">{defaultMethod.name}</div>
+            <div className="text-xs text-text-muted">{defaultMethod.description}</div>
+          </div>
+          <div className="rounded-xl border border-border bg-surface p-3">
+            <div className="text-xs text-text-muted uppercase tracking-wider">COGS categories ({cogsCategories.length})</div>
+            <ul className="mt-1 space-y-0.5">
+              {cogsCategories.map((c) => (
+                <li key={c.code} className="text-xs text-text-muted"><span className="font-mono text-accent">{c.code}</span> {c.name}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="rounded-xl border border-border bg-surface p-3">
+            <div className="text-xs text-text-muted uppercase tracking-wider">Nondeductible ({nondeductibleCategories.length})</div>
+            <ul className="mt-1 space-y-0.5">
+              {nondeductibleCategories.map((c) => (
+                <li key={c.code} className="text-xs text-text-muted"><span className="font-mono text-accent">{c.code}</span> {c.name}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </div>
+
       <div className="mt-6 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
         <section className="rounded-2xl border border-border bg-surface-mid p-5">
           <div className="text-xs uppercase tracking-[0.2em] text-accent">Queue rules</div>
           <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">
-              Square footage rules split mixed-use occupancy and security by licensed production footprint.
-            </div>
-            <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">
-              Labor-hour rules capitalize direct manufacturing time and route support deviations over 5 points to controller review.
-            </div>
-            <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">
-              Custom policy rules preserve memo-backed exceptions for professional fees and unusual mixed-purpose spend.
-            </div>
+            {profile.allocationMethods.map((method) => (
+              <div key={method.id} className={`rounded-2xl border bg-surface p-4 text-sm text-text-muted ${method.default ? "border-violet-500/30" : "border-border"}`}>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-text-primary">{method.name}</span>
+                  {method.default && <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-violet-300">Default</span>}
+                </div>
+                <p className="mt-1">{method.description}</p>
+              </div>
+            ))}
           </div>
         </section>
 

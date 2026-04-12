@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AppShell } from "@/components/shell/app-shell";
 import { CsvImportWorkflow } from "@/components/accounting/csv-import-workflow";
+import { OperatorImportSources } from "@/components/accounting/operator-import-sources";
 import { MetricCard } from "@/components/ui/metric-card";
 import { loadAccountingWorkspace } from "@/lib/data/accounting-core";
 import { loadImportWorkspace } from "@/lib/data/import-jobs";
@@ -35,6 +36,10 @@ export default async function AccountingImportsPage() {
         <MetricCard label="Rows previewed" value={String(totalRows)} detail="Total staged transactions across current imports" />
         <MetricCard label="Warnings" value={String(warningRows)} detail="Rows that need support or accounting review before post" />
         <MetricCard label="Promoted rows" value={String(promotedRows)} detail={`${errorRows} blocked row${errorRows === 1 ? "" : "s"} still need repair`} />
+      </div>
+
+      <div className="mt-6">
+        <OperatorImportSources />
       </div>
 
       <div className="mt-6 grid gap-4 xl:grid-cols-[1.7fr_1fr]">

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { MonthEndCloseDashboard } from "@/components/accounting/month-end-close-dashboard";
+import { OperatorCloseInfo } from "@/components/accounting/operator-close-info";
 import { AppShell } from "@/components/shell/app-shell";
 import { LiveMetricCard } from "@/components/ui/live-metric-card";
 import { StaggerContainer } from "@/components/ui/stagger-container";
@@ -56,6 +57,10 @@ export default async function AccountingClosePage() {
         <LiveMetricCard label="Watch items" value={watchAreas} detail="Lanes that still need reviewer follow-up before lock" dotColor={watchAreas > 0 ? "amber" : undefined} />
         <LiveMetricCard label="Next actions" value={dashboard.nextActions.length} detail="Top workflow nudges surfaced from the connected close workspaces" />
       </StaggerContainer>
+
+      <div className="mt-6">
+        <OperatorCloseInfo />
+      </div>
 
       <div className="mt-6 grid gap-4 xl:grid-cols-[1.6fr_1fr]">
         <section className="rounded-2xl border border-border bg-surface-mid p-5">

@@ -1,7 +1,11 @@
+"use client";
+
 import { AppShell } from "@/components/shell/app-shell";
 import { MetricCard } from "@/components/ui/metric-card";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
 import { californiaOperatorDemo } from "@/lib/demo/accounting";
+import { useTenant } from "@/lib/auth/tenant-context";
+import { getOperatorProfile } from "@/lib/operator-profiles";
 
 /* ---------- inline demo compliance data ---------- */
 
@@ -130,7 +134,32 @@ function formatDate(ms: number): string {
 
 /* ---------- page component ---------- */
 
+const complianceItemLabels: Record<string, { label: string; description: string; category: string }> = {
+  retail_license: { label: "Retail License", description: "State and local retail cannabis license compliance", category: "License" },
+  local_permits: { label: "Local Permits", description: "City and county operating permits and conditional use permits", category: "Permits" },
+  sales_tax: { label: "Sales Tax", description: "State and local sales tax collection and remittance", category: "Tax" },
+  metrc_reconciliation: { label: "METRC Reconciliation", description: "Inventory and sales reconciliation with METRC track-and-trace", category: "Reconciliation" },
+  cultivation_license: { label: "Cultivation License", description: "State cultivation license and tier compliance", category: "License" },
+  metrc_plant_tracking: { label: "METRC Plant Tracking", description: "Plant lifecycle tracking from seed/clone to harvest", category: "Tracking" },
+  harvest_manifests: { label: "Harvest Manifests", description: "Harvest batch documentation and transfer manifests", category: "Manifests" },
+  lab_testing: { label: "Lab Testing", description: "Required potency, contaminant, and compliance testing", category: "Testing" },
+  manufacturing_license: { label: "Manufacturing License", description: "State manufacturing and processing license", category: "License" },
+  metrc_batch_tracking: { label: "METRC Batch Tracking", description: "Batch-level tracking from input materials to finished goods", category: "Tracking" },
+  gmp_audit: { label: "GMP Audit", description: "Good Manufacturing Practice compliance and audit readiness", category: "Audit" },
+  lab_certificates: { label: "Lab Certificates", description: "Certificate of analysis for all finished products", category: "Testing" },
+  distributor_license: { label: "Distributor License", description: "State distribution and transport license", category: "License" },
+  metrc_manifests: { label: "METRC Manifests", description: "Manifest accuracy and timely submission", category: "Manifests" },
+  transport_permits: { label: "Transport Permits", description: "Vehicle and driver transport permits and compliance", category: "Permits" },
+  chain_of_custody: { label: "Chain of Custody", description: "Documentation of product custody throughout distribution", category: "Documentation" },
+  all_licenses: { label: "All Licenses", description: "Comprehensive license tracking across all operation types", category: "License" },
+  metrc_full: { label: "METRC Full Sync", description: "Complete METRC integration across cultivation, manufacturing, and retail", category: "Tracking" },
+  intercompany_transfers: { label: "Intercompany Transfers", description: "Transfer pricing and documentation between operating entities", category: "Transfers" },
+  consolidated_reporting: { label: "Consolidated Reporting", description: "Consolidated financial and compliance reporting across entities", category: "Reporting" },
+};
+
 export default function CompliancePage() {
+  const tenant = useTenant();
+  const profile = getOperatorProfile(tenant.operatorType);
   const activeLicenseCount = demoLicenses.filter((l) => l.status === "active").length;
   const pendingFilings = demoTaxFilings.filter((f) => f.status !== "filed").length;
   const unresolvedAlerts = demoAlerts.length;
@@ -289,6 +318,32 @@ export default function CompliancePage() {
           </div>
         </section>
       </div>
+
+      {/* operator-specific compliance items */}
+      <section className="mt-6">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">{profile.icon}</span>
+          <div>
+            <div className="text-xs uppercase tracking-[0.2em] text-accent">{profile.label} Compliance</div>
+            <h2 className="text-xl font-semibold">Operator-Specific Requirements</h2>
+          </div>
+        </div>
+        <p className="mt-2 text-sm text-text-muted">
+          Compliance items specific to {profile.label.toLowerCase()} operations. {profile.tagline}.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {profile.complianceItems.map((itemId) => {
+            const item = complianceItemLabels[itemId] ?? { label: itemId, description: "", category: "General" };
+            return (
+              <div key={itemId} className="rounded-2xl border border-border bg-surface-mid p-5">
+                <AccountingStatusBadge label={item.category} tone="slate" />
+                <div className="mt-2 text-sm font-medium text-text-primary">{item.label}</div>
+                <p className="mt-1 text-xs text-text-muted">{item.description}</p>
+              </div>
+            );
+          })}
+        </div>
+      </section>
 
       {/* compliance alerts */}
       <section className="mt-6">
