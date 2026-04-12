@@ -7,7 +7,7 @@ import { UserButton } from "@clerk/nextjs";
 import { moduleLinks, filterLinksByOperator, type NavLink } from "@/lib/navigation";
 import { useTenantMaybe } from "@/lib/auth/tenant-context";
 import { ROLE_LABELS, canAccess, type TenantRole } from "@/lib/auth/roles";
-import { OperatorBanner } from "@/components/shell/operator-banner";
+import { OperatorTypeSwitch } from "@/components/shell/operator-switch";
 
 /* ── role badge tokens ─────────────────────────────────────────────── */
 
@@ -192,6 +192,9 @@ export function AppShell({
             </div>
           </div>
 
+          {/* operator type switcher */}
+          {tenant && <OperatorTypeSwitch inline />}
+
           {/* separator */}
           <div className="mx-5 my-3 h-px bg-border-subtle" />
 
@@ -284,6 +287,9 @@ export function AppShell({
               <CloseIcon className="h-5 w-5" />
             </button>
           </div>
+
+          {/* operator type switcher (mobile) */}
+          {tenant && <OperatorTypeSwitch inline />}
 
           <div className="mx-5 my-3 h-px bg-border-subtle" />
 
