@@ -12,6 +12,7 @@ export default defineSchema({
       v.literal("cultivator"),
       v.literal("manufacturer"),
       v.literal("distributor"),
+      v.literal("delivery"),
       v.literal("vertical"),
     ),
     additionalOperatorTypes: v.optional(v.array(v.union(
@@ -500,4 +501,17 @@ export default defineSchema({
     status: v.optional(v.union(v.literal("active"), v.literal("invited"), v.literal("deactivated"))),
     lastLoginAt: v.optional(v.number()),
   }).index("by_clerk_id", ["clerkId"]).index("by_company", ["companyId"]).index("by_email", ["email"]),
+
+  integrationConfigs: defineTable({
+    companyId: v.id("cannabisCompanies"),
+    provider: v.union(v.literal("quickbooks"), v.literal("metrc"), v.literal("dutchie")),
+    realmId: v.optional(v.string()),
+    accessToken: v.string(),
+    refreshToken: v.string(),
+    accessTokenExpiresAt: v.number(),
+    refreshTokenExpiresAt: v.number(),
+    status: v.union(v.literal("connected"), v.literal("error"), v.literal("disconnected")),
+    connectedAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_company", ["companyId"]).index("by_company_provider", ["companyId", "provider"]),
 });
