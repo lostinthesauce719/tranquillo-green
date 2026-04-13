@@ -10,6 +10,7 @@ const ALL_TYPES: { value: OperatorType; label: string; short: string; icon: stri
   { value: "cultivator", label: "Cultivator", short: "Grow", icon: "🌱" },
   { value: "manufacturer", label: "Manufacturer", short: "Mfg", icon: "⚗️" },
   { value: "distributor", label: "Distributor", short: "Dist", icon: "🚛" },
+  { value: "delivery", label: "Delivery", short: "Deli", icon: "🛵" },
   { value: "vertical", label: "Vertical", short: "All", icon: "🌿" },
 ];
 

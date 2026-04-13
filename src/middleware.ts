@@ -1,9 +1,11 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
+// Dashboard is NOT protected here — the layout handles demo mode fallback.
+// Only protect API routes that require auth.
 const isProtectedRoute = createRouteMatcher([
-  "/dashboard(.*)",
   "/api/accounting(.*)",
   "/api/audit-trail(.*)",
+  "/api/settings(.*)",
 ]);
 
 export default clerkMiddleware((auth, req) => {

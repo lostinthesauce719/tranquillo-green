@@ -1,4 +1,4 @@
-export type OperatorType = "dispensary" | "cultivator" | "manufacturer" | "distributor" | "vertical";
+export type OperatorType = "dispensary" | "cultivator" | "manufacturer" | "distributor" | "vertical" | "delivery";
 
 export type NavLink = {
   href: string;
@@ -11,7 +11,6 @@ export type NavLink = {
 export const moduleLinks: NavLink[] = [
   // Core — everyone sees these
   { href: "/dashboard", label: "Overview", section: "Core" },
-  { href: "/dashboard/onboarding", label: "Onboarding", section: "Core" },
   { href: "/dashboard/accounting", label: "Accounting", section: "Core" },
   { href: "/dashboard/accounting/close", label: "Month-End Close", section: "Core" },
   { href: "/dashboard/accounting/periods", label: "Reporting Periods", section: "Core" },
@@ -25,7 +24,7 @@ export const moduleLinks: NavLink[] = [
   { href: "/dashboard/allocations/support-schedule", label: "280E Support Schedule", section: "Workflows" },
 
   // Operations — some are operator-specific
-  { href: "/dashboard/inventory", label: "Inventory", section: "Operations", operators: ["cultivator", "manufacturer", "vertical", "distributor"] },
+  { href: "/dashboard/inventory", label: "Inventory", section: "Operations", operators: ["cultivator", "manufacturer", "vertical", "distributor", "delivery"] },
   { href: "/dashboard/compliance", label: "Compliance", section: "Operations" },
   { href: "/dashboard/reconciliations", label: "Reconciliations", section: "Operations" },
 

@@ -130,6 +130,29 @@ export const OPERATOR_PROFILES: Record<OperatorType, OperatorProfile> = {
     importSources: ["metrc_export", "fleet_tracking", "bank_csv"],
   },
 
+  delivery: {
+    label: "Delivery",
+    tagline: "Direct-to-consumer cannabis delivery",
+    icon: "🛵",
+    costCategories: [
+      { code: "COGS-PRODUCT", name: "Product Cost", taxTreatment: "cogs", description: "Wholesale cost of cannabis products for delivery" },
+      { code: "COGS-DRIVERS", name: "Driver Wages (COGS)", taxTreatment: "cogs", description: "Wages for drivers directly involved in product delivery" },
+      { code: "COGS-VEHICLES", name: "Delivery Vehicle Costs (COGS)", taxTreatment: "cogs", description: "Vehicle depreciation, fuel, maintenance for delivery ops" },
+      { code: "OPEX-SOFTWARE", name: "Delivery Software Fees", taxTreatment: "nondeductible", description: "Platform fees, route optimization software" },
+      { code: "OPEX-STAFF", name: "Admin/Dispatch Staff", taxTreatment: "nondeductible", description: "Call center, dispatch, support staff" },
+      { code: "OPEX-INSUR", name: "Insurance & Licenses", taxTreatment: "nondeductible", description: "Delivery vehicle insurance, state/local licenses" },
+      { code: "OPEX-MKT", name: "Marketing & Promotions", taxTreatment: "nondeductible", description: "Online ads, customer acquisition, discounts" },
+    ],
+    allocationMethods: [
+      { id: "revenue", name: "Revenue Mix", description: "Allocate based on cannabis vs non-cannabis delivery revenue", default: true },
+      { id: "delivery_miles", name: "Delivery Miles", description: "Allocate based on miles driven for cannabis vs other deliveries", default: false },
+      { id: "labor_hours", name: "Driver Labor Hours", description: "Allocate based on hours spent on cannabis vs other deliveries", default: false },
+    ],
+    dashboardMetrics: ["orders_completed", "avg_order_value", "delivery_time", "driver_utilization", "customer_ratings"],
+    complianceItems: ["delivery_license", "vehicle_registration", "delivery_manifests", "age_verification"],
+    importSources: ["delivery_platform_export", "bank_csv", "payroll_export"],
+  },
+
   vertical: {
     label: "Vertical (Integrated)",
     tagline: "Seed-to-sale operations",
@@ -138,8 +161,9 @@ export const OPERATOR_PROFILES: Record<OperatorType, OperatorProfile> = {
       { code: "COGS-GROW", name: "Cultivation Costs", taxTreatment: "cogs", description: "All costs from clone to harvest" },
       { code: "COGS-EXTRACT", name: "Manufacturing Costs", taxTreatment: "cogs", description: "Extraction, processing, packaging" },
       { code: "COGS-RETAIL", name: "Retail Product Cost", taxTreatment: "cogs", description: "Transfer cost of products to retail locations" },
+      { code: "COGS-DELIVERY", name: "Delivery Product Cost", taxTreatment: "cogs", description: "Transfer cost of products for delivery" },
       { code: "OPEX-FACILITY", name: "Facilities & Equipment", taxTreatment: "nondeductible", description: "All facility leases, equipment, maintenance" },
-      { code: "OPEX-STAFF", name: "All Staff", taxTreatment: "nondeductible", description: "Cultivation, production, retail, admin staff" },
+      { code: "OPEX-STAFF", name: "All Staff", taxTreatment: "nondeductible", description: "Cultivation, production, retail, delivery, admin staff" },
       { code: "OPEX-COMP", name: "Compliance & Licensing", taxTreatment: "nondeductible", description: "All licenses, Metrc, legal, compliance" },
       { code: "OPEX-CORP", name: "Corporate Overhead", taxTreatment: "nondeductible", description: "Executive, finance, HR, IT" },
     ],
@@ -150,7 +174,7 @@ export const OPERATOR_PROFILES: Record<OperatorType, OperatorProfile> = {
     ],
     dashboardMetrics: ["total_revenue", "cogs_ratio", "allocation_split", "compliance_score", "close_readiness"],
     complianceItems: ["all_licenses", "metrc_full", "intercompany_transfers", "consolidated_reporting"],
-    importSources: ["metrc_export", "pos_system", "bank_csv", "payroll"],
+    importSources: ["metrc_export", "pos_system", "delivery_platform_export", "bank_csv", "payroll"],
   },
 };
 

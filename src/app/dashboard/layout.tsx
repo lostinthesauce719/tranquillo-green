@@ -6,13 +6,30 @@ import { getAuthenticatedConvexClient } from "@/lib/data/convex-client";
 
 export const dynamic = "force-dynamic";
 
+// Demo tenant for unauthenticated access
+const DEMO_TENANT = {
+  companyId: "demo",
+  companySlug: "demo-dispensary",
+  companyName: "Demo Dispensary",
+  role: "owner" as const,
+  operatorType: "vertical" as const,
+};
+
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   const user = await currentUser();
-  if (!user) redirect("/sign-in");
+
+  // If no user, use demo mode instead of redirecting
+  if (!user) {
+    return (
+      <TenantShell tenant={DEMO_TENANT}>
+        {children}
+      </TenantShell>
+    );
+  }
 
   let persistedTenant:
     | {
@@ -20,7 +37,7 @@ export default async function DashboardLayout({
         companySlug: string;
         companyName: string;
         role: "owner" | "controller" | "accountant" | "viewer";
-        operatorType: "dispensary" | "cultivator" | "manufacturer" | "distributor" | "vertical";
+        operatorType: "dispensary" | "cultivator" | "manufacturer" | "distributor" | "delivery" | "vertical";
       }
     | null = null;
 
@@ -35,7 +52,7 @@ export default async function DashboardLayout({
           companySlug: tenant.company.slug,
           companyName: tenant.company.name,
           role: (tenant.user?.role ?? "viewer") as "owner" | "controller" | "accountant" | "viewer",
-          operatorType: (tenant.company?.operatorType ?? "vertical") as "dispensary" | "cultivator" | "manufacturer" | "distributor" | "vertical",
+          operatorType: (tenant.company?.operatorType ?? "vertical") as "dispensary" | "cultivator" | "manufacturer" | "distributor" | "delivery" | "vertical",
         };
       }
     }
@@ -43,10 +60,13 @@ export default async function DashboardLayout({
     // User sync is best-effort; the dashboard should still render.
   }
 
-  // If no tenant is found, redirect to onboarding to create a company.
-  // The onboarding page lives outside /dashboard/ to avoid a redirect loop.
+  // If no persisted tenant found, use demo mode instead of redirecting
   if (!persistedTenant) {
-    redirect("/onboarding");
+    return (
+      <TenantShell tenant={DEMO_TENANT}>
+        {children}
+      </TenantShell>
+    );
   }
 
   const companySlug = persistedTenant.companySlug;
