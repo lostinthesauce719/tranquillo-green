@@ -46,6 +46,7 @@ export async function POST(request: Request) {
       "cultivator",
       "manufacturer",
       "distributor",
+      "delivery",
       "vertical",
     ];
     const validAccountingMethods = ["cash", "accrual"];
@@ -58,6 +59,7 @@ export async function POST(request: Request) {
           | "cultivator"
           | "manufacturer"
           | "distributor"
+          | "delivery"
           | "vertical")
       : "dispensary";
 

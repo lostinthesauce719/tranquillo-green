@@ -60,13 +60,9 @@ export default async function DashboardLayout({
     // User sync is best-effort; the dashboard should still render.
   }
 
-  // If no persisted tenant found, use demo mode instead of redirecting
+  // If authenticated user has no company, redirect to onboarding
   if (!persistedTenant) {
-    return (
-      <TenantShell tenant={DEMO_TENANT}>
-        {children}
-      </TenantShell>
-    );
+    redirect("/onboarding");
   }
 
   const companySlug = persistedTenant.companySlug;

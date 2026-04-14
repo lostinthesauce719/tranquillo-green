@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 
 const OPERATOR_TYPES = [
   { value: "dispensary", label: "Dispensary" },
@@ -77,9 +76,6 @@ export default function OnboardingPage() {
             Set up your cannabis operation to get started. We will seed a
             standard chart of accounts tailored to your operator type.
           </p>
-          <Link href="/dashboard" className="mt-3 inline-block text-xs text-text-faint hover:text-text-muted transition">
-            &larr; Back to dashboard
-          </Link>
         </div>
 
         <form
