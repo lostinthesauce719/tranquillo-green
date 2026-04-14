@@ -638,9 +638,83 @@ export const seedCaliforniaOperator = mutationGeneric({
       }
     }
 
+    // ─── Tax Filings ───
+    const existingTaxFilings = await ctx.db
+      .query("taxFilings")
+      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .collect();
+
+    if (existingTaxFilings.length === 0) {
+      const taxFilingSeeds = [
+        {
+          filingType: "CA Cannabis Excise Tax",
+          periodLabel: "Q1 2026",
+          dueDate: "2026-04-30",
+          status: "ready" as const,
+        },
+        {
+          filingType: "CA Sales & Use Tax",
+          periodLabel: "March 2026",
+          dueDate: "2026-04-30",
+          status: "pending" as const,
+        },
+        {
+          filingType: "CA Cannabis Cultivation Tax Report",
+          periodLabel: "Q1 2026",
+          dueDate: "2026-04-30",
+          status: "filed" as const,
+        },
+      ];
+
+      for (const filing of taxFilingSeeds) {
+        await ctx.db.insert("taxFilings", {
+          companyId,
+          ...filing,
+        });
+      }
+    }
+
+    // ─── Compliance Alerts ───
+    const existingAlerts = await ctx.db
+      .query("complianceAlerts")
+      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .collect();
+
+    if (existingAlerts.length === 0) {
+      const alertSeeds = [
+        {
+          category: "license" as const,
+          severity: "warning" as const,
+          title: "Distribution license expiring in 10 months",
+          body: "C11-0009822-LIC (Distribution) expires on 2026-02-28. Begin renewal preparation 90 days before expiry.",
+        },
+        {
+          category: "tax" as const,
+          severity: "critical" as const,
+          title: "Excise tax return due in 19 days",
+          body: "Q1 2026 California cannabis excise tax return is due April 30. Ensure METRC sales data reconciles to filed amount.",
+        },
+        {
+          category: "reconciliation" as const,
+          severity: "info" as const,
+          title: "METRC manifest variance detected",
+          body: "Three incoming transfer manifests show weight discrepancies between METRC recorded quantities and received quantities. Investigate before next reconciliation cycle.",
+        },
+      ];
+
+      for (const alert of alertSeeds) {
+        await ctx.db.insert("complianceAlerts", {
+          companyId,
+          ...alert,
+        });
+      }
+    }
+
     const auditEventsSeeded = existingAuditEvents.length === 0 ? 7 : 0;
     const overrideDecisionsSeeded = existingAuditEvents.length === 0 ? 3 : 0;
     const packetRecordsSeeded = existingAuditEvents.length === 0 ? 2 : 0;
+    const taxFilingsSeeded = existingTaxFilings.length === 0 ? 3 : 0;
+    const complianceAlertsSeeded = existingAlerts.length === 0 ? 3 : 0;
 
     return {
       companyId,
@@ -658,6 +732,8 @@ export const seedCaliforniaOperator = mutationGeneric({
       auditEventsSeeded,
       overrideDecisionsSeeded,
       packetRecordsSeeded,
+      taxFilingsSeeded,
+      complianceAlertsSeeded,
     };
   },
 });
