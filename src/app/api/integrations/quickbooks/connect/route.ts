@@ -34,14 +34,7 @@ export async function GET(_req: NextRequest) {
     );
   }
 
-  // Encode company ID + nonce as state
-  const state = Buffer.from(
-    JSON.stringify({
-      companyId: user.companyId,
-      nonce: Math.random().toString(36).slice(2),
-    }),
-  ).toString("base64url");
-
-  const authUrl = getAuthorizationUrl(state);
+  // Generate the QBO authorization URL with companyId and a CSRF token in state
+  const authUrl = getAuthorizationUrl(user.companyId as string); // Pass companyId directly
   return NextResponse.redirect(authUrl);
 }

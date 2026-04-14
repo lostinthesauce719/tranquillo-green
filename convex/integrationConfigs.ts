@@ -1,5 +1,6 @@
 import { mutationGeneric, queryGeneric } from "convex/server";
 import { v } from "convex/values";
+import { AuthenticatedContext, CustomCtx, createEnrichedContext, requireIdentity, requireCurrentUserRecord, resolveRoleFromIdentityClaims } from "./lib/withAuth";
 
 /**
  * Store or update QuickBooks integration tokens for a company.
@@ -13,7 +14,13 @@ export const upsertQBOTokens = mutationGeneric({
     accessTokenExpiresAt: v.number(),
     refreshTokenExpiresAt: v.number(),
   },
-  handler: async (ctx, args) => {
+  handler: async (baseCtx: AuthenticatedContext, args) => {
+    const ctx = await createEnrichedContext(baseCtx);
+
+    if (ctx.session.companyId !== (args.companyId as unknown as string)) {
+      throw new Error("Unauthorized: Cannot upsert QBO tokens for another company.");
+    }
+
     const existing = await ctx.db
       .query("integrationConfigs")
       .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))
@@ -50,7 +57,13 @@ export const upsertQBOTokens = mutationGeneric({
  */
 export const getQBOStatus = queryGeneric({
   args: { companyId: v.id("cannabisCompanies") },
-  handler: async (ctx, args) => {
+  handler: async (baseCtx: AuthenticatedContext, args) => {
+    const ctx = await createEnrichedContext(baseCtx);
+
+    if (ctx.session.companyId !== (args.companyId as unknown as string)) {
+      throw new Error("Unauthorized: Cannot get QBO status for another company.");
+    }
+
     const configs = await ctx.db
       .query("integrationConfigs")
       .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))
@@ -74,11 +87,42 @@ export const getQBOStatus = queryGeneric({
 });
 
 /**
- * Get QBO tokens for server-side API calls (used by API routes).
+ * Disconnect QuickBooks integration for a company.
  */
-export const getQBOTokens = queryGeneric({
+export const disconnectQBO = mutationGeneric({
   args: { companyId: v.id("cannabisCompanies") },
-  handler: async (ctx, args) => {
+  handler: async (baseCtx: AuthenticatedContext, args) => {
+    const ctx = await createEnrichedContext(baseCtx);
+
+    if (ctx.session.companyId !== (args.companyId as unknown as string)) {
+      throw new Error("Unauthorized: Cannot disconnect QBO for another company.");
+    }
+
+    const configs = await ctx.db
+      .query("integrationConfigs")
+      .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))
+      .collect();
+
+    const config = configs.find((c: any) => c.provider === "quickbooks");
+    if (config) {
+      await ctx.db.delete(config._id);
+    }
+
+    return { success: true };
+  },
+});
+
+// Add a new internal action to get tokens, only callable from the server
+export const getQBOTokensInternal = mutationGeneric({
+  args: { companyId: v.id("cannabisCompanies") },
+  handler: async (baseCtx: AuthenticatedContext, args) => {
+    const ctx = await createEnrichedContext(baseCtx);
+
+    if (ctx.session.companyId !== (args.companyId as unknown as string)) {
+      throw new Error("Unauthorized: Internal QBO token access for another company.");
+    }
+    // Add more granular role check if needed, e.g., if (ctx.session.role !== "system")
+
     const configs = await ctx.db
       .query("integrationConfigs")
       .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))
@@ -94,25 +138,5 @@ export const getQBOTokens = queryGeneric({
       accessTokenExpiresAt: config.accessTokenExpiresAt,
       refreshTokenExpiresAt: config.refreshTokenExpiresAt,
     };
-  },
-});
-
-/**
- * Disconnect QuickBooks integration for a company.
- */
-export const disconnectQBO = mutationGeneric({
-  args: { companyId: v.id("cannabisCompanies") },
-  handler: async (ctx, args) => {
-    const configs = await ctx.db
-      .query("integrationConfigs")
-      .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))
-      .collect();
-
-    const config = configs.find((c: any) => c.provider === "quickbooks");
-    if (config) {
-      await ctx.db.delete(config._id);
-    }
-
-    return { success: true };
   },
 });

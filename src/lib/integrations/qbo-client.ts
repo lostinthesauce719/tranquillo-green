@@ -1,4 +1,5 @@
 import "server-only";
+import { v4 as uuidv4 } from 'uuid'; // For generating CSRF token
 
 /**
  * QuickBooks Online (QBO) API client.
@@ -48,9 +49,16 @@ function getBasicAuth(): string {
  * Generate the Intuit authorization URL.
  * Scopes: accounting + payment
  */
-export function getAuthorizationUrl(state: string): string {
+export function getAuthorizationUrl(companyId: string): string {
   const clientId = getEnv("QBO_CLIENT_ID");
   const redirectUri = getEnv("QBO_REDIRECT_URI");
+  const csrfToken = uuidv4(); // Generate a unique CSRF token
+
+  // For a production system, this CSRF token should be stored server-side
+  // (e.g., in a secure, http-only cookie or server-side session) and validated
+  // on callback to prevent CSRF attacks. For this demo, we include it in the state.
+
+  const state = Buffer.from(JSON.stringify({ companyId, csrfToken })).toString("base64url");
   const scopes = [
     "com.intuit.quickbooks.accounting",
     "com.intuit.quickbooks.payment",

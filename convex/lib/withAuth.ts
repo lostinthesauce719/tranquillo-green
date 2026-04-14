@@ -1,6 +1,7 @@
 import { mutationGeneric, queryGeneric } from "convex/server";
+import { v } from "convex/values";
 
-type Identity = {
+export type Identity = { // Exported Identity
   subject: string;
   email?: string;
   name?: string;
@@ -8,13 +9,21 @@ type Identity = {
   [key: string]: any;
 };
 
-type TenantRole = "owner" | "controller" | "accountant" | "viewer";
+export type TenantRole = "owner" | "controller" | "accountant" | "viewer";
 
-type AuthenticatedContext = {
+export type AuthenticatedContext = {
   auth: {
     getUserIdentity: () => Promise<Identity | null>;
   };
   db: any;
+};
+
+export type CustomCtx = AuthenticatedContext & {
+  session: {
+    userId: string;
+    companyId: string;
+    role: TenantRole;
+  };
 };
 
 function readPath(source: any, path: string[]) {
@@ -56,57 +65,13 @@ export async function getUserByClerkId(ctx: AuthenticatedContext, clerkId: strin
     .unique();
 }
 
-export async function getCurrentUserRecord(ctx: AuthenticatedContext, identity?: Identity) {
-  const currentIdentity = identity ?? (await requireIdentity(ctx));
-  return await getUserByClerkId(ctx, currentIdentity.subject);
-}
-
 export async function requireCurrentUserRecord(ctx: AuthenticatedContext, identity?: Identity) {
-  const user = await getCurrentUserRecord(ctx, identity);
+  const currentIdentity = identity ?? (await requireIdentity(ctx));
+  const user = await getUserByClerkId(ctx, currentIdentity.subject);
   if (!user) {
     throw new Error("Authenticated user is not provisioned.");
   }
   return user;
-}
-
-export async function resolveCompanyFromIdentityClaims(ctx: AuthenticatedContext, identity: Identity) {
-  const companyIdClaim = readStringClaim(identity, [
-    ["companyId"],
-    ["company_id"],
-    ["publicMetadata", "companyId"],
-    ["publicMetadata", "company_id"],
-    ["public_metadata", "companyId"],
-    ["public_metadata", "company_id"],
-    ["metadata", "companyId"],
-    ["metadata", "company_id"],
-  ]);
-
-  if (companyIdClaim) {
-    const company = await ctx.db.get(companyIdClaim);
-    if (company) {
-      return company;
-    }
-  }
-
-  const companySlugClaim = readStringClaim(identity, [
-    ["companySlug"],
-    ["company_slug"],
-    ["publicMetadata", "companySlug"],
-    ["publicMetadata", "company_slug"],
-    ["public_metadata", "companySlug"],
-    ["public_metadata", "company_slug"],
-    ["metadata", "companySlug"],
-    ["metadata", "company_slug"],
-  ]);
-
-  if (!companySlugClaim) {
-    return null;
-  }
-
-  return await ctx.db
-    .query("cannabisCompanies")
-    .withIndex("by_slug", (q: any) => q.eq("slug", companySlugClaim))
-    .unique();
 }
 
 export function resolveRoleFromIdentityClaims(identity: Identity): TenantRole | undefined {
@@ -124,70 +89,23 @@ export function resolveRoleFromIdentityClaims(identity: Identity): TenantRole | 
   return undefined;
 }
 
-export async function requireCompanyAccessById(
-  ctx: AuthenticatedContext,
-  identity: Identity,
-  companyId: string,
-) {
-  const user = await requireCurrentUserRecord(ctx, identity);
-  if (user.companyId && user.companyId !== companyId) {
-    throw new Error("Forbidden: company access denied.");
-  }
-
-  const company = await ctx.db.get(companyId);
-  if (!company) {
-    throw new Error("Company not found.");
-  }
-
-  return { user, company };
-}
-
-export async function requireCompanyAccessBySlug(
-  ctx: AuthenticatedContext,
-  identity: Identity,
-  slug: string,
-) {
-  const company = await ctx.db
-    .query("cannabisCompanies")
-    .withIndex("by_slug", (q: any) => q.eq("slug", slug))
-    .unique();
+// Helper to create an enriched context for internal use within Convex functions
+export async function createEnrichedContext(baseCtx: AuthenticatedContext): Promise<CustomCtx> {
+  const identity = await requireIdentity(baseCtx);
+  const user = await requireCurrentUserRecord(baseCtx, identity);
+  const company = user.companyId ? await baseCtx.db.get(user.companyId) : null;
 
   if (!company) {
-    return null;
+    throw new Error("User not associated with a company or company not found.");
   }
 
-  await requireCompanyAccessById(ctx, identity, company._id);
-  return company;
-}
-
-export async function requireTenantRecordForTransaction(
-  ctx: AuthenticatedContext,
-  identity: Identity,
-  transactionId: string,
-) {
-  const transaction = await ctx.db.get(transactionId);
-  if (!transaction) {
-    throw new Error("Transaction not found.");
-  }
-
-  await requireCompanyAccessById(ctx, identity, transaction.companyId);
-  return transaction;
-}
-
-export const authQuery = (args: any, handler: any) =>
-  queryGeneric({
-    args,
-    handler: async (ctx: any, fnArgs: any) => {
-      const identity = await requireIdentity(ctx);
-      return handler(ctx, fnArgs, identity);
+  const enrichedCtx: CustomCtx = {
+    ...baseCtx,
+    session: {
+      userId: user.clerkId,
+      companyId: company._id,
+      role: resolveRoleFromIdentityClaims(identity) ?? "viewer",
     },
-  });
-
-export const authMutation = (args: any, handler: any) =>
-  mutationGeneric({
-    args,
-    handler: async (ctx: any, fnArgs: any) => {
-      const identity = await requireIdentity(ctx);
-      return handler(ctx, fnArgs, identity);
-    },
-  });
+  };
+  return enrichedCtx;
+}
