@@ -638,6 +638,67 @@ export const seedCaliforniaOperator = mutationGeneric({
       }
     }
 
+    // ─── Products & Inventory ───
+    const existingProducts = await ctx.db
+      .query("products")
+      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .collect();
+
+    const productIdsBySku = new Map<string, any>();
+
+    if (existingProducts.length === 0) {
+      const productSeeds = [
+        { sku: "FLWR-OG-KUSH-3.5", name: "OG Kush Flower 3.5g", category: "flower", unitOfMeasure: "g", active: true },
+        { sku: "PRRL-GLUE-10PK", name: "GG #4 Pre-Roll 10pk", category: "pre-roll", unitOfMeasure: "pk", active: true },
+        { sku: "VPE-GSC-1G", name: "GSC Live Resin Cart 1g", category: "vape", unitOfMeasure: "ea", active: true },
+        { sku: "EDBL-GUMMY-20PK", name: "Sativa Gummies 20ct", category: "edible", unitOfMeasure: "ea", active: true },
+        { sku: "CONC-BHO-1G", name: "Blue Dream BHO Shatter 1g", category: "concentrate", unitOfMeasure: "g", active: true },
+        { sku: "FLWR-PINK-7G", name: "Pink Panties Flower 7g", category: "flower", unitOfMeasure: "g", active: true },
+      ];
+
+      for (const product of productSeeds) {
+        const id = await ctx.db.insert("products", { companyId, ...product });
+        productIdsBySku.set(product.sku, id);
+      }
+    } else {
+      for (const product of existingProducts) {
+        productIdsBySku.set(product.sku, product._id);
+      }
+    }
+
+    const existingBatches = await ctx.db
+      .query("inventoryBatches")
+      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .collect();
+
+    if (existingBatches.length === 0) {
+      const primaryLocation = Array.from(locationIdsByName.values())[0];
+      const batchSeeds = [
+        { sku: "FLWR-OG-KUSH-3.5", packageTag: "1A4060300001C10000010012", quantityOnHand: 420, costBasis: 5.25, source: "metrc_import" as const },
+        { sku: "FLWR-OG-KUSH-3.5", packageTag: "1A4060300001C10000010018", quantityOnHand: 112, costBasis: 5.50, source: "metrc_import" as const },
+        { sku: "PRRL-GLUE-10PK", packageTag: "1A4060300001C20000020045", quantityOnHand: 340, costBasis: 18.00, source: "manual" as const },
+        { sku: "VPE-GSC-1G", packageTag: "1A4060300001C30000030078", quantityOnHand: 560, costBasis: 22.50, source: "metrc_import" as const },
+        { sku: "EDBL-GUMMY-20PK", packageTag: "1A4060300001C40000040091", quantityOnHand: 180, costBasis: 14.00, source: "manual" as const },
+        { sku: "CONC-BHO-1G", packageTag: "1A4060300001C50000050112", quantityOnHand: 95, costBasis: 28.00, source: "metrc_import" as const },
+        { sku: "FLWR-PINK-7G", packageTag: "1A4060300001C10000060130", quantityOnHand: 224, costBasis: 4.75, source: "metrc_import" as const },
+      ];
+
+      for (const batch of batchSeeds) {
+        const productId = productIdsBySku.get(batch.sku);
+        if (productId) {
+          await ctx.db.insert("inventoryBatches", {
+            companyId,
+            productId,
+            locationId: primaryLocation,
+            packageTag: batch.packageTag,
+            quantityOnHand: batch.quantityOnHand,
+            costBasis: batch.costBasis,
+            source: batch.source,
+          });
+        }
+      }
+    }
+
     // ─── Tax Filings ───
     const existingTaxFilings = await ctx.db
       .query("taxFilings")
@@ -716,6 +777,9 @@ export const seedCaliforniaOperator = mutationGeneric({
     const taxFilingsSeeded = existingTaxFilings.length === 0 ? 3 : 0;
     const complianceAlertsSeeded = existingAlerts.length === 0 ? 3 : 0;
 
+    const productsSeeded = existingProducts.length === 0 ? 6 : 0;
+    const batchesSeeded = existingBatches.length === 0 ? 7 : 0;
+
     return {
       companyId,
       companySlug: slug,
@@ -729,11 +793,13 @@ export const seedCaliforniaOperator = mutationGeneric({
       transactionsSeeded: demoTransactions.length,
       transactionLinesSeeded: demoTransactions.length * 2,
       cashReconciliationsSeeded: demoCashReconciliations.length,
+      productsSeeded,
+      batchesSeeded,
+      taxFilingsSeeded,
+      complianceAlertsSeeded,
       auditEventsSeeded,
       overrideDecisionsSeeded,
       packetRecordsSeeded,
-      taxFilingsSeeded,
-      complianceAlertsSeeded,
     };
   },
 });
