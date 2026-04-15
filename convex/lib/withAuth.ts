@@ -130,7 +130,7 @@ export async function requireCompanyAccessById(
   companyId: string,
 ) {
   const user = await requireCurrentUserRecord(ctx, identity);
-  if (user.companyId && user.companyId !== companyId) {
+  if (!user.companyId || user.companyId !== companyId) {
     throw new Error("Forbidden: company access denied.");
   }
 

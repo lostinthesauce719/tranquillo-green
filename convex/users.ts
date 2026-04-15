@@ -1,4 +1,3 @@
-import { queryGeneric } from "convex/server";
 import { v } from "convex/values";
 import {
   authMutation,
@@ -50,15 +49,22 @@ export const getOrCreateUser = authMutation(
 
 /**
  * getByClerkId: Looks up a user by their Clerk subject ID.
+ * Restricted to self-lookup or owner/controller roles.
  */
-export const getByClerkId = queryGeneric({
-  args: {
-    clerkId: v.string(),
+export const getByClerkId = authQuery(
+  { clerkId: v.string() },
+  async (ctx: any, args: any, identity: any) => {
+    const isSelf = identity.subject === args.clerkId;
+    if (!isSelf) {
+      const caller = await getUserByClerkId(ctx, identity.subject);
+      const role = caller?.role;
+      if (role !== "owner" && role !== "controller") {
+        throw new Error("Forbidden: insufficient permissions.");
+      }
+    }
+    return (await getUserByClerkId(ctx, args.clerkId)) ?? null;
   },
-  handler: async (ctx, args) => {
-    return (await getUserByClerkId(ctx as any, args.clerkId)) ?? null;
-  },
-});
+);
 
 /**
  * getCurrentUser: Returns the user doc for the currently authenticated identity.
