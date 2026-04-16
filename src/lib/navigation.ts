@@ -6,6 +6,7 @@ export type NavLink = {
 
 export const moduleLinks: NavLink[] = [
   { href: "/dashboard", label: "Overview", section: "Core" },
+  { href: "/dashboard/command-center", label: "Command Center", section: "Core" },
   { href: "/dashboard/onboarding", label: "Onboarding", section: "Core" },
   { href: "/dashboard/accounting", label: "Accounting", section: "Core" },
   { href: "/dashboard/accounting/close", label: "Month-End Close", section: "Core" },
