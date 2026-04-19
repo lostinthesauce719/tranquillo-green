@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import type { AllocationTrendPoint, VariancePoint, PipelineStage } from "@/lib/demo/overview-data";
 
 // ── Sparkline ────────────────────────────────────────────────────────────────
@@ -17,6 +18,8 @@ export function Sparkline({
   height?: number;
   fill?: boolean;
 }) {
+  const uid = useId();
+  const id = "sg_" + uid.replace(/:/g, "");
   if (!data || data.length === 0) return null;
   const max = Math.max(...data);
   const min = Math.min(...data);
@@ -28,7 +31,6 @@ export function Sparkline({
   ]);
   const path = points.map((p, i) => (i === 0 ? `M${p[0]},${p[1]}` : `L${p[0]},${p[1]}`)).join(" ");
   const areaPath = `${path} L${points[points.length - 1][0]},${height} L0,${height} Z`;
-  const id = "sg_" + Math.random().toString(36).slice(2, 9);
   return (
     <svg width={width} height={height} style={{ display: "block" }}>
       <defs>
