@@ -1,66 +1,100 @@
-import Link from "next/link";
 import { AppShell } from "@/components/shell/app-shell";
-import { LiveMetricCard } from "@/components/ui/live-metric-card";
-import { StaggerContainer } from "@/components/ui/stagger-container";
-import { ActivityFeed, type ActivityItem } from "@/components/ui/activity-feed";
-import { demoAllocationReviewQueue, demoCashReconciliations, getFeaturedCashReconciliationHref, summarizeAllocationQueue, summarizeCashReconciliations } from "@/lib/demo/accounting-operations";
-
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
-});
-
-const recentActivity: ActivityItem[] = [
-  { id: 1, time: "2 min ago", actor: "Controller", action: "approved allocation override for Cost of Goods — Cultivation", color: "var(--success)" },
-  { id: 2, time: "8 min ago", actor: "System", action: "flagged cash vault variance ($1,240) for Oakland location", color: "var(--warning)" },
-  { id: 3, time: "15 min ago", actor: "Reviewer", action: "signed off on reconciliation for Sacramento drawer", color: "var(--brand)" },
-  { id: 4, time: "23 min ago", actor: "System", action: "imported 842 transactions from bank feed (Mercury)", color: "var(--info)" },
-  { id: 5, time: "1 hr ago", actor: "Controller", action: "locked reporting period for March 2026", color: "var(--violet)" },
-];
+import { CloseHero } from "@/components/overview/close-hero";
+import { KpiRow } from "@/components/overview/kpi-row";
+import { ExposurePanel } from "@/components/overview/exposure-panel";
+import { CashLane } from "@/components/overview/cash-lane";
+import { ActionQueue } from "@/components/overview/action-queue";
+import { VarianceCard, FilingsCard, PipelineCard, ActivityCard } from "@/components/overview/right-rail";
 
 export default function DashboardPage() {
-  const allocationSummary = summarizeAllocationQueue(demoAllocationReviewQueue);
-  const reconciliationSummary = summarizeCashReconciliations(demoCashReconciliations);
-  const featuredReconciliationHref = getFeaturedCashReconciliationHref(demoCashReconciliations);
-
   return (
     <AppShell
       title="Overview"
-      description="Phase 1 dashboard for accounting/compliance MVP: close period status, 280E exceptions, reconciliation health, and filing deadlines."
+      description="Everything you need to move from intake to trusted CPA handoff."
     >
-      <StaggerContainer className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <LiveMetricCard label="Allocation queue" value={allocationSummary.ready + allocationSummary.needsSupport + allocationSummary.pendingController} detail={`${allocationSummary.approved} items already approved`} />
-        <LiveMetricCard label="Unreconciled cash" value={reconciliationSummary.absoluteVariance} detail={`${reconciliationSummary.investigating + reconciliationSummary.exception} cash workspaces need follow-up`} prefix="$" />
-        <LiveMetricCard label="Inventory drift" value={3.1} detail="Book vs package-level movement mismatch" suffix="%" decimals={1} />
-        <LiveMetricCard label="Upcoming filings" value={2} detail="California excise + sales tax due in 9 days" />
-      </StaggerContainer>
-
-      <div className="mt-6 grid gap-4 xl:grid-cols-3">
-        <Link href="/dashboard/allocations/history" className="rounded-2xl border border-border bg-surface-mid px-5 py-4 transition hover:bg-surface/70">
-          <div className="text-xs uppercase tracking-[0.2em] text-accent">New workspace</div>
-          <div className="mt-2 font-medium">Allocation override history</div>
-          <div className="mt-2 text-sm text-text-muted">Audit trail view of recommendations, overrides, evidence, and policy trail.</div>
-        </Link>
-        <Link href={featuredReconciliationHref} className="rounded-2xl border border-border bg-surface-mid px-5 py-4 transition hover:bg-surface/70">
-          <div className="text-xs uppercase tracking-[0.2em] text-accent">New detail</div>
-          <div className="mt-2 font-medium">Reconciliation drill-down</div>
-          <div className="mt-2 text-sm text-text-muted">Controller-style detail page with source breakdown, variance drivers, and next steps.</div>
-        </Link>
-        <Link href="/dashboard/exports" className="rounded-2xl border border-violet-500/20 bg-violet-500/10 px-5 py-4 transition hover:bg-violet-500/20">
-          <div className="text-xs uppercase tracking-[0.2em] text-violet-200">New handoff</div>
-          <div className="mt-2 font-medium text-violet-100">CPA export center</div>
-          <div className="mt-2 text-sm text-violet-100/80">Build demo-backed close packets, included schedules, and handoff checklist history.</div>
-        </Link>
+      {/* Phase label + system status */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 20,
+          marginTop: -8,
+        }}
+      >
+        <span
+          style={{
+            fontSize: 10,
+            textTransform: "uppercase",
+            letterSpacing: "0.22em",
+            color: "var(--resin)",
+            fontWeight: 600,
+          }}
+        >
+          Phase 1 · Command
+        </span>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            padding: "7px 12px",
+            background: "var(--surface-raised)",
+            border: "1px solid var(--border)",
+            borderRadius: 999,
+            fontSize: 11.5,
+          }}
+        >
+          <span
+            className="dot-live"
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: 999,
+              background: "var(--mint)",
+              boxShadow: "0 0 8px var(--mint-glow)",
+              display: "inline-block",
+            }}
+          />
+          <span style={{ color: "var(--text-secondary)" }}>All systems nominal</span>
+          <span
+            style={{
+              width: 3,
+              height: 3,
+              borderRadius: 999,
+              background: "var(--text-faint)",
+              display: "inline-block",
+            }}
+          />
+          <span className="mono" style={{ color: "var(--text-muted)", fontSize: 10.5 }}>
+            Synced 2m ago
+          </span>
+        </div>
       </div>
 
-      <section className="mt-6 rounded-2xl border border-border bg-surface-mid p-5">
-        <div className="text-xs uppercase tracking-[0.2em] text-accent">Recent activity</div>
-        <p className="mt-2 text-sm text-text-muted">Latest audit trail events across the accounting workspace.</p>
-        <div className="mt-4">
-          <ActivityFeed items={recentActivity} maxItems={5} />
+      {/* Main content stack */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <CloseHero />
+        <KpiRow />
+
+        {/* Two-column grid: main panels + right rail */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 14 }}>
+          {/* Left column */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <ExposurePanel />
+            <CashLane />
+            <ActionQueue />
+          </div>
+
+          {/* Right rail */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <VarianceCard />
+            <FilingsCard />
+            <PipelineCard />
+            <ActivityCard />
+          </div>
         </div>
-      </section>
+      </div>
     </AppShell>
   );
 }
