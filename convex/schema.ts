@@ -620,6 +620,17 @@ export default defineSchema({
     .index("by_company_classification", ["companyId", "classification"])
     .index("by_company_category", ["companyId", "costCategory"]),
 
+  // ─── ONBOARDING PROGRESS ─────────────────────────────────────────────
+  // Tracks user progress through guided tours and onboarding steps.
+  onboardingProgress: defineTable({
+    userId: v.string(),
+    tourId: v.string(),
+    status: v.union(v.literal("not_started"), v.literal("in_progress"), v.literal("completed")),
+    currentStep: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+    startedAt: v.optional(v.number()),
+  }).index("by_user_tour", ["userId", "tourId"]),
+
   // ─── AUTOMATION RUN LOG ───────────────────────────────────────────
   // Tracks each automation run for audit and debugging.
   automationRuns: defineTable({
