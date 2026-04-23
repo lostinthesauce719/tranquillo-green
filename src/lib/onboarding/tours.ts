@@ -27,3 +27,10 @@ export const csvImportTourSteps: Step[] = [
     title: "Stage Import",
   },
 ];
+
+export const tours = [
+  {
+    id: "csv-import",
+    name: "CSV Import",
+  },
+];

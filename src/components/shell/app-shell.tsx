@@ -8,6 +8,7 @@ import { moduleLinks, filterLinksByOperator, type NavLink } from "@/lib/navigati
 import { useTenantMaybe } from "@/lib/auth/tenant-context";
 import { ROLE_LABELS, canAccess, type TenantRole } from "@/lib/auth/roles";
 import { OperatorTypeSwitch } from "@/components/shell/operator-switch";
+import GuideToggle from "@/components/onboarding/guide-toggle";
 
 /* ── role badge tokens ─────────────────────────────────────────────── */
 
@@ -332,6 +333,7 @@ export function AppShell({
           {children}
         </main>
       </div>
+      <GuideToggle />
     </div>
   );
 }
