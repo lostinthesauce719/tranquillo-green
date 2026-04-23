@@ -8,6 +8,7 @@
   /* Surface palette — deep navy with subtle warmth */
   --background: #080d19;
   --surface: #0e1526;
+  --surface-mid: #111b2e;  /* mid-tone surface for form fields and panels */
   --surface-raised: #141d33;
   --surface-overlay: #1a2540;
   --border: #1e2d4a;

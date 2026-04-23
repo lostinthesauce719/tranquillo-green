@@ -42,11 +42,11 @@ export default function OnboardingPage() {
 
   // Step 1: Company
   const [name, setName] = useState("");
-  const [states, setStates] = useState<string[]>([]); // Changed to states: string[]
-  const [accountingMethod, setAccountingMethod] = useState("cash");
+  const [states, setStates] = useState<string[]>([]);
+  const [accountingMethods, setAccountingMethods] = useState<string[]>([]);
+  const [operatorTypes, setOperatorTypes] = useState<string[]>([]);
 
-  // Step 2: Operator
-  const [operatorType, setOperatorType] = useState("dispensary");
+  // Step 2: Operator Types (multi-select)
 
   // Step 3: Integrations (skip-able)
   const [metrcSkipped, setMetrcSkipped] = useState(false);
@@ -81,7 +81,7 @@ export default function OnboardingPage() {
       const res = await fetch("/api/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, states, operatorType, accountingMethod }),
+        body: JSON.stringify({ name, states, operatorTypes: operatorTypes, accountingMethods: accountingMethods }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
@@ -194,19 +194,35 @@ export default function OnboardingPage() {
                 </div>
 
                 <div>
-                  <label htmlFor="accounting-method" className="mb-1.5 block text-sm font-medium text-text-primary">
+                  <label className="mb-1.5 block text-sm font-medium text-text-primary">
                     Accounting Method
                   </label>
-                  <select
-                    id="accounting-method"
-                    value={accountingMethod}
-                    onChange={(e) => setAccountingMethod(e.target.value)}
-                    className="w-full rounded-xl border border-border bg-surface-mid px-4 py-3 text-sm text-text-primary focus:border-accent/50 focus:outline-none focus:ring-1 focus:ring-accent/50"
-                  >
-                    {ACCOUNTING_METHODS.map((m) => (
-                      <option key={m.value} value={m.value}>{m.label}</option>
-                    ))}
-                  </select>
+                  <div className="grid grid-cols-2 gap-2">
+                    {ACCOUNTING_METHODS.map((m) => {
+                      const selected = accountingMethods.includes(m.value);
+                      return (
+                        <button
+                          type="button"
+                          key={m.value}
+                          onClick={() => {
+                            if (selected) {
+                              setAccountingMethods(accountingMethods.filter((v) => v !== m.value));
+                            } else {
+                              setAccountingMethods([...accountingMethods, m.value]);
+                            }
+                          }}
+                          className={`rounded-xl border px-4 py-3 text-left text-sm transition-all ${
+                            selected
+                              ? "border-brand/30 bg-brand/10 text-text-primary"
+                              : "border-border bg-surface-mid text-text-secondary hover:border-border/80"
+                          }`}
+                        >
+                          <div className="font-medium">{m.label}</div>
+                          <div className="text-xs text-text-muted mt-0.5">{m.desc}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -227,30 +243,40 @@ export default function OnboardingPage() {
                 <div className="text-xs uppercase tracking-[0.2em] text-accent">Step 2 of 4</div>
                 <h2 className="mt-2 text-xl font-semibold text-text-primary">Operator Type</h2>
                 <p className="mt-1 text-sm text-text-muted">
-                  Select your primary operation. We&apos;ll configure COGS categories and 471(c) reclassifiable costs for your type.
+                  Select all operations that apply to your business. We&apos;ll configure COGS categories and 471(c) reclassifiable costs for your types.
                 </p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
-                {OPERATOR_TYPES.map((t) => (
-                  <button
-                    key={t.value}
-                    onClick={() => setOperatorType(t.value)}
-                    className={`rounded-xl border p-4 text-left transition-all ${
-                      operatorType === t.value
-                        ? "border-brand/30 bg-brand/10"
-                        : "border-border bg-surface-mid hover:border-border/80"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-2xl">{t.icon}</span>
-                      <div>
-                        <div className="text-sm font-semibold text-text-primary">{t.label}</div>
-                        <div className="text-xs text-text-muted">{t.desc}</div>
+                {OPERATOR_TYPES.map((t) => {
+                  const selected = operatorTypes.includes(t.value);
+                  return (
+                    <button
+                      type="button"
+                      key={t.value}
+                      onClick={() => {
+                        if (selected) {
+                          setOperatorTypes(operatorTypes.filter((v) => v !== t.value));
+                        } else {
+                          setOperatorTypes([...operatorTypes, t.value]);
+                        }
+                      }}
+                      className={`rounded-xl border p-4 text-left transition-all ${
+                        selected
+                          ? "border-brand/30 bg-brand/10"
+                          : "border-border bg-surface-mid hover:border-border/80"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{t.icon}</span>
+                        <div>
+                          <div className="text-sm font-semibold text-text-primary">{t.label}</div>
+                          <div className="text-xs text-text-muted">{t.desc}</div>
+                        </div>
                       </div>
-                    </div>
-                  </button>
-                ))}
+                    </button>
+                  );
+                })}
               </div>
 
               <div className="flex gap-3">
@@ -262,7 +288,8 @@ export default function OnboardingPage() {
                 </button>
                 <button
                   onClick={() => setStep(2)}
-                  className="flex-1 rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand/90"
+                  disabled={operatorTypes.length === 0}
+                  className="flex-1 rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Continue
                 </button>
