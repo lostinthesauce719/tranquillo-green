@@ -7,8 +7,10 @@ import { getOnboardingProgress, startOnboardingTour, completeOnboardingTour } fr
 export function GuidedTour({ tourId, steps }: { tourId: string; steps: Step[] }) {
   const [run, setRun] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     async function checkProgress() {
       try {
         const progress = await getOnboardingProgress(tourId);
@@ -38,7 +40,9 @@ export function GuidedTour({ tourId, steps }: { tourId: string; steps: Step[] })
     }
   };
 
-  if (loading || !run) return null;
+  // Ensure the component only renders on the client to avoid SSR hydration mismatch
+  // react-joyride uses portals that differ between server and client.
+  if (!mounted || loading || !run) return null;
 
   return (
     <Joyride
