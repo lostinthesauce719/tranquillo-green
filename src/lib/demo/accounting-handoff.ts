@@ -38,10 +38,75 @@ export type DemoAutomationAgent = {
   cadence: string;
   owner: string;
   lastRun: string;
+  nextRun: string;
   purpose: string;
+  /** What this agent reviews — the specific accounting surface it scans. */
+  reviewScope: string;
+  /** Concrete recommendation types the agent produces. */
+  recommendationTypes: string[];
+  /** Who must approve and under what conditions. */
+  approvalRules: string;
+  /** Items scanned in the most recent run. */
+  itemsReviewed: number;
+  /** Exceptions or flags raised in the most recent run. */
+  exceptionsFound: number;
+  /** Short labels for the last 4-6 runs showing pass/fail outcome. */
+  historicalOutcomes: { date: string; result: "pass" | "flag" | "hold" }[];
   triggers: string[];
   outputs: string[];
   guardrails: string[];
+};
+
+// ── CPA Evidence Workspace Types ──────────────────────────────────
+
+export type DemoManifestItem = {
+  label: string;
+  scheduleRef: string;
+  status: "attached" | "missing" | "watch";
+  documentType: string;
+  owner: string;
+  note: string;
+};
+
+export type DemoQuestionQueueItem = {
+  id: string;
+  question: string;
+  asker: string;
+  assignee: string;
+  category: "operator_followup" | "cpa_review";
+  status: "open" | "in_progress" | "resolved";
+  linkedSchedule: string;
+  dueLabel: string;
+};
+
+export type DemoOverrideRollupEntry = {
+  id: string;
+  timestampLabel: string;
+  actor: string;
+  role: string;
+  allocationContext: string;
+  fromBasis: string;
+  toBasis: string;
+  deductibleDelta: number;
+  reason: string;
+  evidenceCount: number;
+};
+
+export type DemoPeriodState = {
+  periodLabel: string;
+  closeReadiness: number;
+  supportScheduleComplete: boolean;
+  missingDocCount: number;
+  watchItemCount: number;
+  overrideCount: number;
+  lastRefreshLabel: string;
+};
+
+export type DemoMemoPreview = {
+  mode: "controller_summary" | "cpa_handoff" | "open_items";
+  title: string;
+  sections: { heading: string; body: string }[];
+  generatedAt: string;
 };
 
 export const demoExportBundles: DemoExportBundle[] = [
@@ -175,7 +240,27 @@ export const demoAutomationAgents: DemoAutomationAgent[] = [
     cadence: "Every 4 hours during close week",
     owner: "Tax Manager",
     lastRun: "May 1, 8:55 AM",
-    purpose: "Flags overrides, low-confidence recommendations, and support gaps before the CPA packet is generated.",
+    nextRun: "May 1, 12:55 PM",
+    itemsReviewed: 47,
+    exceptionsFound: 3,
+    historicalOutcomes: [
+      { date: "Apr 30", result: "flag" },
+      { date: "Apr 29", result: "pass" },
+      { date: "Apr 28", result: "pass" },
+      { date: "Apr 27", result: "flag" },
+      { date: "Apr 26", result: "pass" },
+    ],
+    purpose:
+      "Flags overrides, low-confidence recommendations, and support gaps before the CPA packet is generated.",
+    reviewScope:
+      "Scans every 280E allocation recommendation and override in the current-period queue. Checks confidence scores, dollar-impact deltas, and open support requests.",
+    recommendationTypes: [
+      "Flag allocation with confidence below 80% for manual review",
+      "Highlight override that shifted deductible treatment by more than $500",
+      "Escalate support request open past close cutoff to controller queue",
+    ],
+    approvalRules:
+      "Tax Manager reviews queue digest. Controller approves any hold or escalation before it blocks packet generation.",
     triggers: [
       "Any allocation confidence below 80%",
       "Manual override shifts deductible amount by more than $500",
@@ -200,7 +285,28 @@ export const demoAutomationAgents: DemoAutomationAgent[] = [
     cadence: "Daily during open close",
     owner: "Assistant Controller",
     lastRun: "May 1, 8:48 AM",
-    purpose: "Summarizes open blockers across imports, reconciliations, and allocation support before release to external reviewers.",
+    nextRun: "May 2, 8:00 AM",
+    itemsReviewed: 12,
+    exceptionsFound: 2,
+    historicalOutcomes: [
+      { date: "May 1", result: "flag" },
+      { date: "Apr 30", result: "hold" },
+      { date: "Apr 29", result: "flag" },
+      { date: "Apr 28", result: "pass" },
+      { date: "Apr 27", result: "pass" },
+      { date: "Apr 26", result: "pass" },
+    ],
+    purpose:
+      "Summarizes open blockers across imports, reconciliations, and allocation support before release to external reviewers.",
+    reviewScope:
+      "Checks all close-critical areas: bank imports, cash reconciliation tie-outs, journal entry readiness, allocation support requests, and checklist completion across 12 close tasks.",
+    recommendationTypes: [
+      "Suggest packet hold when critical blocker remains unresolved",
+      "Generate owner follow-up matrix with due dates for each blocker",
+      "Draft hold reason language for CPA cover memo",
+    ],
+    approvalRules:
+      "Assistant Controller reviews blocker digest. Controller must approve any packet hold recommendation before delivery is paused.",
     triggers: [
       "Critical blocker count greater than zero",
       "Any ready-to-post area depends on an exception workspace",
@@ -225,7 +331,27 @@ export const demoAutomationAgents: DemoAutomationAgent[] = [
     cadence: "Each morning at 7:30 AM",
     owner: "Staff Accountant",
     lastRun: "May 1, 7:30 AM",
-    purpose: "Prepares owner follow-up prompts for unresolved variances, missing evidence, and pending action items in rec detail workspaces.",
+    nextRun: "May 2, 7:30 AM",
+    itemsReviewed: 8,
+    exceptionsFound: 0,
+    historicalOutcomes: [
+      { date: "May 1", result: "pass" },
+      { date: "Apr 30", result: "pass" },
+      { date: "Apr 29", result: "flag" },
+      { date: "Apr 28", result: "pass" },
+      { date: "Apr 27", result: "pass" },
+    ],
+    purpose:
+      "Prepares owner follow-up prompts for unresolved variances, missing evidence, and pending action items in rec detail workspaces.",
+    reviewScope:
+      "Scans all active reconciliation workspaces for non-zero variances, outstanding action items, and missing receipt/support documents on bank packages flagged ready-to-post.",
+    recommendationTypes: [
+      "Draft owner-specific reminder for variance investigation",
+      "Flag receipt gap blocking ready-to-post bank package",
+      "Summarize variance drivers for CPA handoff dependency list",
+    ],
+    approvalRules:
+      "Staff Accountant reviews generated reminders and decides which to action. No reminders leave the system without explicit staff accountant approval.",
     triggers: [
       "Variance amount not equal to zero",
       "Any action still todo after prior day",
@@ -244,6 +370,247 @@ export const demoAutomationAgents: DemoAutomationAgent[] = [
   },
 ];
 
+export const demoExportManifest: DemoManifestItem[] = [
+  {
+    label: "280E support schedule — April 2026",
+    scheduleRef: "SCHED-280E-042026",
+    status: "attached",
+    documentType: "Support schedule",
+    owner: "Tax Manager",
+    note: "Ties to current allocation queue totals and memo references. Finalized May 1.",
+  },
+  {
+    label: "Allocation override history rollup",
+    scheduleRef: "OVR-HIST-042026",
+    status: "attached",
+    documentType: "Audit trail",
+    owner: "Controller",
+    note: "Recommendation-to-override deltas with reasons, evidence, and policy trail links.",
+  },
+  {
+    label: "Bank reconciliation tie-out — Operating",
+    scheduleRef: "REC-OP-042026",
+    status: "attached",
+    documentType: "Reconciliation",
+    owner: "Staff Accountant",
+    note: "Operating cash reconciled. Variance $0.",
+  },
+  {
+    label: "Bank reconciliation tie-out — Clearing",
+    scheduleRef: "REC-CL-042026",
+    status: "watch",
+    documentType: "Reconciliation",
+    owner: "Staff Accountant",
+    note: "Armored receipt image still missing from clearing exception packet. Variance immaterial.",
+  },
+  {
+    label: "Policy memo index",
+    scheduleRef: "MEMO-IX-042026",
+    status: "attached",
+    documentType: "Memo",
+    owner: "Controller",
+    note: "Cross-references all 280E policy memos cited in the current period binder.",
+  },
+  {
+    label: "Reviewer sign-off summary",
+    scheduleRef: "SIGN-OFF-042026",
+    status: "attached",
+    documentType: "Sign-off",
+    owner: "Tax Manager",
+    note: "Controller and Tax Manager sign-off captured on May 1.",
+  },
+  {
+    label: "Event sponsorship allocation backup",
+    scheduleRef: "SUP-EVT-042026",
+    status: "missing",
+    documentType: "Support document",
+    owner: "Bookkeeper",
+    note: "POS category recap requested but not yet received. Blocks the estimated tax planning packet.",
+  },
+  {
+    label: "Close dashboard readiness snapshot",
+    scheduleRef: "CLOSE-SNAP-042026",
+    status: "attached",
+    documentType: "Dashboard snapshot",
+    owner: "Assistant Controller",
+    note: "Static snapshot reflects 73% readiness and current blockers list at time of export.",
+  },
+];
+
+export const demoQuestionQueue: DemoQuestionQueueItem[] = [
+  {
+    id: "qq_001",
+    question: "Has the armored receipt image for the clearing reconciliation been received and attached?",
+    asker: "CPA reviewer",
+    assignee: "Staff Accountant",
+    category: "operator_followup",
+    status: "open",
+    linkedSchedule: "REC-CL-042026",
+    dueLabel: "Before packet send",
+  },
+  {
+    id: "qq_002",
+    question: "Does the event sponsorship allocation still need the POS category recap, or can we substitute an alternative support document?",
+    asker: "CPA reviewer",
+    assignee: "Bookkeeper",
+    category: "operator_followup",
+    status: "open",
+    linkedSchedule: "SUP-EVT-042026",
+    dueLabel: "Before packet send",
+  },
+  {
+    id: "qq_003",
+    question: "Can the CPA confirm the square-footage basis for the security camera allocation is still current, or does it need a re-measurement?",
+    asker: "Controller",
+    assignee: "CPA reviewer",
+    category: "cpa_review",
+    status: "open",
+    linkedSchedule: "SCHED-280E-042026",
+    dueLabel: "During CPA review",
+  },
+  {
+    id: "qq_004",
+    question: "The close dashboard shows 73% readiness — confirm remaining 27% is cosmetic/non-blocking for the CPA packet?",
+    asker: "CPA reviewer",
+    assignee: "Assistant Controller",
+    category: "operator_followup",
+    status: "in_progress",
+    linkedSchedule: "CLOSE-SNAP-042026",
+    dueLabel: "Before packet send",
+  },
+  {
+    id: "qq_005",
+    question: "Does the CPA want the override history sorted by dollar impact or by timestamp for the binder?",
+    asker: "Tax Manager",
+    assignee: "CPA reviewer",
+    category: "cpa_review",
+    status: "open",
+    linkedSchedule: "OVR-HIST-042026",
+    dueLabel: "During CPA review",
+  },
+];
+
+export const demoOverrideRollup: DemoOverrideRollupEntry[] = [
+  {
+    id: "ovr_001",
+    timestampLabel: "Apr 30, 4:11 PM",
+    actor: "Tax Manager",
+    role: "Tax",
+    allocationContext: "Security cameras — shared vault/customer floor (Oakland)",
+    fromBasis: "square_footage",
+    toBasis: "square_footage",
+    deductibleDelta: -2_450.00,
+    reason: "Camera moved to retail lobby after floorplan update, reducing deductible share from 28.1% to 24.3%.",
+    evidenceCount: 2,
+  },
+  {
+    id: "ovr_002",
+    timestampLabel: "Apr 28, 2:05 PM",
+    actor: "Controller",
+    role: "Controller",
+    allocationContext: "Maintenance labor — production line idle hours (Dec 2025)",
+    fromBasis: "labor_hours",
+    toBasis: "labor_hours",
+    deductibleDelta: -858.55,
+    reason: "Maintenance-related idle hours reclassified out of capitalizable labor after controller review of shutdown schedule.",
+    evidenceCount: 3,
+  },
+  {
+    id: "ovr_003",
+    timestampLabel: "Apr 25, 10:22 AM",
+    actor: "Tax Manager",
+    role: "Tax",
+    allocationContext: "Marketing event sponsorship — POS category split",
+    fromBasis: "revenue_mix",
+    toBasis: "custom_policy",
+    deductibleDelta: -1_200.00,
+    reason: "POS category recap unavailable; applied conservative custom policy pending vendor support document.",
+    evidenceCount: 1,
+  },
+];
+
+export const demoPeriodState: DemoPeriodState = {
+  periodLabel: "April 2026",
+  closeReadiness: 73,
+  supportScheduleComplete: true,
+  missingDocCount: 1,
+  watchItemCount: 2,
+  overrideCount: 3,
+  lastRefreshLabel: "May 1, 9:05 AM",
+};
+
+export const demoMemoPreviews: DemoMemoPreview[] = [
+  {
+    mode: "controller_summary",
+    title: "Controller summary — April 2026 close handoff",
+    generatedAt: "May 1, 9:05 AM",
+    sections: [
+      {
+        heading: "Close posture",
+        body: "Month-end close is at 73% readiness. Operating cash is reconciled; clearing packet awaits the armored receipt image. Journal entry recap is current.",
+      },
+      {
+        heading: "280E allocation summary",
+        body: "3 overrides this period. Security camera deductible share reduced to 24.3% after floorplan change. Maintenance idle hours reclassified by controller. Marketing event sponsorship held on conservative policy pending POS recap.",
+      },
+      {
+        heading: "Open items",
+        body: "1 missing support document (event sponsorship POS recap). 2 watch items (clearing receipt, delivery notes). Override history attached with full evidence trail.",
+      },
+      {
+        heading: "Recommendation",
+        body: "Hold estimated tax planning packet until event sponsorship backup is received. 280E binder is ready for CPA review with attached override audit trail.",
+      },
+    ],
+  },
+  {
+    mode: "cpa_handoff",
+    title: "CPA handoff memo — April 2026 280E support binder",
+    generatedAt: "May 1, 9:05 AM",
+    sections: [
+      {
+        heading: "Purpose",
+        body: "This packet provides the CPA with current-period 280E support documentation, override audit trail, and allocation basis evidence for April 2026.",
+      },
+      {
+        heading: "Support schedule status",
+        body: "280E support schedule is finalized. 3 allocation overrides documented with reasons and evidence. All policy trail entries complete through May 1.",
+      },
+      {
+        heading: "Override highlights",
+        body: "Security camera allocation: floorplan change reduced deductible share by 3.8pp. Maintenance labor: controller reclassified idle hours ($858.55 shift). Marketing event: conservative policy applied pending vendor support.",
+      },
+      {
+        heading: "Items requiring CPA attention",
+        body: "Square-footage basis for security allocation — confirm still current or request re-measurement. Override sort preference — dollar impact vs timestamp for binder ordering.",
+      },
+    ],
+  },
+  {
+    mode: "open_items",
+    title: "Open items list — April 2026 CPA packet",
+    generatedAt: "May 1, 9:05 AM",
+    sections: [
+      {
+        heading: "Blocking items (operator)",
+        body: "1. Armored receipt image for clearing reconciliation — Staff Accountant. 2. Event sponsorship POS category recap — Bookkeeper.",
+      },
+      {
+        heading: "Watch items (reviewer follow-up)",
+        body: "1. Clearing reconciliation variance immaterial but receipt gap noted. 2. Delivery notes pending final dependency closure.",
+      },
+      {
+        heading: "CPA decision items",
+        body: "1. Confirm security camera square-footage basis. 2. Choose override history sort order for binder.",
+      },
+      {
+        heading: "Resolved items",
+        body: "Operating cash reconciliation (tied). 280E support schedule (finalized). Override audit trail (attached). Policy memo index (complete). Sign-off summary (captured).",
+      },
+    ],
+  },
+];
+
 export function summarizeExportCenter() {
   return {
     totalBundles: demoExportBundles.length,
@@ -251,5 +618,10 @@ export function summarizeExportCenter() {
     blockedChecklistItems: demoPacketChecklist.filter((item) => item.status === "missing").length,
     watchChecklistItems: demoPacketChecklist.filter((item) => item.status === "watch").length,
     activeAgents: demoAutomationAgents.length,
+    manifestAttached: demoExportManifest.filter((item) => item.status === "attached").length,
+    manifestMissing: demoExportManifest.filter((item) => item.status === "missing").length,
+    manifestWatch: demoExportManifest.filter((item) => item.status === "watch").length,
+    openQuestions: demoQuestionQueue.filter((item) => item.status === "open").length,
+    overrideCount: demoOverrideRollup.length,
   };
 }

@@ -9,6 +9,7 @@ import {
   DemoCloseWorkflow,
 } from "@/lib/demo/accounting-workflows";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
+import { Accordion, AccordionItem } from "@/components/ui/accordion";
 import type { ReportingPeriodMutation, WriteResult } from "@/lib/accounting-write-contracts";
 
 type LocalWorkflowState = DemoCloseWorkflow & {
@@ -253,13 +254,11 @@ export function ReportingPeriodsOverview({
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <div className="flex flex-wrap items-center gap-3">
-                  <h2 className="text-xl font-semibold">{period.label}</h2>
-                  <AccountingStatusBadge label={period.status.toUpperCase()} tone={getStatusTone(period.status)} />
-                  {workflow ? <AccountingStatusBadge label={workflow.reviewStatus.replaceAll("_", " ")} tone={getReviewTone(workflow.reviewStatus)} className="capitalize" /> : null}
+                  <h2 className="text-lg font-semibold">{period.label}</h2>
+                  <AccountingStatusBadge label={period.status} tone={getStatusTone(period.status)} className="capitalize" />
                   {blockers.length > 0 ? <AccountingStatusBadge label={`${blockers.length} blockers`} tone="rose" /> : null}
-                  {isPending ? <AccountingStatusBadge label="syncing" tone="blue" /> : null}
                 </div>
-                <p className="mt-2 text-sm text-text-muted">{formatRange(period.startDate, period.endDate)} • Owner: {period.closeOwner} • Target close in {period.closeWindowDays} days</p>
+                <p className="mt-1 text-sm text-text-muted/60">{formatRange(period.startDate, period.endDate)} · {period.closeOwner} · {period.closeWindowDays} day target</p>
               </div>
               <div className="min-w-[240px] rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-muted">
                 <div className="flex items-center justify-between gap-4">
@@ -269,46 +268,50 @@ export function ReportingPeriodsOverview({
                 <div className="mt-3 h-2 rounded-full bg-background">
                   <div className="h-2 rounded-full bg-accent" style={{ width: progressWidth }} />
                 </div>
-                <div className="mt-3 text-xs">
-                  {period.lockedAt ? `Locked ${period.lockedAt}` : workflow?.reviewStatus === "ready_for_review" ? `Waiting on ${workflow.reviewer} review` : "Still editable for manual journals and reconciliations"}
+                <div className="mt-2 text-xs text-text-muted/40">
+                  {period.lockedAt ? `Locked ${period.lockedAt}` : workflow?.reviewStatus === "ready_for_review" ? `Waiting on ${workflow.reviewer}` : "Editable"}
                 </div>
               </div>
             </div>
 
             <div className="mt-5 grid gap-4 xl:grid-cols-[1.2fr_1fr]">
               <div>
-                <div className="text-xs uppercase tracking-[0.2em] text-accent">Close workflow checklist</div>
-                <div className="mt-3 space-y-3">
+                <div className="text-xs uppercase tracking-[0.2em] text-accent font-semibold mb-3">Close workflow checklist</div>
+                <Accordion>
                   {workflow?.checklist.map((item) => (
-                    <div key={item.id} className="rounded-2xl border border-border bg-surface px-4 py-4">
-                      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <div className="font-medium text-text-primary">{item.title}</div>
-                            <AccountingStatusBadge label={item.status.replaceAll("_", " ")} tone={getChecklistTone(item.status)} className="capitalize" />
-                          </div>
-                          <div className="mt-2 text-sm text-text-muted">{item.guidance}</div>
-                          <div className="mt-2 text-xs text-text-muted">Owner: {item.owner} • Due {item.dueLabel}</div>
-                          {item.blocker ? <div className="mt-2 text-xs text-rose-200">Blocker: {item.blocker}</div> : null}
+                    <AccordionItem
+                      key={item.id}
+                      title={
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-text-primary">{item.title}</span>
+                          <AccountingStatusBadge label={item.status.replaceAll("_", " ")} tone={getChecklistTone(item.status)} className="capitalize" />
                         </div>
-                        <div className="flex flex-wrap gap-2">
+                      }
+                    >
+                      <div className="flex flex-col gap-4 py-2 lg:flex-row lg:items-start lg:justify-between">
+                        <div>
+                          <div className="text-sm text-text-muted/80">{item.guidance}</div>
+                          <div className="mt-2 text-xs font-mono text-text-muted/50">{item.owner} · {item.dueLabel}</div>
+                          {item.blocker ? <div className="mt-2 text-xs font-medium text-rose-300">Blocker: {item.blocker}</div> : null}
+                        </div>
+                        <div className="flex flex-wrap gap-2 lg:justify-end">
                           <button type="button" disabled={isPending} onClick={() => updateChecklistItem(period.label, item.id, "todo")} className="rounded-lg border border-border px-3 py-2 text-xs text-text-muted transition hover:text-text-primary disabled:cursor-not-allowed disabled:opacity-50">
                             To do
                           </button>
                           <button type="button" disabled={isPending} onClick={() => updateChecklistItem(period.label, item.id, "in_progress")} className="rounded-lg border border-border px-3 py-2 text-xs text-text-primary transition hover:bg-surface-mid disabled:cursor-not-allowed disabled:opacity-50">
                             In progress
                           </button>
-                          <button type="button" disabled={isPending} onClick={() => updateChecklistItem(period.label, item.id, "done")} className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-200 transition hover:bg-emerald-500/15 disabled:cursor-not-allowed disabled:opacity-50">
+                          <button type="button" disabled={isPending} onClick={() => updateChecklistItem(period.label, item.id, "done")} className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300 transition hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50">
                             Done
                           </button>
-                          <button type="button" disabled={isPending} onClick={() => updateChecklistItem(period.label, item.id, "blocked")} className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-200 transition hover:bg-rose-500/15 disabled:cursor-not-allowed disabled:opacity-50">
+                          <button type="button" disabled={isPending} onClick={() => updateChecklistItem(period.label, item.id, "blocked")} className="rounded-lg border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-300 transition hover:bg-rose-500/20 disabled:cursor-not-allowed disabled:opacity-50">
                             Blocked
                           </button>
                         </div>
                       </div>
-                    </div>
+                    </AccordionItem>
                   ))}
-                </div>
+                </Accordion>
               </div>
 
               <div className="grid gap-4">

@@ -6,7 +6,7 @@ export default defineSchema({
     name: v.string(),
     slug: v.string(),
     timezone: v.string(),
-    state: v.string(),
+    states: v.array(v.string()),
     operatorType: v.union(
       v.literal("dispensary"),
       v.literal("cultivator"),
@@ -280,6 +280,23 @@ export default defineSchema({
     generatedAt: v.number(),
   }).index("by_company", ["companyId"]),
 
+  section471cElections: defineTable({
+    companyId: v.id("cannabisCompanies"),
+    elected: v.boolean(),
+    electionDate: v.optional(v.string()),
+    taxYear: v.optional(v.number()),
+    priorYear1: v.number(),
+    priorYear1Receipts: v.number(),
+    priorYear2: v.number(),
+    priorYear2Receipts: v.number(),
+    priorYear3: v.number(),
+    priorYear3Receipts: v.number(),
+    averageGrossReceipts: v.number(),
+    eligible: v.boolean(),
+    notes: v.optional(v.string()),
+    electedBy: v.optional(v.string()),
+  }).index("by_company", ["companyId"]),
+
   importMappingProfiles: defineTable({
     companyId: v.id("cannabisCompanies"),
     profileKey: v.string(),
@@ -510,8 +527,125 @@ export default defineSchema({
     refreshToken: v.string(),
     accessTokenExpiresAt: v.number(),
     refreshTokenExpiresAt: v.number(),
+    // Metrc-specific fields (optional — null for QBO)
+    integratorKey: v.optional(v.string()),
+    userKey: v.optional(v.string()),
+    licenseNumber: v.optional(v.string()),
+    metrcState: v.optional(v.string()),
     status: v.union(v.literal("connected"), v.literal("error"), v.literal("disconnected")),
     connectedAt: v.number(),
     updatedAt: v.number(),
   }).index("by_company", ["companyId"]).index("by_company_provider", ["companyId", "provider"]),
+
+  // ─── LABOR TIME TRACKING ──────────────────────────────────────────
+  // Tracks employee time by activity classification for 280E allocation.
+  // Production activities = capitalizable (COGS). Non-production = 280E limited.
+  laborTimeEntries: defineTable({
+    companyId: v.id("cannabisCompanies"),
+    employeeName: v.string(),
+    employeeId: v.optional(v.string()), // Gusto/payroll external ref
+    locationId: v.optional(v.id("cannabisLocations")),
+    workDate: v.string(), // YYYY-MM-DD
+    totalHours: v.number(),
+    // Activity breakdown — what the employee did
+    productionHours: v.number(), // Direct: growing, trimming, packaging, extraction, QC
+    nonProductionHours: v.number(), // Indirect: admin, sales, compliance, cleaning
+    // Activity detail
+    activities: v.array(v.object({
+      category: v.string(), // "cultivation", "harvest", "extraction", "packaging", "qc_testing", "inventory", "admin", "sales", "compliance", "maintenance", "training", "other"
+      hours: v.number(),
+      description: v.optional(v.string()),
+      isProduction: v.boolean(), // TRUE = capitalizable under 280E
+    })),
+    // Allocation result
+    productionRatio: v.number(), // productionHours / totalHours (0-1)
+    // Source
+    source: v.union(v.literal("manual"), v.literal("gusto_import"), v.literal("deputy"), v.literal("tanda")),
+    externalRef: v.optional(v.string()),
+    // Review
+    reviewStatus: v.union(v.literal("draft"), v.literal("submitted"), v.literal("approved"), v.literal("flagged")),
+    reviewedBy: v.optional(v.string()),
+    reviewedAt: v.optional(v.number()),
+    notes: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_company", ["companyId"])
+    .index("by_company_date", ["companyId", "workDate"])
+    .index("by_company_employee", ["companyId", "employeeName"])
+    .index("by_company_status", ["companyId", "reviewStatus"]),
+
+  // ─── PRODUCTION COST QUALIFICATIONS ───────────────────────────────
+  // Tracks which costs qualify as direct production COGS under 280E.
+  // Each entry classifies a cost category and documents the reasoning.
+  productionCostQualifications: defineTable({
+    companyId: v.id("cannabisCompanies"),
+    costCategory: v.string(), // Matches chart of accounts code
+    costName: v.string(),
+    // 280E classification
+    classification: v.union(
+      v.literal("direct_production"),    // Clearly COGS: raw materials, direct labor
+      v.literal("indirect_production"),  // Allocable: facility costs, production supervision
+      v.literal("non_production"),       // Nondeductible: admin, marketing, sales
+      v.literal("mixed"),                // Needs allocation (square footage, labor hours)
+      v.literal("pending_review"),       // Not yet classified
+    ),
+    // What makes it qualify
+    qualificationFactors: v.array(v.object({
+      factor: v.string(),        // e.g., "Directly tied to inventory transformation"
+      weight: v.number(),        // 0-1 importance
+      evidence: v.string(),      // Why this factor applies
+    })),
+    // Allocation method if mixed
+    allocationMethod: v.optional(v.union(
+      v.literal("square_footage"),
+      v.literal("labor_hours"),
+      v.literal("revenue_mix"),
+      v.literal("direct_tracing"),
+      v.literal("not_applicable"),
+    )),
+    // 280E reasoning
+    reasoning: v.string(),       // Full explanation of why this classification
+    precedentCitation: v.optional(v.string()), // Tax court case or IRS guidance
+    // AI confidence
+    aiConfidence: v.optional(v.number()), // 0-1
+    aiReasoning: v.optional(v.string()),
+    // Review
+    status: v.union(v.literal("draft"), v.literal("approved"), v.literal("overridden")),
+    approvedBy: v.optional(v.string()),
+    approvedAt: v.optional(v.number()),
+    overrideReason: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_company", ["companyId"])
+    .index("by_company_classification", ["companyId", "classification"])
+    .index("by_company_category", ["companyId", "costCategory"]),
+
+  // ─── AUTOMATION RUN LOG ───────────────────────────────────────────
+  // Tracks each automation run for audit and debugging.
+  automationRuns: defineTable({
+    companyId: v.id("cannabisCompanies"),
+    runType: v.union(
+      v.literal("auto_approve"),
+      v.literal("batch_approve"),
+      v.literal("cogs_calculate"),
+      v.literal("full_suite"),
+      v.literal("scheduled"),
+    ),
+    triggeredBy: v.string(), // "system", "controller", "cron"
+    startedAt: v.number(),
+    completedAt: v.number(),
+    agentsRun: v.number(),
+    agentsSucceeded: v.number(),
+    totalAlerts: v.number(),
+    totalApproved: v.number(),
+    results: v.array(v.object({
+      agentId: v.string(),
+      agentName: v.string(),
+      alertCount: v.number(),
+      details: v.array(v.string()),
+      status: v.union(v.literal("success"), v.literal("error")),
+    })),
+    status: v.union(v.literal("completed"), v.literal("partial"), v.literal("failed")),
+  }).index("by_company", ["companyId"])
+    .index("by_company_type", ["companyId", "runType"]),
 });

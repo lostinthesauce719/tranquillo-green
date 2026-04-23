@@ -13,8 +13,12 @@ import type { OperatorType } from "@/lib/navigation";
 export type CostCategory = {
   code: string;
   name: string;
-  taxTreatment: "deductible" | "cogs" | "nondeductible";
+  taxTreatment: "deductible" | "cogs" | "nondeductible" | "nondeductible_471c_reclassifiable";
   description: string;
+  /** If true, this cost can be partially reclassified into COGS under IRC 471(c) */
+  reclassifiable471c?: boolean;
+  /** Percentage of this cost that moves to COGS under 471(c) (0-1). Only applies if reclassifiable471c is true */
+  reclassifiablePercentage471c?: number;
 };
 
 export type AllocationMethod = {
@@ -45,11 +49,10 @@ export const OPERATOR_PROFILES: Record<OperatorType, OperatorProfile> = {
     costCategories: [
       { code: "COGS-RET", name: "Retail Product Cost", taxTreatment: "cogs", description: "Wholesale cost of cannabis products sold at retail" },
       { code: "COGS-SHIP", name: "Shipping & Logistics", taxTreatment: "cogs", description: "Transport costs from distributor to store" },
-      { code: "OPEX-RENT", name: "Retail Rent & Occupancy", taxTreatment: "nondeductible", description: "Storefront lease, utilities, security" },
-      { code: "OPEX-STAFF", name: "Staff & Training", taxTreatment: "nondeductible", description: "Budtender wages, training, benefits" },
+      { code: "OPEX-RENT", name: "Retail Rent & Occupancy", taxTreatment: "nondeductible_471c_reclassifiable", description: "Storefront lease, utilities, security", reclassifiable471c: true, reclassifiablePercentage471c: 0.45 },      { code: "OPEX-STAFF", name: "Staff & Training", taxTreatment: "nondeductible_471c_reclassifiable", description: "Budtender wages, training, benefits — inventory handling labor", reclassifiable471c: true, reclassifiablePercentage471c: 0.55 },
       { code: "OPEX-MKT", name: "Marketing & Loyalty", taxTreatment: "nondeductible", description: "Signage, loyalty programs, digital marketing" },
       { code: "OPEX-COMP", name: "Compliance & Licensing", taxTreatment: "nondeductible", description: "State/local licenses, Metrc fees, legal" },
-      { code: "OPEX-TECH", name: "POS & Technology", taxTreatment: "nondeductible", description: "POS system, inventory software, security cameras" },
+      { code: "OPEX-TECH", name: "POS & Technology", taxTreatment: "nondeductible_471c_reclassifiable", description: "POS system, inventory software, security cameras", reclassifiable471c: true, reclassifiablePercentage471c: 0.35 },
     ],
     allocationMethods: [
       { id: "revenue", name: "Revenue Mix", description: "Allocate based on cannabis vs non-cannabis revenue ratio", default: true },
@@ -69,10 +72,8 @@ export const OPERATOR_PROFILES: Record<OperatorType, OperatorProfile> = {
       { code: "COGS-GROW", name: "Cultivation Costs", taxTreatment: "cogs", description: "Grow media, nutrients, water, electricity for cultivation" },
       { code: "COGS-HARVEST", name: "Harvest & Processing", taxTreatment: "cogs", description: "Trimming, drying, curing, packaging labor" },
       { code: "COGS-GENETICS", name: "Genetics & Clones", taxTreatment: "cogs", description: "Seeds, clones, genetic licensing fees" },
-      { code: "OPEX-FACILITY", name: "Facility & Equipment", taxTreatment: "nondeductible", description: "Warehouse lease, HVAC, lighting, irrigation" },
-      { code: "OPEX-STAFF", name: "Cultivation Staff", taxTreatment: "nondeductible", description: "Growers, trimmers, facility managers" },
-      { code: "OPEX-WASTE", name: "Waste & Destruction", taxTreatment: "nondeductible", description: "Waste disposal, destruction documentation" },
-      { code: "OPEX-COMP", name: "Compliance & Testing", taxTreatment: "nondeductible", description: "Lab testing, Metrc tracking, licensing" },
+      { code: "OPEX-FACILITY", name: "Facility & Equipment", taxTreatment: "nondeductible_471c_reclassifiable", description: "Warehouse lease, HVAC, lighting, irrigation", reclassifiable471c: true, reclassifiablePercentage471c: 0.6 },      { code: "OPEX-STAFF", name: "Cultivation Staff", taxTreatment: "nondeductible_471c_reclassifiable", description: "Growers, trimmers, facility managers", reclassifiable471c: true, reclassifiablePercentage471c: 0.65 },
+      { code: "OPEX-WASTE", name: "Waste & Destruction", taxTreatment: "nondeductible", description: "Waste disposal, destruction documentation" },      { code: "OPEX-COMP", name: "Compliance & Testing", taxTreatment: "nondeductible_471c_reclassifiable", description: "Lab testing, Metrc tracking, licensing", reclassifiable471c: true, reclassifiablePercentage471c: 0.65 },
     ],
     allocationMethods: [
       { id: "square_footage", name: "Canopy Square Footage", description: "Allocate based on cannabis canopy vs total facility", default: true },
@@ -92,10 +93,9 @@ export const OPERATOR_PROFILES: Record<OperatorType, OperatorProfile> = {
       { code: "COGS-RAW", name: "Raw Material Cost", taxTreatment: "cogs", description: "Bulk cannabis, trim, biomass for extraction" },
       { code: "COGS-EXTRACT", name: "Extraction & Processing", taxTreatment: "cogs", description: "Solvents, CO2, lab equipment consumables" },
       { code: "COGS-PACKAGING", name: "Packaging & Labeling", taxTreatment: "cogs", description: "Child-resistant packaging, labels, inserts" },
-      { code: "OPEX-LAB", name: "Lab & Equipment", taxTreatment: "nondeductible", description: "Extraction equipment, lab lease, maintenance" },
-      { code: "OPEX-STAFF", name: "Production Staff", taxTreatment: "nondeductible", description: "Extraction techs, QA staff, production managers" },
+      { code: "OPEX-LAB", name: "Lab & Equipment", taxTreatment: "nondeductible_471c_reclassifiable", description: "Extraction equipment, lab lease, maintenance", reclassifiable471c: true, reclassifiablePercentage471c: 0.5 },      { code: "OPEX-STAFF", name: "Production Staff", taxTreatment: "nondeductible_471c_reclassifiable", description: "Extraction techs, QA staff, production managers", reclassifiable471c: true, reclassifiablePercentage471c: 0.6 },
       { code: "OPEX-RD", name: "R&D and Testing", taxTreatment: "nondeductible", description: "Product development, stability testing, R&D batches" },
-      { code: "OPEX-COMP", name: "Compliance & Quality", taxTreatment: "nondeductible", description: "GMP compliance, licensing, third-party testing" },
+      { code: "OPEX-COMP", name: "Compliance & Quality", taxTreatment: "nondeductible_471c_reclassifiable", description: "GMP compliance, licensing, third-party testing", reclassifiable471c: true, reclassifiablePercentage471c: 0.55 },
     ],
     allocationMethods: [
       { id: "labor_hours", name: "Labor Hours", description: "Allocate based on production vs admin labor", default: true },
@@ -115,10 +115,10 @@ export const OPERATOR_PROFILES: Record<OperatorType, OperatorProfile> = {
       { code: "COGS-PRODUCT", name: "Product Acquisition", taxTreatment: "cogs", description: "Wholesale cost of inventory for distribution" },
       { code: "COGS-TRANSPORT", name: "Transport & Logistics", taxTreatment: "cogs", description: "Vehicle costs, fuel, drivers, route planning" },
       { code: "COGS-WAREHOUSE", name: "Warehousing", taxTreatment: "cogs", description: "Storage facility, climate control, security" },
-      { code: "OPEX-STAFF", name: "Distribution Staff", taxTreatment: "nondeductible", description: "Drivers, warehouse workers, logistics managers" },
-      { code: "OPEX-VEHICLES", name: "Fleet & Maintenance", taxTreatment: "nondeductible", description: "Vehicle leases, maintenance, insurance" },
+      { code: "OPEX-STAFF", name: "Distribution Staff", taxTreatment: "nondeductible_471c_reclassifiable", description: "Drivers, warehouse workers, logistics managers", reclassifiable471c: true, reclassifiablePercentage471c: 0.65 },
+      { code: "OPEX-VEHICLES", name: "Fleet & Maintenance", taxTreatment: "nondeductible_471c_reclassifiable", description: "Vehicle leases, maintenance, insurance", reclassifiable471c: true, reclassifiablePercentage471c: 0.6 },
       { code: "OPEX-COMP", name: "Compliance & Manifests", taxTreatment: "nondeductible", description: "Metrc manifests, transport licenses, route compliance" },
-      { code: "OPEX-TECH", name: "Logistics Technology", taxTreatment: "nondeductible", description: "Route optimization, tracking, inventory systems" },
+      { code: "OPEX-TECH", name: "Logistics Technology", taxTreatment: "nondeductible_471c_reclassifiable", description: "Route optimization, tracking, inventory systems", reclassifiable471c: true, reclassifiablePercentage471c: 0.65 },
     ],
     allocationMethods: [
       { id: "revenue", name: "Revenue Mix", description: "Allocate based on cannabis vs non-cannabis distribution revenue", default: true },
@@ -138,9 +138,9 @@ export const OPERATOR_PROFILES: Record<OperatorType, OperatorProfile> = {
       { code: "COGS-PRODUCT", name: "Product Cost", taxTreatment: "cogs", description: "Wholesale cost of cannabis products for delivery" },
       { code: "COGS-DRIVERS", name: "Driver Wages (COGS)", taxTreatment: "cogs", description: "Wages for drivers directly involved in product delivery" },
       { code: "COGS-VEHICLES", name: "Delivery Vehicle Costs (COGS)", taxTreatment: "cogs", description: "Vehicle depreciation, fuel, maintenance for delivery ops" },
-      { code: "OPEX-SOFTWARE", name: "Delivery Software Fees", taxTreatment: "nondeductible", description: "Platform fees, route optimization software" },
-      { code: "OPEX-STAFF", name: "Admin/Dispatch Staff", taxTreatment: "nondeductible", description: "Call center, dispatch, support staff" },
-      { code: "OPEX-INSUR", name: "Insurance & Licenses", taxTreatment: "nondeductible", description: "Delivery vehicle insurance, state/local licenses" },
+      { code: "OPEX-SOFTWARE", name: "Delivery Software Fees", taxTreatment: "nondeductible_471c_reclassifiable", description: "Platform fees, route optimization software", reclassifiable471c: true, reclassifiablePercentage471c: 0.6 },
+      { code: "OPEX-STAFF", name: "Admin/Dispatch Staff", taxTreatment: "nondeductible_471c_reclassifiable", description: "Call center, dispatch, support staff", reclassifiable471c: true, reclassifiablePercentage471c: 0.5 },
+      { code: "OPEX-INSUR", name: "Insurance & Licenses", taxTreatment: "nondeductible_471c_reclassifiable", description: "Delivery vehicle insurance, state/local licenses", reclassifiable471c: true, reclassifiablePercentage471c: 0.4 },
       { code: "OPEX-MKT", name: "Marketing & Promotions", taxTreatment: "nondeductible", description: "Online ads, customer acquisition, discounts" },
     ],
     allocationMethods: [
@@ -162,9 +162,9 @@ export const OPERATOR_PROFILES: Record<OperatorType, OperatorProfile> = {
       { code: "COGS-EXTRACT", name: "Manufacturing Costs", taxTreatment: "cogs", description: "Extraction, processing, packaging" },
       { code: "COGS-RETAIL", name: "Retail Product Cost", taxTreatment: "cogs", description: "Transfer cost of products to retail locations" },
       { code: "COGS-DELIVERY", name: "Delivery Product Cost", taxTreatment: "cogs", description: "Transfer cost of products for delivery" },
-      { code: "OPEX-FACILITY", name: "Facilities & Equipment", taxTreatment: "nondeductible", description: "All facility leases, equipment, maintenance" },
-      { code: "OPEX-STAFF", name: "All Staff", taxTreatment: "nondeductible", description: "Cultivation, production, retail, delivery, admin staff" },
-      { code: "OPEX-COMP", name: "Compliance & Licensing", taxTreatment: "nondeductible", description: "All licenses, Metrc, legal, compliance" },
+      { code: "OPEX-FACILITY", name: "Facilities & Equipment", taxTreatment: "nondeductible_471c_reclassifiable", description: "All facility leases, equipment, maintenance", reclassifiable471c: true, reclassifiablePercentage471c: 0.5 },
+      { code: "OPEX-STAFF", name: "All Staff", taxTreatment: "nondeductible_471c_reclassifiable", description: "Cultivation, production, retail, delivery, admin staff", reclassifiable471c: true, reclassifiablePercentage471c: 0.45 },
+      { code: "OPEX-COMP", name: "Compliance & Licensing", taxTreatment: "nondeductible_471c_reclassifiable", description: "All licenses, Metrc, legal, compliance", reclassifiable471c: true, reclassifiablePercentage471c: 0.5 },
       { code: "OPEX-CORP", name: "Corporate Overhead", taxTreatment: "nondeductible", description: "Executive, finance, HR, IT" },
     ],
     allocationMethods: [
@@ -195,4 +195,31 @@ export function getNondeductibleCategories(type: OperatorType): CostCategory[] {
 export function getDefaultAllocationMethod(type: OperatorType): AllocationMethod {
   const profile = getOperatorProfile(type);
   return profile.allocationMethods.find((m) => m.default) ?? profile.allocationMethods[0];
+}
+
+/**
+ * Get costs that are reclassifiable into COGS under IRC 471(c).
+ * These are nondeductible under 280E alone but capturable under 471(c).
+ */
+export function getReclassifiable471cCosts(type: OperatorType): CostCategory[] {
+  return getOperatorProfile(type).costCategories.filter((c) => c.reclassifiable471c === true);
+}
+
+/**
+ * Get costs that remain fully nondeductible even with 471(c).
+ * These are costs with no inventory nexus (marketing, admin overhead, etc.)
+ */
+export function getFullyNondeductibleCosts(type: OperatorType): CostCategory[] {
+  return getOperatorProfile(type).costCategories.filter(
+    (c) => c.taxTreatment === "nondeductible" && !c.reclassifiable471c
+  );
+}
+
+/**
+ * Get the 471(c) reclassifiable percentage for a specific cost category.
+ * Returns 0 if the cost is not reclassifiable.
+ */
+export function get471cReclassifiablePercentage(type: OperatorType, costCode: string): number {
+  const cost = getOperatorProfile(type).costCategories.find((c) => c.code === costCode);
+  return cost?.reclassifiablePercentage471c ?? 0;
 }

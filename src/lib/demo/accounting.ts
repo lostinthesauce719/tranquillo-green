@@ -1,4 +1,4 @@
-export type OperatorType = "dispensary" | "cultivator" | "manufacturer" | "distributor" | "vertical";
+export type OperatorType = "dispensary" | "cultivator" | "manufacturer" | "distributor" | "vertical" | "delivery";
 export type AccountingMethod = "cash" | "accrual";
 export type CompanyStatus = "onboarding" | "active" | "inactive";
 export type AccountCategory = "asset" | "liability" | "equity" | "revenue" | "cogs" | "opex";

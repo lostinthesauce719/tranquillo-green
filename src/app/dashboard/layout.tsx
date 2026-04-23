@@ -2,6 +2,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import { anyApi } from "convex/server";
 import { redirect } from "next/navigation";
 import { TenantShell } from "@/components/shell/tenant-shell";
+import { DashboardAiShell } from "@/components/shell/dashboard-ai-shell";
 import { getAuthenticatedConvexClient } from "@/lib/data/convex-client";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export default async function DashboardLayout({
   if (!user) {
     return (
       <TenantShell tenant={DEMO_TENANT}>
-        {children}
+        <DashboardAiShell>{children}</DashboardAiShell>
       </TenantShell>
     );
   }
@@ -81,7 +82,7 @@ export default async function DashboardLayout({
         operatorType,
       }}
     >
-      {children}
+      <DashboardAiShell>{children}</DashboardAiShell>
     </TenantShell>
   );
 }

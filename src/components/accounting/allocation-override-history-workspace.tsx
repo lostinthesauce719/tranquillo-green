@@ -47,6 +47,17 @@ function basisLabel(basis: DemoAllocationReviewItem["basis"]) {
   }
 }
 
+function supportTone(status: DemoAllocationReviewItem["supportLinks"][number]["status"]) {
+  switch (status) {
+    case "linked":
+      return "emerald" as const;
+    case "needs_refresh":
+      return "amber" as const;
+    case "missing":
+      return "rose" as const;
+  }
+}
+
 export function AllocationOverrideHistoryWorkspace({ items }: { items: DemoAllocationReviewItem[] }) {
   return (
     <div className="space-y-6">
@@ -96,6 +107,17 @@ export function AllocationOverrideHistoryWorkspace({ items }: { items: DemoAlloc
                     <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-3">
                       <div className="text-xs uppercase tracking-[0.2em] text-rose-200">280E-limited</div>
                       <div className="mt-2 font-semibold text-rose-100">{currencyFormatter.format(item.nondeductibleAmount)}</div>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div className="rounded-xl border border-border bg-background p-3">
+                      <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Why it entered review</div>
+                      <p className="mt-2 text-sm text-text-muted">{item.flagReason}</p>
+                    </div>
+                    <div className="rounded-xl border border-border bg-background p-3">
+                      <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Decision and owner</div>
+                      <div className="mt-2 text-sm text-text-primary">{item.decisionRequired}</div>
+                      <div className="mt-2 text-sm text-text-muted">{item.reviewer} • {item.lastReviewedAt}</div>
                     </div>
                   </div>
                   <div className="mt-4 text-sm text-text-muted">Current reviewed total: {currencyFormatter.format(total)}</div>
@@ -159,6 +181,58 @@ export function AllocationOverrideHistoryWorkspace({ items }: { items: DemoAlloc
 
               <div className="space-y-4">
                 <div className="rounded-2xl border border-border bg-surface p-4">
+                  <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Tax impact preview</div>
+                  <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-100">
+                      Accepted deductible delta: {currencyFormatter.format(item.taxImpactPreview.acceptedDeductibleDelta)}
+                    </div>
+                    <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-3 text-sm text-rose-100">
+                      Accepted 280E-limited delta: {currencyFormatter.format(item.taxImpactPreview.acceptedNondeductibleDelta)}
+                    </div>
+                  </div>
+                  <div className="mt-3 text-sm text-text-muted">{item.taxImpactPreview.returnLine}</div>
+                  <p className="mt-2 text-sm text-text-muted">{item.taxImpactPreview.note}</p>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-surface p-4">
+                  <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Linked support package</div>
+                  <div className="mt-4 space-y-3">
+                    {item.supportLinks.map((link) => (
+                      <div key={link.label} className="rounded-xl border border-border bg-background p-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <div className="font-medium text-text-primary">{link.label}</div>
+                            <div className="mt-1 text-sm text-text-muted">{link.documentType}</div>
+                          </div>
+                          <AccountingStatusBadge label={link.status.replaceAll("_", " ")} tone={supportTone(link.status)} className="capitalize" />
+                        </div>
+                        <Link href={link.href} className="mt-3 inline-flex text-xs text-accent transition hover:text-accent/80">
+                          Open support reference
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-surface p-4">
+                  <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Prior similar decisions</div>
+                  <div className="mt-4 space-y-3">
+                    {item.similarDecisions.map((decision) => (
+                      <div key={decision.id} className="rounded-xl border border-border bg-background px-3 py-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                          <div>
+                            <div className="font-medium">{decision.periodLabel}</div>
+                            <div className="mt-1 text-sm text-text-muted">{decision.outcome}</div>
+                          </div>
+                          <AccountingStatusBadge label={`${Math.round(decision.deductiblePercent * 100)}% deductible`} tone="slate" />
+                        </div>
+                        <p className="mt-3 text-sm text-text-muted">{decision.note}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-surface p-4">
                   <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Policy trail workspace</div>
                   <div className="mt-4 space-y-3">
                     {item.policyTrail.map((entry) => (
@@ -174,15 +248,6 @@ export function AllocationOverrideHistoryWorkspace({ items }: { items: DemoAlloc
                       </div>
                     ))}
                   </div>
-                </div>
-
-                <div className="rounded-2xl border border-border bg-surface p-4">
-                  <div className="text-xs uppercase tracking-[0.2em] text-text-muted">CPA review notes</div>
-                  <ul className="mt-3 space-y-2 text-sm text-text-muted">
-                    <li>• Recommendation-to-override deltas are preserved per event with actor attribution and time labels.</li>
-                    <li>• Evidence lists mirror binder attachments that would accompany a real 280E workpaper review.</li>
-                    <li>• Policy trail emphasizes why an item remained on default treatment versus moving into exception handling.</li>
-                  </ul>
                 </div>
               </div>
             </div>

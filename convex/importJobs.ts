@@ -1,5 +1,5 @@
-import { mutationGeneric, queryGeneric } from "convex/server";
 import { v } from "convex/values";
+import { authQuery, authMutation, requireCompanyAccessById, requireCompanyAccessBySlug } from "./lib/withAuth";
 
 const importAmountStrategy = v.union(v.literal("single_signed"), v.literal("split_debit_credit"));
 const importRowStatus = v.union(v.literal("ready"), v.literal("warning"), v.literal("error"));
@@ -210,38 +210,52 @@ function validateRow(
   return { issues: dedupeStrings(issues), status: nextStatus } as const;
 }
 
-export const getWorkspaceBySlug = queryGeneric({
-  args: {
+export const getWorkspaceBySlug = authQuery(
+  {
     slug: v.string(),
   },
-  handler: async (ctx, args) => {
-    const company = await ctx.db.query("cannabisCompanies").withIndex("by_slug", (q) => q.eq("slug", args.slug)).unique();
+  async (ctx: any, args: any, identity: any) => {
+    const company = await requireCompanyAccessBySlug(ctx, identity, args.slug);
     if (!company) {
       return null;
     }
 
     const [periods, mappingProfiles, jobs] = await Promise.all([
-      ctx.db.query("reportingPeriods").withIndex("by_company", (q) => q.eq("companyId", company._id)).collect(),
-      ctx.db.query("importMappingProfiles").withIndex("by_company", (q) => q.eq("companyId", company._id)).collect(),
-      ctx.db.query("importJobs").withIndex("by_company", (q) => q.eq("companyId", company._id)).collect(),
+      ctx.db.query("reportingPeriods").withIndex("by_company", (q: any) => q.eq("companyId", company._id)).collect(),
+      ctx.db.query("importMappingProfiles").withIndex("by_company", (q: any) => q.eq("companyId", company._id)).collect(),
+      ctx.db.query("importJobs").withIndex("by_company", (q: any) => q.eq("companyId", company._id)).collect(),
     ]);
 
-    const periodsById = new Map(periods.map((period) => [period._id, period]));
+    const periodsById = new Map<string, any>(periods.map((period: any) => [period._id, period]));
+
+    // Batch-fetch all import job rows for all jobs at once instead of N+1
+    const allJobRows: any[] = [];
+    for (const job of jobs) {
+      const rows = await ctx.db.query("importJobRows").withIndex("by_job", (q: any) => q.eq("importJobId", job._id)).collect();
+      allJobRows.push(...rows.map((r: any) => ({ ...r, _jobId: job._id })));
+    }
+    const rowsByJobId = new Map<string, any[]>();
+    for (const row of allJobRows) {
+      const existing = rowsByJobId.get(row._jobId) ?? [];
+      existing.push(row);
+      rowsByJobId.set(row._jobId, existing);
+    }
+
     const jobsWithRows: any[] = [];
     for (const job of jobs) {
-      const rows = await ctx.db.query("importJobRows").withIndex("by_job", (q) => q.eq("importJobId", job._id)).collect();
+      const rows = rowsByJobId.get(job._id) ?? [];
       const profile = job.importMappingProfileId ? await ctx.db.get(job.importMappingProfileId) : null;
       const profileSnapshot = job.selectedProfileSnapshot ?? null;
       const profileOptions = mappingProfiles
-        .filter((item) => item.sourceSystem === job.sourceSystem)
-        .map((item) => ({
+        .filter((item: any) => item.sourceSystem === job.sourceSystem)
+        .map((item: any) => ({
           id: item.profileKey,
           name: item.name,
           description: item.description,
           amountStrategy: item.amountStrategy,
           fieldMappings: item.fieldMappings,
         }));
-      if (profile && !profileOptions.some((item) => item.id === profile.profileKey)) {
+      if (profile && !profileOptions.some((item: any) => item.id === profile.profileKey)) {
         profileOptions.unshift({
           id: profile.profileKey,
           name: profile.name,
@@ -250,7 +264,7 @@ export const getWorkspaceBySlug = queryGeneric({
           fieldMappings: profile.fieldMappings,
         });
       }
-      if (profileSnapshot && !profileOptions.some((item) => item.id === profileSnapshot.id)) {
+      if (profileSnapshot && !profileOptions.some((item: any) => item.id === profileSnapshot.id)) {
         profileOptions.unshift(profileSnapshot);
       }
 
@@ -270,39 +284,45 @@ export const getWorkspaceBySlug = queryGeneric({
         effectiveMappings: job.effectiveMappingsSnapshot ?? profileSnapshot?.fieldMappings ?? profile?.fieldMappings,
         availableProfiles: profileOptions,
         rows: rows
-          .map((row) => ({
+          .map((row: any) => ({
             ...row,
             promotedTransactionPublicId: row.promotedTransactionId ? row.promotedTransactionId : undefined,
           }))
-          .sort((a, b) => a.rowNumber - b.rowNumber),
+          .sort((a: any, b: any) => a.rowNumber - b.rowNumber),
       });
     }
 
     return {
       company,
-      jobs: jobsWithRows.sort((a, b) => b.uploadedAt - a.uploadedAt),
-      mappingProfiles: mappingProfiles.sort((a, b) => a.name.localeCompare(b.name)),
+      jobs: jobsWithRows.sort((a: any, b: any) => b.uploadedAt - a.uploadedAt),
+      mappingProfiles: mappingProfiles.sort((a: any, b: any) => a.name.localeCompare(b.name)),
     };
   },
-});
+);
 
-export const stageDemoImportJob = mutationGeneric({
-  args: {
+export const stageDemoImportJob = authMutation(
+  {
     companyId: v.id("cannabisCompanies"),
     dataset: stageDatasetValidator,
   },
-  handler: async (ctx, args) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     const company = await ctx.db.get(args.companyId);
     if (!company) {
       throw new Error("Company not found.");
     }
 
-    const periods = await ctx.db.query("reportingPeriods").withIndex("by_company", (q) => q.eq("companyId", args.companyId)).collect();
-    const period = periods.find((item) => item.label === args.dataset.periodLabel) ?? null;
+    const periods = await ctx.db.query("reportingPeriods").withIndex("by_company", (q: any) => q.eq("companyId", args.companyId)).collect();
+    const period = periods.find((item: any) => item.label === args.dataset.periodLabel) ?? null;
     const profileKey = `${args.dataset.source}:${args.dataset.selectedProfile.id}`;
-    const existingProfile = (
-      await ctx.db.query("importMappingProfiles").withIndex("by_company", (q) => q.eq("companyId", args.companyId)).collect()
-    ).find((profile) => profile.profileKey === profileKey);
+    // Use by_company_profile_key index
+    const existingProfile = await ctx.db
+      .query("importMappingProfiles")
+      .withIndex("by_company_profile_key", (q: any) =>
+        q.eq("companyId", args.companyId).eq("profileKey", profileKey)
+      )
+      .unique();
 
     const profilePayload = {
       companyId: args.companyId,
@@ -322,15 +342,19 @@ export const stageDemoImportJob = mutationGeneric({
     }
 
     const externalRef = `import-job:${args.dataset.id}`;
-    const existingJob = (
-      await ctx.db.query("importJobs").withIndex("by_company", (q) => q.eq("companyId", args.companyId)).collect()
-    ).find((job) => job.externalRef === externalRef);
+    // Use by_company_external_ref index
+    const existingJob = await ctx.db
+      .query("importJobs")
+      .withIndex("by_company_external_ref", (q: any) =>
+        q.eq("companyId", args.companyId).eq("externalRef", externalRef)
+      )
+      .unique();
 
     const mappingIssues = requiredMappingIssues(args.dataset.effectiveMappings, args.dataset.selectedProfile.amountStrategy);
     const validationSummary = { ready: 0, warning: 0, error: 0 };
-    const previewRows = args.dataset.rows.map((row, index) => {
+    const previewRows = args.dataset.rows.map((row: any, index: number) => {
       const validation = validateRow(row, args.dataset.effectiveMappings, args.dataset.selectedProfile.amountStrategy);
-      validationSummary[validation.status] += 1;
+      validationSummary[validation.status as keyof typeof validationSummary] += 1;
       const targetToColumn = invertMappings(args.dataset.effectiveMappings);
       return {
         rowNumber: index + 1,
@@ -356,7 +380,7 @@ export const stageDemoImportJob = mutationGeneric({
       };
     });
 
-    const jobStatus = validationSummary.error > 0 ? "mapped" : "validated";
+    const jobStatus = mappingIssues.length > 0 ? "uploaded" : validationSummary.error > 0 ? "mapped" : "validated";
     const jobPayload = {
       companyId: args.companyId,
       periodId: period?._id,
@@ -390,7 +414,7 @@ export const stageDemoImportJob = mutationGeneric({
     const jobId = existingJob?._id ?? (await ctx.db.insert("importJobs", jobPayload));
     if (existingJob) {
       await ctx.db.patch(existingJob._id, { ...jobPayload, promotedRowCount: 0, status: jobStatus });
-      const existingRows = await ctx.db.query("importJobRows").withIndex("by_job", (q) => q.eq("importJobId", existingJob._id)).collect();
+      const existingRows = await ctx.db.query("importJobRows").withIndex("by_job", (q: any) => q.eq("importJobId", existingJob._id)).collect();
       for (const row of existingRows) {
         await ctx.db.delete(row._id);
       }
@@ -423,34 +447,36 @@ export const stageDemoImportJob = mutationGeneric({
 
     return await ctx.db.get(jobId);
   },
-});
+);
 
-export const promoteJobToTransactions = mutationGeneric({
-  args: {
+export const promoteJobToTransactions = authMutation(
+  {
     companyId: v.id("cannabisCompanies"),
     jobId: v.id("importJobs"),
   },
-  handler: async (ctx, args) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     const job = await ctx.db.get(args.jobId);
     if (!job || job.companyId !== args.companyId) {
       throw new Error("Import job not found.");
     }
 
     const [rows, accounts, locations, counterparties] = await Promise.all([
-      ctx.db.query("importJobRows").withIndex("by_job", (q) => q.eq("importJobId", args.jobId)).collect(),
-      ctx.db.query("chartOfAccounts").withIndex("by_company", (q) => q.eq("companyId", args.companyId)).collect(),
-      ctx.db.query("cannabisLocations").withIndex("by_company", (q) => q.eq("companyId", args.companyId)).collect(),
-      ctx.db.query("counterparties").withIndex("by_company", (q) => q.eq("companyId", args.companyId)).collect(),
+      ctx.db.query("importJobRows").withIndex("by_job", (q: any) => q.eq("importJobId", args.jobId)).collect(),
+      ctx.db.query("chartOfAccounts").withIndex("by_company", (q: any) => q.eq("companyId", args.companyId)).collect(),
+      ctx.db.query("cannabisLocations").withIndex("by_company", (q: any) => q.eq("companyId", args.companyId)).collect(),
+      ctx.db.query("counterparties").withIndex("by_company", (q: any) => q.eq("companyId", args.companyId)).collect(),
     ]);
 
-    const accountIdsByCode = new Map(accounts.map((account) => [account.code, account._id]));
-    const locationIdsByName = new Map(locations.map((location) => [location.name, location._id]));
-    const counterpartiesByName = new Map(counterparties.map((counterparty) => [counterparty.name, counterparty._id]));
+    const accountIdsByCode = new Map(accounts.map((account: any) => [account.code, account._id]));
+    const locationIdsByName = new Map(locations.map((location: any) => [location.name, location._id]));
+    const counterpartiesByName = new Map(counterparties.map((counterparty: any) => [counterparty.name, counterparty._id]));
 
     let promotedCount = 0;
     let skippedCount = 0;
 
-    for (const row of rows.sort((a, b) => a.rowNumber - b.rowNumber)) {
+    for (const row of rows.sort((a: any, b: any) => a.rowNumber - b.rowNumber)) {
       if (row.status === "error" || row.promotedTransactionId) {
         skippedCount += 1;
         continue;
@@ -468,9 +494,13 @@ export const promoteJobToTransactions = mutationGeneric({
       }
 
       const transactionExternalRef = `import-row:${job._id}:${row.rowKey}`;
-      const existingTransaction = (
-        await ctx.db.query("transactions").withIndex("by_company", (q) => q.eq("companyId", args.companyId)).collect()
-      ).find((transaction) => transaction.externalRef === transactionExternalRef);
+      // Use by_company_external_ref index instead of collect+find
+      const existingTransaction = await ctx.db
+        .query("transactions")
+        .withIndex("by_company_external_ref", (q: any) =>
+          q.eq("companyId", args.companyId).eq("externalRef", transactionExternalRef)
+        )
+        .unique();
       if (existingTransaction) {
         await ctx.db.patch(row._id, {
           promotedTransactionId: existingTransaction._id,
@@ -549,26 +579,30 @@ export const promoteJobToTransactions = mutationGeneric({
       promotedCount += 1;
     }
 
-    const refreshedRows = await ctx.db.query("importJobRows").withIndex("by_job", (q) => q.eq("importJobId", args.jobId)).collect();
-    const unpromotedEligibleCount = refreshedRows.filter((row) => row.status !== "error" && !row.promotedTransactionId).length;
-    const blockedCount = refreshedRows.filter((row) => row.status === "error").length;
-    const nextStatus = promotedCount === 0
+    const refreshedRows = await ctx.db.query("importJobRows").withIndex("by_job", (q: any) => q.eq("importJobId", args.jobId)).collect();
+    const promotedRowCount = refreshedRows.filter((row: any) => Boolean(row.promotedTransactionId)).length;
+    const promotableRowCount = refreshedRows.filter((row: any) => row.status !== "error").length;
+    const unpromotedEligibleCount = refreshedRows.filter((row: any) => row.status !== "error" && !row.promotedTransactionId).length;
+    const blockedCount = refreshedRows.filter((row: any) => row.status === "error").length;
+    const nextStatus = promotedRowCount === 0
       ? blockedCount > 0
         ? "mapped"
-        : job.status
-      : unpromotedEligibleCount === 0
+        : "validated"
+      : promotedRowCount >= promotableRowCount
         ? blockedCount > 0
           ? "partially_promoted"
           : "promoted"
-        : "partially_promoted";
+        : unpromotedEligibleCount > 0 || blockedCount > 0
+          ? "partially_promoted"
+          : "validated";
 
     await ctx.db.patch(job._id, {
-      promotedRowCount: refreshedRows.filter((row) => Boolean(row.promotedTransactionId)).length,
+      promotedRowCount,
       status: nextStatus,
       validationSummary: {
-        ready: refreshedRows.filter((row) => row.status === "ready").length,
-        warning: refreshedRows.filter((row) => row.status === "warning").length,
-        error: refreshedRows.filter((row) => row.status === "error").length,
+        ready: refreshedRows.filter((row: any) => row.status === "ready").length,
+        warning: refreshedRows.filter((row: any) => row.status === "warning").length,
+        error: refreshedRows.filter((row: any) => row.status === "error").length,
       },
     });
 
@@ -578,4 +612,4 @@ export const promoteJobToTransactions = mutationGeneric({
       status: nextStatus,
     };
   },
-});
+);

@@ -1,5 +1,5 @@
-import { mutationGeneric, queryGeneric } from "convex/server";
 import { v } from "convex/values";
+import { authQuery, authMutation, requireCompanyAccessById } from "./lib/withAuth";
 
 const reconciliationStatus = v.union(v.literal("open"), v.literal("investigating"), v.literal("resolved"));
 const workflowStatus = v.union(v.literal("balanced"), v.literal("investigating"), v.literal("exception"), v.literal("ready_to_post"));
@@ -89,30 +89,42 @@ function validateReconciliationArgs(args: {
   }
 }
 
-export const listByCompany = queryGeneric({
-  args: {
+export const listByCompany = authQuery(
+  {
     companyId: v.id("cannabisCompanies"),
   },
-  handler: async (ctx, args) => {
-    return await ctx.db.query("cashReconciliations").withIndex("by_company", (q) => q.eq("companyId", args.companyId)).collect();
-  },
-});
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
 
-export const getByExternalRef = queryGeneric({
-  args: {
+    return await ctx.db.query("cashReconciliations").withIndex("by_company", (q: any) => q.eq("companyId", args.companyId)).collect();
+  },
+);
+
+export const getByExternalRef = authQuery(
+  {
     companyId: v.id("cannabisCompanies"),
     externalRef: v.string(),
   },
-  handler: async (ctx, args) => {
-    return (
-      await ctx.db.query("cashReconciliations").withIndex("by_company", (q) => q.eq("companyId", args.companyId)).collect()
-    ).find((reconciliation) => reconciliation.externalRef === args.externalRef) ?? null;
-  },
-});
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
 
-export const upsert = mutationGeneric({
-  args: reconciliationShape,
-  handler: async (ctx, args) => {
+    // Use by_company_external_ref index instead of collect+find
+    return (
+      await ctx.db
+        .query("cashReconciliations")
+        .withIndex("by_company_external_ref", (q: any) =>
+          q.eq("companyId", args.companyId).eq("externalRef", args.externalRef)
+        )
+        .unique()
+    ) ?? null;
+  },
+);
+
+export const upsert = authMutation(
+  reconciliationShape,
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     validateReconciliationArgs(args);
 
     const cashAccount = await ctx.db.get(args.cashAccountId);
@@ -132,10 +144,14 @@ export const upsert = mutationGeneric({
       }
     }
 
+    // Use by_company_external_ref index instead of collect+find
     const existing = args.externalRef
-      ? (
-          await ctx.db.query("cashReconciliations").withIndex("by_company", (q) => q.eq("companyId", args.companyId)).collect()
-        ).find((reconciliation) => reconciliation.externalRef === args.externalRef) ?? null
+      ? (await ctx.db
+          .query("cashReconciliations")
+          .withIndex("by_company_external_ref", (q: any) =>
+            q.eq("companyId", args.companyId).eq("externalRef", args.externalRef)
+          )
+          .unique()) ?? null
       : null;
 
     if (existing) {
@@ -145,10 +161,10 @@ export const upsert = mutationGeneric({
 
     return await ctx.db.insert("cashReconciliations", args);
   },
-});
+);
 
-export const updateWorkflowState = mutationGeneric({
-  args: {
+export const updateWorkflowState = authMutation(
+  {
     reconciliationId: v.id("cashReconciliations"),
     status: reconciliationStatus,
     workflowStatus: workflowStatus,
@@ -163,11 +179,12 @@ export const updateWorkflowState = mutationGeneric({
       })
     ),
   },
-  handler: async (ctx, args) => {
+  async (ctx: any, args: any, identity: any) => {
     const reconciliation = await ctx.db.get(args.reconciliationId);
     if (!reconciliation) {
       throw new Error("Reconciliation not found.");
     }
+    await requireCompanyAccessById(ctx, identity, reconciliation.companyId);
 
     await ctx.db.patch(args.reconciliationId, {
       status: args.status,
@@ -180,4 +197,4 @@ export const updateWorkflowState = mutationGeneric({
 
     return await ctx.db.get(args.reconciliationId);
   },
-});
+);

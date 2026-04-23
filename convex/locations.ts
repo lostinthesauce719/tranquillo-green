@@ -1,19 +1,20 @@
-import { mutationGeneric, queryGeneric } from "convex/server";
+import { authMutation, authQuery, requireCompanyAccessById } from "./lib/withAuth";
 import { v } from "convex/values";
 
 // ─── LOCATIONS ──────────────────────────────────────────────────────
 
-export const listByCompany = queryGeneric({
+export const listByCompany = authQuery({
   args: { companyId: v.id("cannabisCompanies") },
-  handler: async (ctx: any, args: any) => {
+}, async (ctx, args, identity) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
     return await ctx.db
       .query("cannabisLocations")
       .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))
       .collect();
   },
-});
+);
 
-export const addLocation = mutationGeneric({
+export const addLocation = authMutation({
   args: {
     companyId: v.id("cannabisCompanies"),
     name: v.string(),
@@ -23,7 +24,8 @@ export const addLocation = mutationGeneric({
     isPrimary: v.boolean(),
     squareFootage: v.optional(v.number()),
   },
-  handler: async (ctx: any, args: any) => {
+}, async (ctx, args, identity) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
     // If this is primary, unset other primary locations
     if (args.isPrimary) {
       const existing = await ctx.db
@@ -53,9 +55,9 @@ export const addLocation = mutationGeneric({
 
     return await ctx.db.get(locationId);
   },
-});
+);
 
-export const updateLocation = mutationGeneric({
+export const updateLocation = authMutation({
   args: {
     locationId: v.id("cannabisLocations"),
     name: v.optional(v.string()),
@@ -65,10 +67,12 @@ export const updateLocation = mutationGeneric({
     isPrimary: v.optional(v.boolean()),
     squareFootage: v.optional(v.number()),
   },
-  handler: async (ctx: any, args: any) => {
+}, async (ctx, args, identity) => {
     const { locationId, ...updates } = args;
     const location = await ctx.db.get(locationId);
     if (!location) throw new Error("Location not found");
+
+    await requireCompanyAccessById(ctx, identity, location.companyId);
 
     // If setting as primary, unset others
     if (updates.isPrimary) {
@@ -99,13 +103,15 @@ export const updateLocation = mutationGeneric({
 
     return await ctx.db.get(locationId);
   },
-});
+);
 
-export const deleteLocation = mutationGeneric({
+export const deleteLocation = authMutation({
   args: { locationId: v.id("cannabisLocations") },
-  handler: async (ctx: any, args: any) => {
+}, async (ctx, args, identity) => {
     const location = await ctx.db.get(args.locationId);
     if (!location) throw new Error("Location not found");
+
+    await requireCompanyAccessById(ctx, identity, location.companyId);
 
     await ctx.db.delete(args.locationId);
 
@@ -122,4 +128,4 @@ export const deleteLocation = mutationGeneric({
 
     return { ok: true };
   },
-});
+);

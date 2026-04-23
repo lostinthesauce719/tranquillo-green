@@ -1,11 +1,13 @@
-import { redirect } from "next/navigation";
+import { DemoOnboardingWorkspace } from "@/components/onboarding/demo-onboarding-workspace";
+import { AppShell } from "@/components/shell/app-shell";
 
-/**
- * Legacy redirect: /dashboard/onboarding -> /onboarding
- * The onboarding page now lives outside the /dashboard/ layout to avoid
- * redirect loops (the dashboard layout redirects to onboarding when no
- * tenant is found).
- */
-export default function DashboardOnboardingRedirect() {
-  redirect("/onboarding");
+export default function OnboardingPage() {
+  return (
+    <AppShell
+      title="Onboarding"
+      description="Certainty-first bootstrap path for Tranquillo Green. This guided workspace explains the product quickly, maps each stakeholder to a safe starting point, and links directly into the live demo flow from imports through CPA handoff."
+    >
+      <DemoOnboardingWorkspace />
+    </AppShell>
+  );
 }

@@ -10,6 +10,7 @@ export type DemoTransactionApprovalStep = {
   owner: string;
   state: TransactionApprovalPathState;
   detail: string;
+  timestamp?: string;
 };
 
 export type DemoTransactionReviewerAction = {
@@ -48,6 +49,7 @@ export type DemoTransactionDetail = {
   approvalPath: DemoTransactionApprovalStep[];
   auditTrail: DemoTransactionAuditEvent[];
   linkedAllocationId?: string;
+  whatChanged?: { field: string; from: string; to: string }[];
 };
 
 const transactionDetailMap: Record<string, DemoTransactionDetail> = {
@@ -116,8 +118,8 @@ const transactionDetailMap: Record<string, DemoTransactionDetail> = {
       { label: "Escalate to controller", detail: "Needed if the security footprint changed or the policy basis must be overridden.", tone: "violet" },
     ],
     approvalPath: [
-      { label: "Imported", owner: "Bank feed", state: "completed", detail: "ACH debit normalized from SVB feed." },
-      { label: "Needs review", owner: "Staff Accountant", state: "current", detail: "Waiting on invoice support and allocation confirmation." },
+      { label: "Imported", owner: "Bank feed", state: "completed", detail: "ACH debit normalized from SVB feed.", timestamp: "Apr 3, 6:11 AM" },
+      { label: "Needs review", owner: "Staff Accountant", state: "current", detail: "Waiting on invoice support and allocation confirmation.", timestamp: "Apr 3, 8:55 AM" },
       { label: "Approved", owner: "Assistant Controller", state: "upcoming", detail: "Approval opens once support package is complete." },
       { label: "Posted", owner: "Close automation", state: "upcoming", detail: "Journal posts to cash after review and allocation sign-off." },
     ],
@@ -127,6 +129,10 @@ const transactionDetailMap: Record<string, DemoTransactionDetail> = {
       { at: "Apr 3, 10:18 AM", actor: "J. Patel", action: "Requested support", detail: "Invoice and updated floor coverage support required before approval.", tone: "rose" },
     ],
     linkedAllocationId: demoAllocationReviewQueue.find((item) => item.transactionId === "txn_002")?.id,
+    whatChanged: [
+      { field: "Debit account", from: "6310 Security Services", to: "5035 COGS - Security (allocated)" },
+      { field: "Tax treatment", from: "Nondeductible", to: "COGS (with allocation support)" },
+    ],
   },
   txn_003: {
     transactionId: "txn_003",

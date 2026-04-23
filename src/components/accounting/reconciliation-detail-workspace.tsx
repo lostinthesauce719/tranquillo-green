@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
+import { EvidenceBadge, AuditContextBar, ReviewerTimestamp } from "@/components/accounting/trust-markers";
 import type { DemoCashReconciliationItem } from "@/lib/demo/accounting-operations";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
@@ -47,7 +48,17 @@ export function ReconciliationDetailWorkspace({ item }: { item: DemoCashReconcil
           <div className="flex flex-wrap gap-2">
             <AccountingStatusBadge label={item.status.replaceAll("_", " ")} tone={statusTone(item.status)} />
             <AccountingStatusBadge label={`${item.relatedTransactions.length} related transactions`} tone="slate" />
+            <EvidenceBadge tone={item.varianceAmount === 0 ? "verified" : item.status === "exception" ? "missing" : "partial"} />
           </div>
+        </div>
+
+        <div className="mt-4">
+          <AuditContextBar
+            sourceSystem={item.accountType === "bank" ? "Bank feed" : item.accountType === "bank_clearing" ? "Clearing" : "POS"}
+            lastVerified={item.lastCountedAt}
+            documentCount={item.sourceBreakdown.length}
+            confidence={item.varianceAmount === 0 ? 0.98 : item.status === "balanced" ? 0.92 : 0.65}
+          />
         </div>
 
         <div className="mt-4 grid gap-3 md:grid-cols-3">
@@ -99,7 +110,10 @@ export function ReconciliationDetailWorkspace({ item }: { item: DemoCashReconcil
                 <div key={`${item.id}-${driver.title}`} className="rounded-2xl border border-border bg-surface p-4">
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <div className="font-medium">{driver.title}</div>
-                    <AccountingStatusBadge label={driver.confidenceLabel} tone={driver.impactAmount === 0 ? "blue" : "amber"} />
+                    <div className="flex items-center gap-2">
+                      <AccountingStatusBadge label={driver.confidenceLabel} tone={driver.impactAmount === 0 ? "blue" : "amber"} />
+                      <EvidenceBadge tone={driver.impactAmount === 0 ? "verified" : "partial"} label={driver.confidenceLabel} />
+                    </div>
                   </div>
                   <div className="mt-3 text-sm text-text-muted">{driver.note}</div>
                   <div className="mt-3 text-sm text-text-primary">Impact: {currencyFormatter.format(driver.impactAmount)}</div>

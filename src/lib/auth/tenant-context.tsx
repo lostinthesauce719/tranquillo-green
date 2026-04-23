@@ -2,14 +2,14 @@
 
 import { createContext, useContext, useMemo, type ReactNode } from "react";
 import type { TenantRole } from "./roles";
-import type { OperatorType } from "@/lib/navigation";
+import type { OperatorType } from "@/lib/demo/accounting";
 
 export interface TenantInfo {
   companyId: string;
   companySlug: string;
   companyName: string;
   role: TenantRole;
-  operatorType: OperatorType;
+  operatorType?: OperatorType;
 }
 
 const TenantContext = createContext<TenantInfo | null>(null);

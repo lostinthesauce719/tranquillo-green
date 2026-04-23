@@ -2,6 +2,7 @@
 
 import { useTenant } from "@/lib/auth/tenant-context";
 import { getOperatorProfile } from "@/lib/operator-profiles";
+import type { OperatorType } from "@/lib/demo/accounting";
 
 const importSourceLabels: Record<string, { label: string; description: string }> = {
   pos_system: { label: "POS System", description: "Point-of-sale transaction exports (Treez, Dutchie, Blaze, etc.)" },
@@ -15,7 +16,7 @@ const importSourceLabels: Record<string, { label: string; description: string }>
 
 export function OperatorImportSources() {
   const tenant = useTenant();
-  const profile = getOperatorProfile(tenant.operatorType);
+  const profile = getOperatorProfile(tenant.operatorType as OperatorType);
 
   return (
     <div className="rounded-2xl border border-border bg-surface-mid p-5">

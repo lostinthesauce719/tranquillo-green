@@ -12,6 +12,7 @@ export const moduleLinks: NavLink[] = [
   // Core — everyone sees these
   { href: "/dashboard", label: "Overview", section: "Core" },
   { href: "/dashboard/accounting", label: "Accounting", section: "Core" },
+  { href: "/pricing", label: "Pricing", section: "Core" },
   { href: "/dashboard/accounting/close", label: "Month-End Close", section: "Core" },
   { href: "/dashboard/accounting/periods", label: "Reporting Periods", section: "Core" },
 

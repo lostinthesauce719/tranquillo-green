@@ -1,7 +1,7 @@
-import { mutationGeneric } from "convex/server";
 import { v } from "convex/values";
+import { authMutation, requireCompanyAccessById } from "./lib/withAuth";
 
-export const updateCompany = mutationGeneric({
+export const updateCompany = authMutation({
   args: {
     companyId: v.id("cannabisCompanies"),
     operatorType: v.optional(v.union(
@@ -20,11 +20,10 @@ export const updateCompany = mutationGeneric({
     defaultAccountingMethod: v.optional(v.union(v.literal("cash"), v.literal("accrual"))),
     state: v.optional(v.string()),
   },
-  handler: async (ctx: any, args: any) => {
+}, async (ctx, args, identity) => {
     const { companyId, ...updates } = args;
 
-    const company = await ctx.db.get(companyId);
-    if (!company) throw new Error("Company not found");
+    const { company } = await requireCompanyAccessById(ctx, identity, companyId);
 
     const changed: string[] = [];
     const patch: Record<string, any> = {};
@@ -74,4 +73,4 @@ export const updateCompany = mutationGeneric({
 
     return await ctx.db.get(companyId);
   },
-});
+);

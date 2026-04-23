@@ -25,10 +25,13 @@ export type ImportWorkspaceDataset = Omit<DemoImportDataset, "profiles" | "rows"
   backendMode: "demo" | "persisted";
   jobId?: string;
   persistedStatus: ImportJobStatus;
+  persistedStatusReason?: string;
   promotedRowCount: number;
   promotionReadyCount: number;
   blockedRowCount: number;
   appliedProfileId: string;
+  profilePersistence: "demo_only" | "saved" | "snapshot_only" | "saved_with_overrides";
+  selectedProfileName?: string;
   sourceFileSizeBytes?: number;
   sourceContentType?: string;
   sourceChecksum?: string;
@@ -39,6 +42,9 @@ export type ImportWorkspaceDataset = Omit<DemoImportDataset, "profiles" | "rows"
 
 export type ImportWorkspace = {
   source: "demo" | "convex";
+  sourceLabel: string;
+  sourceDetail: string;
+  fallbackReason?: string;
   datasets: ImportWorkspaceDataset[];
   pipelineStages: DemoPipelineStage[];
 };

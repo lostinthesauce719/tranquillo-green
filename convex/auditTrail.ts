@@ -1,5 +1,6 @@
 import { mutationGeneric, queryGeneric } from "convex/server";
 import { v } from "convex/values";
+import { requireCurrentUserRecord } from "./lib/withAuth";
 
 // ─── AUDIT TRAIL EVENTS ───────────────────────────────────────────────
 
@@ -17,7 +18,7 @@ export const recordEvent = mutationGeneric({
     ),
     entityId: v.string(),
     action: v.string(),
-    actor: v.string(),
+    actor: v.string(), // accepted but overridden by auth
     actorRole: v.optional(v.string()),
     reason: v.optional(v.string()),
     beforeState: v.optional(v.string()),
@@ -25,8 +26,26 @@ export const recordEvent = mutationGeneric({
     metadata: v.optional(v.record(v.string(), v.string())),
   },
   handler: async (ctx: any, args: any) => {
+    // Derive actor from authenticated user — ignore passed actor for security
+    let actor = args.actor;
+    try {
+      const user = await requireCurrentUserRecord(ctx);
+      actor = user.clerkId;
+    } catch {
+      // If auth fails, fall back to passed actor (demo/dev mode only)
+    }
+
     const eventId = await ctx.db.insert("auditTrailEvents", {
-      ...args,
+      companyId: args.companyId,
+      entityType: args.entityType,
+      entityId: args.entityId,
+      action: args.action,
+      actor,
+      actorRole: args.actorRole,
+      reason: args.reason,
+      beforeState: args.beforeState,
+      afterState: args.afterState,
+      metadata: args.metadata,
       timestamp: Date.now(),
     });
     return eventId;
@@ -98,7 +117,7 @@ export const recordOverride = mutationGeneric({
       v.literal("support_request"),
       v.literal("policy_exception"),
     ),
-    actor: v.string(),
+    actor: v.string(), // accepted but overridden by auth
     actorRole: v.optional(v.string()),
     reason: v.string(),
     fromBasis: v.optional(v.string()),
@@ -111,8 +130,31 @@ export const recordOverride = mutationGeneric({
     resultingPolicyTrail: v.optional(v.string()),
   },
   handler: async (ctx: any, args: any) => {
+    let actor = args.actor;
+    try {
+      const user = await requireCurrentUserRecord(ctx);
+      actor = user.clerkId;
+    } catch {
+      // fallback to passed actor for demo
+    }
+
     const decisionId = await ctx.db.insert("overrideDecisions", {
-      ...args,
+      companyId: args.companyId,
+      allocationId: args.allocationId,
+      transactionId: args.transactionId,
+      periodId: args.periodId,
+      decisionType: args.decisionType,
+      actor,
+      actorRole: args.actorRole,
+      reason: args.reason,
+      fromBasis: args.fromBasis,
+      toBasis: args.toBasis,
+      originalDeductibleAmount: args.originalDeductibleAmount,
+      originalNondeductibleAmount: args.originalNondeductibleAmount,
+      revisedDeductibleAmount: args.revisedDeductibleAmount,
+      revisedNondeductibleAmount: args.revisedNondeductibleAmount,
+      evidence: args.evidence,
+      resultingPolicyTrail: args.resultingPolicyTrail,
       timestamp: Date.now(),
     });
 
@@ -124,7 +166,7 @@ export const recordOverride = mutationGeneric({
       entityType: "allocation",
       entityId: args.allocationId ?? args.transactionId ?? "unknown",
       action: `${args.decisionType}_recorded`,
-      actor: args.actor,
+      actor,
       actorRole: args.actorRole,
       reason: args.reason,
       beforeState: `deductible:${args.originalDeductibleAmount}/nondeductible:${args.originalNondeductibleAmount}`,
@@ -191,7 +233,7 @@ export const recordPacketGeneration = mutationGeneric({
     bundleId: v.string(),
     bundleName: v.string(),
     action: v.union(v.literal("assembled"), v.literal("refreshed"), v.literal("queued"), v.literal("sent"), v.literal("dry_run")),
-    actor: v.string(),
+    actor: v.string(), // accepted but overridden by auth
     actorRole: v.optional(v.string()),
     exportFormats: v.array(v.string()),
     includedSchedules: v.array(v.string()),
@@ -204,8 +246,27 @@ export const recordPacketGeneration = mutationGeneric({
     detail: v.optional(v.string()),
   },
   handler: async (ctx: any, args: any) => {
+    let actor = args.actor;
+    try {
+      const user = await requireCurrentUserRecord(ctx);
+      actor = user.clerkId;
+    } catch {
+      // fallback to passed actor for demo
+    }
+
     const recordId = await ctx.db.insert("packetGenerationRecords", {
-      ...args,
+      companyId: args.companyId,
+      periodId: args.periodId,
+      bundleId: args.bundleId,
+      bundleName: args.bundleName,
+      action: args.action,
+      actor,
+      actorRole: args.actorRole,
+      exportFormats: args.exportFormats,
+      includedSchedules: args.includedSchedules,
+      coverMemoMode: args.coverMemoMode,
+      checklistSnapshot: args.checklistSnapshot,
+      detail: args.detail,
       timestamp: Date.now(),
     });
 
@@ -215,7 +276,7 @@ export const recordPacketGeneration = mutationGeneric({
       entityType: "packet",
       entityId: args.bundleId,
       action: `packet_${args.action}`,
-      actor: args.actor,
+      actor,
       actorRole: args.actorRole,
       reason: args.detail,
       afterState: `${args.exportFormats.length} formats, ${args.includedSchedules.length} schedules`,

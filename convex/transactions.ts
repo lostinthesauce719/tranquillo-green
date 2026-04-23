@@ -1,5 +1,5 @@
-import { mutationGeneric, queryGeneric } from "convex/server";
 import { v } from "convex/values";
+import { authQuery, authMutation, requireCompanyAccessById } from "./lib/withAuth";
 
 const transactionSource = v.union(v.literal("manual"), v.literal("csv_import"), v.literal("metrc_import"), v.literal("pos_import"), v.literal("system"));
 const transactionStatus = v.union(v.literal("draft"), v.literal("posted"), v.literal("needs_review"));
@@ -43,33 +43,45 @@ function normalizeAmount(value: number | undefined) {
   return Number((value ?? 0).toFixed(2));
 }
 
-export const listByCompany = queryGeneric({
-  args: {
+export const listByCompany = authQuery(
+  {
     companyId: v.id("cannabisCompanies"),
   },
-  handler: async (ctx, args) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     return await ctx.db
       .query("transactions")
-      .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))
       .collect();
   },
-});
+);
 
-export const getByExternalRef = queryGeneric({
-  args: {
+export const getByExternalRef = authQuery(
+  {
     companyId: v.id("cannabisCompanies"),
     externalRef: v.string(),
   },
-  handler: async (ctx, args) => {
-    return (
-      await ctx.db.query("transactions").withIndex("by_company", (q) => q.eq("companyId", args.companyId)).collect()
-    ).find((transaction) => transaction.externalRef === args.externalRef) ?? null;
-  },
-});
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
 
-export const upsert = mutationGeneric({
-  args: transactionShape,
-  handler: async (ctx, args) => {
+    // Use by_company_external_ref index instead of collect+find
+    return (
+      await ctx.db
+        .query("transactions")
+        .withIndex("by_company_external_ref", (q: any) =>
+          q.eq("companyId", args.companyId).eq("externalRef", args.externalRef)
+        )
+        .unique()
+    ) ?? null;
+  },
+);
+
+export const upsert = authMutation(
+  transactionShape,
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     ensureIsoDate(args.transactionDate, "Transaction date");
     if (args.postedDate) {
       ensureIsoDate(args.postedDate, "Posted date");
@@ -96,10 +108,14 @@ export const upsert = mutationGeneric({
       }
     }
 
+    // Use by_company_external_ref index for lookup
     const existing = args.externalRef
-      ? (
-          await ctx.db.query("transactions").withIndex("by_company", (q) => q.eq("companyId", args.companyId)).collect()
-        ).find((transaction) => transaction.externalRef === args.externalRef) ?? null
+      ? (await ctx.db
+          .query("transactions")
+          .withIndex("by_company_external_ref", (q: any) =>
+            q.eq("companyId", args.companyId).eq("externalRef", args.externalRef)
+          )
+          .unique()) ?? null
       : null;
 
     if (existing) {
@@ -109,10 +125,10 @@ export const upsert = mutationGeneric({
 
     return await ctx.db.insert("transactions", args);
   },
-});
+);
 
-export const createManualJournal = mutationGeneric({
-  args: {
+export const createManualJournal = authMutation(
+  {
     companyId: v.id("cannabisCompanies"),
     periodId: v.optional(v.id("reportingPeriods")),
     locationId: v.optional(v.id("cannabisLocations")),
@@ -129,7 +145,9 @@ export const createManualJournal = mutationGeneric({
       })
     ),
   },
-  handler: async (ctx, args) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
     ensureIsoDate(args.transactionDate, "Transaction date");
 
     if (!args.memo.trim()) {
@@ -186,9 +204,13 @@ export const createManualJournal = mutationGeneric({
     }
 
     const externalRef = args.externalRef?.trim() || `manual:${args.reference.trim()}`;
-    const existing = (
-      await ctx.db.query("transactions").withIndex("by_company", (q) => q.eq("companyId", args.companyId)).collect()
-    ).find((transaction) => transaction.externalRef === externalRef);
+    // Use by_company_external_ref index
+    const existing = await ctx.db
+      .query("transactions")
+      .withIndex("by_company_external_ref", (q: any) =>
+        q.eq("companyId", args.companyId).eq("externalRef", externalRef)
+      )
+      .unique();
 
     if (existing) {
       throw new Error("A manual journal with this reference already exists.");
@@ -231,4 +253,4 @@ export const createManualJournal = mutationGeneric({
 
     return await ctx.db.get(transactionId);
   },
-});
+);

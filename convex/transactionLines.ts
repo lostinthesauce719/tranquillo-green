@@ -1,20 +1,22 @@
-import { mutationGeneric, queryGeneric } from "convex/server";
 import { v } from "convex/values";
+import { authQuery, authMutation, requireTenantRecordForTransaction } from "./lib/withAuth";
 
-export const listByTransaction = queryGeneric({
-  args: {
+export const listByTransaction = authQuery(
+  {
     transactionId: v.id("transactions"),
   },
-  handler: async (ctx, args) => {
+  async (ctx: any, args: any, identity: any) => {
+    await requireTenantRecordForTransaction(ctx, identity, args.transactionId);
+
     return await ctx.db
       .query("transactionLines")
-      .withIndex("by_transaction", (q) => q.eq("transactionId", args.transactionId))
+      .withIndex("by_transaction", (q: any) => q.eq("transactionId", args.transactionId))
       .collect();
   },
-});
+);
 
-export const replaceForTransaction = mutationGeneric({
-  args: {
+export const replaceForTransaction = authMutation(
+  {
     transactionId: v.id("transactions"),
     lines: v.array(
       v.object({
@@ -27,10 +29,13 @@ export const replaceForTransaction = mutationGeneric({
       })
     ),
   },
-  handler: async (ctx, args) => {
+  async (ctx: any, args: any, identity: any) => {
+    const transaction = await requireTenantRecordForTransaction(ctx, identity, args.transactionId);
+    const companyId = transaction.companyId;
+
     const existing = await ctx.db
       .query("transactionLines")
-      .withIndex("by_transaction", (q) => q.eq("transactionId", args.transactionId))
+      .withIndex("by_transaction", (q: any) => q.eq("transactionId", args.transactionId))
       .collect();
 
     for (const line of existing) {
@@ -39,6 +44,17 @@ export const replaceForTransaction = mutationGeneric({
 
     const insertedIds = [] as string[];
     for (const line of args.lines) {
+      const account = await ctx.db.get(line.accountId);
+      if (!account || account.companyId !== companyId) {
+        throw new Error("Transaction line account must belong to the same company.");
+      }
+      if (line.locationId) {
+        const location = await ctx.db.get(line.locationId);
+        if (!location || location.companyId !== companyId) {
+          throw new Error("Transaction line location must belong to the same company.");
+        }
+      }
+
       const lineId = await ctx.db.insert("transactionLines", {
         transactionId: args.transactionId,
         ...line,
@@ -48,4 +64,4 @@ export const replaceForTransaction = mutationGeneric({
 
     return insertedIds;
   },
-});
+);

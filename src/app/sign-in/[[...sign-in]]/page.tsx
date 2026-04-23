@@ -8,13 +8,13 @@ export default function SignInPage() {
         {/* Branding */}
         <div className="text-center">
           <div className="text-xs uppercase tracking-[0.3em] text-accent">
-            Tranquillo Labs
+            Tranquillo Green
           </div>
           <h1 className="mt-3 text-2xl font-semibold text-text-primary">
             Sign in to Green
           </h1>
           <p className="mt-1 text-sm text-text-muted">
-            Cannabis accounting and compliance OS
+            Accounting and compliance OS for cannabis operators.
           </p>
         </div>
 

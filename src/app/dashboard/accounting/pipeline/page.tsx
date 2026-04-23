@@ -22,11 +22,7 @@ export default async function AccountingPipelinePage() {
   return (
     <AppShell
       title="Transaction pipeline"
-      description={
-        importWorkspace.source === "convex"
-          ? "Imported-to-posted accounting board powered by persisted import jobs and transactions when Convex is available, with the same demo-safe fallback pattern used elsewhere in accounting."
-          : "Imported-to-posted accounting board rendered from demo-safe fallback data because the persisted Convex runtime is unavailable."
-      }
+      description={importWorkspace.sourceDetail}
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Imported rows" value={String(imported?.cards.length ?? 0)} detail={`${imported?.blockerCount ?? 0} imports still blocked before queue handoff`} />
@@ -35,14 +31,23 @@ export default async function AccountingPipelinePage() {
         <MetricCard label="Posted" value={String(posted?.cards.length ?? 0)} detail={`${totalBlockers} total blockers tracked across the pipeline`} />
       </div>
 
+      {importWorkspace.fallbackReason ? (
+        <section className="mt-6 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4 text-sm text-amber-100">
+          Demo fallback active: {importWorkspace.fallbackReason}
+        </section>
+      ) : null}
+
       <div className="mt-6 grid gap-4 xl:grid-cols-[1.5fr_1fr]">
         <section className="rounded-2xl border border-border bg-surface-mid p-5">
           <div className="text-xs uppercase tracking-[0.2em] text-accent">Operator handoff logic</div>
+          <div className="mt-2 text-sm text-text-muted">
+            This board answers one question: what can move forward now, what still needs cleanup, and which items are clean enough to hand from import operations into accounting review.
+          </div>
           <div className="mt-4 grid gap-3 md:grid-cols-4">
-            <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">Imports stage keeps mapping repairs and missing required fields out of the posting queue until jobs are promoted.</div>
-            <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">Review stage concentrates missing support, policy judgment, and promoted warning rows in one lane.</div>
-            <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">Ready-to-post stage acts like the release tray for import promotions that cleared validation without blockers.</div>
-            <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">Posted stage preserves proof that the promoted transaction cleared review and can join the close binder.</div>
+            <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">Imports stage keeps mapping repairs, duplicate risk, and source-data anomalies out of the posting queue until jobs are promoted.</div>
+            <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">Review stage concentrates missing support, policy judgment, and promoted warning rows in one lane for accountants and controllers.</div>
+            <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">Ready-to-post stage acts like the release tray for transactions that survived import checks and now only need final accounting approval.</div>
+            <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted">Posted stage preserves proof that the transaction cleared review and can now join the close binder, export packet, and audit trail.</div>
           </div>
         </section>
 

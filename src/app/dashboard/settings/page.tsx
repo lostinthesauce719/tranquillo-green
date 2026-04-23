@@ -7,6 +7,7 @@ import { ROLE_LABELS } from "@/lib/auth/roles";
 import { AppShell } from "@/components/shell/app-shell";
 import { californiaOperatorDemo } from "@/lib/demo/accounting";
 import { LocationManager } from "@/components/shell/location-manager";
+import { MetrcConnectPanel } from "@/components/metrc/metrc-connect-panel";
 
 const OPERATOR_TYPES = [
   { value: "dispensary", label: "Dispensary" },
@@ -429,7 +430,11 @@ export default function SettingsPage() {
         {/* Current User */}
         <section className="rounded-2xl border border-border bg-surface-mid p-5">
           <div className="text-xs uppercase tracking-[0.2em] text-accent">Current User</div>
-          <h2 className="mt-2 text-xl font-semibold">{user?.fullName ?? user?.firstName ?? "Loading..."}</h2>
+          <h2 className="mt-2 text-xl font-semibold">
+            {user?.fullName ?? user?.firstName ?? (
+              <span className="inline-block h-6 w-40 animate-pulse rounded-lg bg-surface-raised" />
+            )}
+          </h2>
           <p className="mt-2 max-w-lg text-sm text-text-muted">
             Your account details and role within this tenant.
           </p>
@@ -482,15 +487,7 @@ export default function SettingsPage() {
                 <Badge className="bg-emerald-500/20 text-emerald-300">Connected</Badge>
               </div>
             </div>
-            <div className="rounded-xl border border-border bg-surface px-4 py-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-medium text-text-primary">Metrc</div>
-                  <div className="mt-1 text-xs text-text-muted">Cannabis compliance tracking</div>
-                </div>
-                <Badge className="bg-neutral-500/20 text-neutral-300">Coming Soon</Badge>
-              </div>
-            </div>
+            <MetrcConnectPanel companyId={tenant.companyId} />
             <div className="rounded-xl border border-border bg-surface px-4 py-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -502,7 +499,10 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 {qboStatus.status === "loading" ? (
-                  <Badge className="bg-neutral-500/20 text-neutral-300">Loading...</Badge>
+                  <div className="flex items-center gap-2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-neutral-400 border-t-transparent" />
+                    <span className="text-xs text-neutral-400">Checking...</span>
+                  </div>
                 ) : qboStatus.connected ? (
                   <button
                     onClick={handleDisconnectQBO}

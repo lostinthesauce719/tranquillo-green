@@ -56,7 +56,7 @@ export function LiveMetricCard({
   animate = true,
 }: LiveMetricCardProps) {
   return (
-    <div className={cn("rounded-2xl border border-border bg-surface-mid p-5", className)}>
+    <div className={cn("tranquillo-card p-5", className)}>
       <div className="text-xs uppercase tracking-[0.2em] text-text-muted">{label}</div>
       <div className="mt-3 flex items-center text-3xl font-semibold">
         {dotColor && <InlinePulseDot color={dotColor} />}

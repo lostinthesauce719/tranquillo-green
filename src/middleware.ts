@@ -6,9 +6,9 @@ const isProtectedRoute = createRouteMatcher([
   "/api/accounting(.*)",
   "/api/audit-trail(.*)",
   "/api/settings(.*)",
-  "/api/onboarding(.*)",
+  // /api/onboarding is public — used during sign-up flow
   "/api/integrations(.*)",
-  "/api/automation(.*)",
+  // /api/automation handles its own auth + demo fallback
 ]);
 
 export default clerkMiddleware((auth, req) => {

@@ -1,15 +1,15 @@
-import { mutationGeneric, queryGeneric } from "convex/server";
+import { authMutation, authQuery, requireCompanyAccessById } from "./lib/withAuth";
 import { v } from "convex/values";
 
 // ─── 280E Allocation Monitor ─────────────────────────────────────────
 // Scans cogsAllocations for low confidence or needs_review items.
 // Creates complianceAlerts for any items that match.
 
-export const checkAllocationAlerts = mutationGeneric({
+export const checkAllocationAlerts = authMutation({
   args: {
     companyId: v.id("cannabisCompanies"),
   },
-  handler: async (ctx, args) => {
+}, async (ctx, args, identity) => {
     const now = Date.now();
     const details: string[] = [];
     let alertCount = 0;
@@ -108,17 +108,17 @@ export const checkAllocationAlerts = mutationGeneric({
       details,
       status: "success" as const,
     };
-  },
-});
+  }
+);
 
 // ─── Close Blocker Monitor ────────────────────────────────────────────
 // Scans reportingPeriods for open blockers and reconciliations with open status.
 
-export const checkCloseBlockers = mutationGeneric({
+export const checkCloseBlockers = authMutation({
   args: {
     companyId: v.id("cannabisCompanies"),
   },
-  handler: async (ctx, args) => {
+}, async (ctx, args, identity) => {
     const now = Date.now();
     const details: string[] = [];
     let alertCount = 0;
@@ -223,17 +223,17 @@ export const checkCloseBlockers = mutationGeneric({
       details,
       status: "success" as const,
     };
-  },
-});
+  }
+);
 
 // ─── Reconciliation Follow-up Agent ──────────────────────────────────
 // Scans cashReconciliations for unresolved variances and pending actions.
 
-export const checkReconciliationVariances = mutationGeneric({
+export const checkReconciliationVariances = authMutation({
   args: {
     companyId: v.id("cannabisCompanies"),
   },
-  handler: async (ctx, args) => {
+}, async (ctx, args, identity) => {
     const now = Date.now();
     const details: string[] = [];
     let alertCount = 0;
@@ -339,16 +339,16 @@ export const checkReconciliationVariances = mutationGeneric({
       details,
       status: "success" as const,
     };
-  },
-});
+  }
+);
 
 // ─── Query: get alert summary per agent category ──────────────────────
 
-export const getAgentStatuses = queryGeneric({
+export const getAgentStatuses = authQuery({
   args: {
     companyId: v.id("cannabisCompanies"),
   },
-  handler: async (ctx, args) => {
+}, async (ctx, args, identity) => {
     const alerts = await ctx.db
       .query("complianceAlerts")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
@@ -371,5 +371,5 @@ export const getAgentStatuses = queryGeneric({
         body: a.body,
       })),
     };
-  },
-});
+  }
+);

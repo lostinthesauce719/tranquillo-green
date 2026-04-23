@@ -8,7 +8,7 @@ export default function SignUpPage() {
         {/* Branding */}
         <div className="text-center">
           <div className="text-xs uppercase tracking-[0.3em] text-accent">
-            Tranquillo Labs
+            Tranquillo Green
           </div>
           <h1 className="mt-3 text-2xl font-semibold text-text-primary">
             Create your account

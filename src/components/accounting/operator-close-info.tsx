@@ -2,11 +2,12 @@
 
 import { useTenant } from "@/lib/auth/tenant-context";
 import { getOperatorProfile, getDefaultAllocationMethod } from "@/lib/operator-profiles";
+import type { OperatorType } from "@/lib/demo/accounting";
 
 export function OperatorCloseInfo() {
   const tenant = useTenant();
-  const profile = getOperatorProfile(tenant.operatorType);
-  const defaultMethod = getDefaultAllocationMethod(tenant.operatorType);
+  const profile = getOperatorProfile(tenant.operatorType as OperatorType);
+  const defaultMethod = getDefaultAllocationMethod(tenant.operatorType as OperatorType);
 
   return (
     <div className="rounded-2xl border border-border bg-surface-mid p-5">

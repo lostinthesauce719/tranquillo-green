@@ -1,5 +1,5 @@
-import { mutationGeneric, queryGeneric } from "convex/server";
 import { v } from "convex/values";
+import { authQuery, authMutation, requireCurrentUserRecord } from "./lib/withAuth";
 import { californiaOperatorDemo, demoReportingPeriods, demoTransactions } from "../src/lib/demo/accounting";
 import { demoCashReconciliations } from "../src/lib/demo/accounting-operations";
 import { demoImportDatasets } from "../src/lib/demo/accounting-workflows";
@@ -43,9 +43,9 @@ function reconciliationStatusFromDemo(status: (typeof demoCashReconciliations)[n
   }
 }
 
-export const previewCaliforniaOperator = queryGeneric({
-  args: {},
-  handler: async () => ({
+export const previewCaliforniaOperator = authQuery(
+  {},
+  async (_ctx: any, _args: any, _identity: any) => ({
     company: californiaOperatorDemo.company,
     locations: californiaOperatorDemo.locations,
     licenses: californiaOperatorDemo.licenses,
@@ -54,17 +54,23 @@ export const previewCaliforniaOperator = queryGeneric({
     transactions: demoTransactions,
     cashReconciliations: demoCashReconciliations,
   }),
-});
+);
 
-export const seedCaliforniaOperator = mutationGeneric({
-  args: {
+export const seedCaliforniaOperator = authMutation(
+  {
     slug: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  async (ctx: any, args: any, identity: any) => {
+    // Guard: only owners and controllers may seed demo data
+    const user = await requireCurrentUserRecord(ctx, identity);
+    if (user.role !== "owner" && user.role !== "controller") {
+      throw new Error("Forbidden: only owners and controllers may seed demo data.");
+    }
+
     const slug = args.slug ?? californiaOperatorDemo.company.slug;
     const existingCompany = await ctx.db
       .query("cannabisCompanies")
-      .withIndex("by_slug", (q) => q.eq("slug", slug))
+      .withIndex("by_slug", (q: any) => q.eq("slug", slug))
       .unique();
 
     const companyId =
@@ -77,11 +83,11 @@ export const seedCaliforniaOperator = mutationGeneric({
     const locationIdsByName = new Map<string, any>();
     const existingLocations = await ctx.db
       .query("cannabisLocations")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", companyId))
       .collect();
 
     for (const location of californiaOperatorDemo.locations) {
-      const existingLocation = existingLocations.find((record) => record.name === location.name);
+      const existingLocation = existingLocations.find((record: any) => record.name === location.name);
       const locationId =
         existingLocation?._id ??
         (await ctx.db.insert("cannabisLocations", {
@@ -98,11 +104,11 @@ export const seedCaliforniaOperator = mutationGeneric({
 
     const existingLicenses = await ctx.db
       .query("cannabisLicenses")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", companyId))
       .collect();
 
     for (const license of californiaOperatorDemo.licenses) {
-      const existingLicense = existingLicenses.find((record) => record.licenseNumber === license.licenseNumber);
+      const existingLicense = existingLicenses.find((record: any) => record.licenseNumber === license.licenseNumber);
       const payload = {
         companyId,
         locationId: license.locationName ? locationIdsByName.get(license.locationName) : undefined,
@@ -123,12 +129,12 @@ export const seedCaliforniaOperator = mutationGeneric({
 
     const existingAccounts = await ctx.db
       .query("chartOfAccounts")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", companyId))
       .collect();
     const accountIdsByCode = new Map<string, any>();
 
     for (const account of californiaOperatorDemo.chartOfAccounts) {
-      const existingAccount = existingAccounts.find((record) => record.code === account.code);
+      const existingAccount = existingAccounts.find((record: any) => record.code === account.code);
       const payload = {
         companyId,
         code: account.code,
@@ -149,12 +155,12 @@ export const seedCaliforniaOperator = mutationGeneric({
 
     const existingPeriods = await ctx.db
       .query("reportingPeriods")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", companyId))
       .collect();
     const reportingPeriodIdsByLabel = new Map<string, any>();
 
     for (const period of demoReportingPeriods) {
-      const existingPeriod = existingPeriods.find((record) => record.label === period.label);
+      const existingPeriod = existingPeriods.find((record: any) => record.label === period.label);
       const payload = {
         companyId,
         label: period.label,
@@ -178,14 +184,14 @@ export const seedCaliforniaOperator = mutationGeneric({
 
     const existingImportProfiles = await ctx.db
       .query("importMappingProfiles")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", companyId))
       .collect();
     const importProfileIdsByKey = new Map<string, any>();
 
     for (const dataset of demoImportDatasets) {
       for (const profile of dataset.profiles) {
         const profileKey = `${dataset.source}:${profile.id}`;
-        const existingProfile = existingImportProfiles.find((record) => record.profileKey === profileKey);
+        const existingProfile = existingImportProfiles.find((record: any) => record.profileKey === profileKey);
         const payload = {
           companyId,
           profileKey,
@@ -207,17 +213,17 @@ export const seedCaliforniaOperator = mutationGeneric({
 
     const existingImportJobs = await ctx.db
       .query("importJobs")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", companyId))
       .collect();
 
     for (const dataset of demoImportDatasets) {
       const profile = dataset.profiles[0]!;
       const profileKey = `${dataset.source}:${profile.id}`;
-      const existingJob = existingImportJobs.find((record) => record.externalRef === `import-job:${dataset.id}`);
+      const existingJob = existingImportJobs.find((record: any) => record.externalRef === `import-job:${dataset.id}`);
       const validationSummary = {
-        ready: dataset.rows.filter((row) => row.status === "ready").length,
-        warning: dataset.rows.filter((row) => row.status === "warning").length,
-        error: dataset.rows.filter((row) => row.status === "error").length,
+        ready: dataset.rows.filter((row: any) => row.status === "ready").length,
+        warning: dataset.rows.filter((row: any) => row.status === "warning").length,
+        error: dataset.rows.filter((row: any) => row.status === "error").length,
       };
       const jobPayload = {
         companyId,
@@ -248,7 +254,7 @@ export const seedCaliforniaOperator = mutationGeneric({
 
       const existingRows = await ctx.db
         .query("importJobRows")
-        .withIndex("by_job", (q) => q.eq("importJobId", jobId))
+        .withIndex("by_job", (q: any) => q.eq("importJobId", jobId))
         .collect();
       for (const row of existingRows) {
         await ctx.db.delete(row._id);
@@ -281,15 +287,15 @@ export const seedCaliforniaOperator = mutationGeneric({
       }
     }
 
-    const payees = Array.from(new Set(demoTransactions.map((transaction) => transaction.payee)));
+    const payees = Array.from(new Set(demoTransactions.map((transaction: any) => transaction.payee)));
     const existingCounterparties = await ctx.db
       .query("counterparties")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", companyId))
       .collect();
     const counterpartyIdsByName = new Map<string, any>();
 
     for (const payee of payees) {
-      const existingCounterparty = existingCounterparties.find((record) => record.name === payee);
+      const existingCounterparty = existingCounterparties.find((record: any) => record.name === payee);
       const inferredType = payee.toLowerCase().includes("bank") ? "bank" : payee.toLowerCase().includes("tax") ? "tax_authority" : "vendor";
       const payload = {
         companyId,
@@ -305,12 +311,12 @@ export const seedCaliforniaOperator = mutationGeneric({
 
     const existingTransactions = await ctx.db
       .query("transactions")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", companyId))
       .collect();
     const transactionIdsByExternalRef = new Map<string, any>();
 
     for (const transaction of demoTransactions) {
-      const existingTransaction = existingTransactions.find((record) => record.externalRef === transaction.id);
+      const existingTransaction = existingTransactions.find((record: any) => record.externalRef === transaction.id);
       const payload = {
         companyId,
         periodId: reportingPeriodIdsByLabel.get(transaction.periodLabel),
@@ -342,7 +348,7 @@ export const seedCaliforniaOperator = mutationGeneric({
 
       const existingLines = await ctx.db
         .query("transactionLines")
-        .withIndex("by_transaction", (q) => q.eq("transactionId", transactionId))
+        .withIndex("by_transaction", (q: any) => q.eq("transactionId", transactionId))
         .collect();
       for (const line of existingLines) {
         await ctx.db.delete(line._id);
@@ -368,13 +374,13 @@ export const seedCaliforniaOperator = mutationGeneric({
 
     const existingCashAccounts = await ctx.db
       .query("cashAccounts")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", companyId))
       .collect();
     const cashAccountIdsByName = new Map<string, any>();
 
     for (const item of demoCashReconciliations) {
       const normalizedType = item.accountType === "bank" ? "bank_clearing" : item.accountType;
-      const existingCashAccount = existingCashAccounts.find((record) => record.name === item.accountName);
+      const existingCashAccount = existingCashAccounts.find((record: any) => record.name === item.accountName);
       const payload = {
         companyId,
         locationId: locationIdsByName.get(item.location),
@@ -391,11 +397,11 @@ export const seedCaliforniaOperator = mutationGeneric({
 
     const existingCashReconciliations = await ctx.db
       .query("cashReconciliations")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
+      .withIndex("by_company", (q: any) => q.eq("companyId", companyId))
       .collect();
 
     for (const item of demoCashReconciliations) {
-      const existingReconciliation = existingCashReconciliations.find((record) => record.externalRef === item.id);
+      const existingReconciliation = existingCashReconciliations.find((record: any) => record.externalRef === item.id);
       const payload = {
         companyId,
         periodId: reportingPeriodIdsByLabel.get(item.periodLabel),
@@ -414,7 +420,7 @@ export const seedCaliforniaOperator = mutationGeneric({
         sourceBreakdown: item.sourceBreakdown,
         varianceDrivers: item.varianceDrivers,
         investigationNotes: item.investigationNotes,
-        relatedTransactionRefs: item.relatedTransactions.map((transaction) => ({
+        relatedTransactionRefs: item.relatedTransactions.map((transaction: any) => ({
           transactionRef: transaction.transactionId,
           label: transaction.label,
           amount: transaction.amount,
@@ -638,147 +644,9 @@ export const seedCaliforniaOperator = mutationGeneric({
       }
     }
 
-    // ─── Products & Inventory ───
-    const existingProducts = await ctx.db
-      .query("products")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
-      .collect();
-
-    const productIdsBySku = new Map<string, any>();
-
-    if (existingProducts.length === 0) {
-      const productSeeds = [
-        { sku: "FLWR-OG-KUSH-3.5", name: "OG Kush Flower 3.5g", category: "flower", unitOfMeasure: "g", active: true },
-        { sku: "PRRL-GLUE-10PK", name: "GG #4 Pre-Roll 10pk", category: "pre-roll", unitOfMeasure: "pk", active: true },
-        { sku: "VPE-GSC-1G", name: "GSC Live Resin Cart 1g", category: "vape", unitOfMeasure: "ea", active: true },
-        { sku: "EDBL-GUMMY-20PK", name: "Sativa Gummies 20ct", category: "edible", unitOfMeasure: "ea", active: true },
-        { sku: "CONC-BHO-1G", name: "Blue Dream BHO Shatter 1g", category: "concentrate", unitOfMeasure: "g", active: true },
-        { sku: "FLWR-PINK-7G", name: "Pink Panties Flower 7g", category: "flower", unitOfMeasure: "g", active: true },
-      ];
-
-      for (const product of productSeeds) {
-        const id = await ctx.db.insert("products", { companyId, ...product });
-        productIdsBySku.set(product.sku, id);
-      }
-    } else {
-      for (const product of existingProducts) {
-        productIdsBySku.set(product.sku, product._id);
-      }
-    }
-
-    const existingBatches = await ctx.db
-      .query("inventoryBatches")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
-      .collect();
-
-    if (existingBatches.length === 0) {
-      const primaryLocation = Array.from(locationIdsByName.values())[0];
-      const batchSeeds = [
-        { sku: "FLWR-OG-KUSH-3.5", packageTag: "1A4060300001C10000010012", quantityOnHand: 420, costBasis: 5.25, source: "metrc_import" as const },
-        { sku: "FLWR-OG-KUSH-3.5", packageTag: "1A4060300001C10000010018", quantityOnHand: 112, costBasis: 5.50, source: "metrc_import" as const },
-        { sku: "PRRL-GLUE-10PK", packageTag: "1A4060300001C20000020045", quantityOnHand: 340, costBasis: 18.00, source: "manual" as const },
-        { sku: "VPE-GSC-1G", packageTag: "1A4060300001C30000030078", quantityOnHand: 560, costBasis: 22.50, source: "metrc_import" as const },
-        { sku: "EDBL-GUMMY-20PK", packageTag: "1A4060300001C40000040091", quantityOnHand: 180, costBasis: 14.00, source: "manual" as const },
-        { sku: "CONC-BHO-1G", packageTag: "1A4060300001C50000050112", quantityOnHand: 95, costBasis: 28.00, source: "metrc_import" as const },
-        { sku: "FLWR-PINK-7G", packageTag: "1A4060300001C10000060130", quantityOnHand: 224, costBasis: 4.75, source: "metrc_import" as const },
-      ];
-
-      for (const batch of batchSeeds) {
-        const productId = productIdsBySku.get(batch.sku);
-        if (productId) {
-          await ctx.db.insert("inventoryBatches", {
-            companyId,
-            productId,
-            locationId: primaryLocation,
-            packageTag: batch.packageTag,
-            quantityOnHand: batch.quantityOnHand,
-            costBasis: batch.costBasis,
-            source: batch.source,
-          });
-        }
-      }
-    }
-
-    // ─── Tax Filings ───
-    const existingTaxFilings = await ctx.db
-      .query("taxFilings")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
-      .collect();
-
-    if (existingTaxFilings.length === 0) {
-      const taxFilingSeeds = [
-        {
-          filingType: "CA Cannabis Excise Tax",
-          periodLabel: "Q1 2026",
-          dueDate: "2026-04-30",
-          status: "ready" as const,
-        },
-        {
-          filingType: "CA Sales & Use Tax",
-          periodLabel: "March 2026",
-          dueDate: "2026-04-30",
-          status: "pending" as const,
-        },
-        {
-          filingType: "CA Cannabis Cultivation Tax Report",
-          periodLabel: "Q1 2026",
-          dueDate: "2026-04-30",
-          status: "filed" as const,
-        },
-      ];
-
-      for (const filing of taxFilingSeeds) {
-        await ctx.db.insert("taxFilings", {
-          companyId,
-          ...filing,
-        });
-      }
-    }
-
-    // ─── Compliance Alerts ───
-    const existingAlerts = await ctx.db
-      .query("complianceAlerts")
-      .withIndex("by_company", (q) => q.eq("companyId", companyId))
-      .collect();
-
-    if (existingAlerts.length === 0) {
-      const alertSeeds = [
-        {
-          category: "license" as const,
-          severity: "warning" as const,
-          title: "Distribution license expiring in 10 months",
-          body: "C11-0009822-LIC (Distribution) expires on 2026-02-28. Begin renewal preparation 90 days before expiry.",
-        },
-        {
-          category: "tax" as const,
-          severity: "critical" as const,
-          title: "Excise tax return due in 19 days",
-          body: "Q1 2026 California cannabis excise tax return is due April 30. Ensure METRC sales data reconciles to filed amount.",
-        },
-        {
-          category: "reconciliation" as const,
-          severity: "info" as const,
-          title: "METRC manifest variance detected",
-          body: "Three incoming transfer manifests show weight discrepancies between METRC recorded quantities and received quantities. Investigate before next reconciliation cycle.",
-        },
-      ];
-
-      for (const alert of alertSeeds) {
-        await ctx.db.insert("complianceAlerts", {
-          companyId,
-          ...alert,
-        });
-      }
-    }
-
     const auditEventsSeeded = existingAuditEvents.length === 0 ? 7 : 0;
     const overrideDecisionsSeeded = existingAuditEvents.length === 0 ? 3 : 0;
     const packetRecordsSeeded = existingAuditEvents.length === 0 ? 2 : 0;
-    const taxFilingsSeeded = existingTaxFilings.length === 0 ? 3 : 0;
-    const complianceAlertsSeeded = existingAlerts.length === 0 ? 3 : 0;
-
-    const productsSeeded = existingProducts.length === 0 ? 6 : 0;
-    const batchesSeeded = existingBatches.length === 0 ? 7 : 0;
 
     return {
       companyId,
@@ -787,19 +655,15 @@ export const seedCaliforniaOperator = mutationGeneric({
       licensesSeeded: californiaOperatorDemo.licenses.length,
       accountsSeeded: californiaOperatorDemo.chartOfAccounts.length,
       reportingPeriodsSeeded: demoReportingPeriods.length,
-      importProfilesSeeded: demoImportDatasets.reduce((sum, dataset) => sum + dataset.profiles.length, 0),
+      importProfilesSeeded: demoImportDatasets.reduce((sum: number, dataset: any) => sum + dataset.profiles.length, 0),
       importJobsSeeded: demoImportDatasets.length,
-      importRowsSeeded: demoImportDatasets.reduce((sum, dataset) => sum + dataset.rows.length, 0),
+      importRowsSeeded: demoImportDatasets.reduce((sum: number, dataset: any) => sum + dataset.rows.length, 0),
       transactionsSeeded: demoTransactions.length,
       transactionLinesSeeded: demoTransactions.length * 2,
       cashReconciliationsSeeded: demoCashReconciliations.length,
-      productsSeeded,
-      batchesSeeded,
-      taxFilingsSeeded,
-      complianceAlertsSeeded,
       auditEventsSeeded,
       overrideDecisionsSeeded,
       packetRecordsSeeded,
     };
   },
-});
+);

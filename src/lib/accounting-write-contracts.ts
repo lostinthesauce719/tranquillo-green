@@ -17,6 +17,53 @@ export type ManualJournalSubmission = {
   lines: ManualJournalLineInput[];
 };
 
+export type AuditTrailEventInput = {
+  companySlug: string;
+  entityType: string;
+  entityId: string;
+  action: string;
+  actor: string;
+  actorRole?: string;
+  reason?: string;
+  beforeState?: string;
+  afterState?: string;
+  metadata?: Record<string, string>;
+};
+
+export type OverrideDecisionInput = {
+  companySlug: string;
+  allocationId?: string;
+  transactionId?: string;
+  periodId?: string;
+  decisionType: string;
+  actor: string;
+  actorRole?: string;
+  reason: string;
+  fromBasis?: string;
+  toBasis?: string;
+  originalDeductibleAmount: number;
+  originalNondeductibleAmount: number;
+  revisedDeductibleAmount: number;
+  revisedNondeductibleAmount: number;
+  evidence?: string[];
+  resultingPolicyTrail?: string;
+};
+
+export type PacketGenerationInput = {
+  companySlug: string;
+  periodId?: string;
+  bundleId: string;
+  bundleName: string;
+  action: string;
+  actor: string;
+  actorRole?: string;
+  exportFormats: string[];
+  includedSchedules: string[];
+  coverMemoMode?: string;
+  checklistSnapshot: { title: string; status: string; owner: string }[];
+  detail?: string;
+};
+
 export type ReportingPeriodMutation = {
   companySlug: string;
   periodLabel: string;
@@ -33,66 +80,21 @@ export type ReconciliationMutation = {
   action: "log_note" | "toggle_case" | "toggle_review";
 };
 
-export type AuditTrailEntityType =
-  | "transaction"
-  | "allocation"
-  | "reconciliation"
-  | "reporting_period"
-  | "import_job"
-  | "packet"
-  | "system";
-
-export type AuditTrailEventInput = {
+export type ExportPacketMutation = {
   companySlug: string;
-  entityType: AuditTrailEntityType;
-  entityId: string;
-  action: string;
-  actor: string;
-  actorRole?: string;
-  reason?: string;
-  beforeState?: string;
-  afterState?: string;
-  metadata?: Record<string, string>;
-};
-
-export type OverrideDecisionInput = {
-  companySlug: string;
-  allocationId?: string;
-  transactionId?: string;
-  periodId?: string;
-  decisionType: "recommendation" | "override" | "approval" | "support_request" | "policy_exception";
-  actor: string;
-  actorRole?: string;
-  reason: string;
-  fromBasis?: string;
-  toBasis?: string;
-  originalDeductibleAmount: number;
-  originalNondeductibleAmount: number;
-  revisedDeductibleAmount: number;
-  revisedNondeductibleAmount: number;
-  evidence?: string[];
-  resultingPolicyTrail?: string;
-};
-
-export type PacketChecklistSnapshotItem = {
-  title: string;
-  status: string;
-  owner: string;
-};
-
-export type PacketGenerationInput = {
-  companySlug: string;
-  periodId?: string;
   bundleId: string;
   bundleName: string;
-  action: "assembled" | "refreshed" | "queued" | "sent" | "dry_run";
-  actor: string;
-  actorRole?: string;
-  exportFormats: string[];
-  includedSchedules: string[];
-  coverMemoMode?: string;
-  checklistSnapshot: PacketChecklistSnapshotItem[];
-  detail?: string;
+  periodLabel: string;
+  recipient: string;
+  owner: string;
+  status: "draft" | "generated" | "sent" | "held";
+  selectedFormats: string[];
+  selectedSchedules: string[];
+  selectedChecklistTitles: string[];
+  coverMemoMode: "controller_summary" | "cpa_handoff" | "open_items";
+  includeDeliveryNotes: boolean;
+  detail: string;
+  blockers: string[];
 };
 
 export type WriteResult<T> = {
@@ -100,4 +102,26 @@ export type WriteResult<T> = {
   mode: "persisted" | "demo";
   message: string;
   item?: T;
+};
+
+export type SeedSummary = {
+  companyId: string;
+  companySlug: string;
+  locationsSeeded: number;
+  licensesSeeded: number;
+  accountsSeeded: number;
+  reportingPeriodsSeeded: number;
+  importProfilesSeeded: number;
+  importJobsSeeded: number;
+  importRowsSeeded: number;
+  transactionsSeeded: number;
+  transactionLinesSeeded: number;
+  cashReconciliationsSeeded: number;
+};
+
+export type SeedResult = {
+  ok: true;
+  mode: "persisted" | "demo";
+  message: string;
+  summary?: SeedSummary;
 };

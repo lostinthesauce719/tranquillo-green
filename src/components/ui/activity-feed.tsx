@@ -33,6 +33,7 @@ const ActivityFeed = React.forwardRef<HTMLDivElement, ActivityFeedProps>(
       if (firstId !== null) {
         setPrevFirstId(firstId);
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visibleItems]);
 
     return (

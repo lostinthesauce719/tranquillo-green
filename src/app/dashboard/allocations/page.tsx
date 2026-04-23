@@ -1,12 +1,15 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import Link from "next/link";
 import { AllocationReviewQueue } from "@/components/accounting/allocation-review-queue";
+import { Section471cDashboard } from "@/components/accounting/section-471c-dashboard";
 import { AppShell } from "@/components/shell/app-shell";
 import { MetricCard } from "@/components/ui/metric-card";
+import { Badge } from "@/components/ui/badge";
 import { demoAllocationReviewQueue, summarizeAllocationQueue } from "@/lib/demo/accounting-operations";
 import { useTenant } from "@/lib/auth/tenant-context";
-import { getOperatorProfile, getCogsCategories, getNondeductibleCategories, getDefaultAllocationMethod } from "@/lib/operator-profiles";
+import { getOperatorProfile, getCogsCategories, getNondeductibleCategories, getDefaultAllocationMethod, getReclassifiable471cCosts } from "@/lib/operator-profiles";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -18,9 +21,89 @@ export default function AllocationsPage() {
   const summary = summarizeAllocationQueue(demoAllocationReviewQueue);
   const tenant = useTenant();
   const profile = getOperatorProfile(tenant.operatorType);
+
+  // COGS automation state
+  const [autoApproving, setAutoApproving] = useState(false);
+  const [runningAll, setRunningAll] = useState(false);
+  const [automationResult, setAutomationResult] = useState<{
+    action: string;
+    message: string;
+    details: string[];
+    source: string;
+  } | null>(null);
+
+  const handleAutoApprove = useCallback(async () => {
+    setAutoApproving(true);
+    try {
+      const res = await fetch("/api/automation/cogs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "auto_approve", confidenceThreshold: 0.9 }),
+      });
+      const data = await res.json();
+      setAutomationResult({
+        action: "Auto-approval",
+        message: `Approved ${data.approvedCount} allocations`,
+        details: data.details ?? [],
+        source: data.source ?? "demo",
+      });
+    } catch (e) {
+      setAutomationResult({
+        action: "Auto-approval",
+        message: "Failed — check console",
+        details: [String(e)],
+        source: "error",
+      });
+    } finally {
+      setAutoApproving(false);
+    }
+  }, []);
+
+  const handleRunAll = useCallback(async () => {
+    setRunningAll(true);
+    try {
+      const res = await fetch("/api/automation/cogs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "run_all", confidenceThreshold: 0.9 }),
+      });
+      const data = await res.json();
+      const agentDetails = (data.results ?? []).flatMap((r: any) => r.details ?? []);
+      setAutomationResult({
+        action: "Full automation",
+        message: `${data.agentsRun} agents ran, ${data.totalAlerts} alerts`,
+        details: agentDetails,
+        source: data.source ?? "demo",
+      });
+    } catch (e) {
+      setAutomationResult({
+        action: "Full automation",
+        message: "Failed — check console",
+        details: [String(e)],
+        source: "error",
+      });
+    } finally {
+      setRunningAll(false);
+    }
+  }, []);
   const cogsCategories = getCogsCategories(tenant.operatorType);
   const nondeductibleCategories = getNondeductibleCategories(tenant.operatorType);
+  const reclassifiable471c = getReclassifiable471cCosts(tenant.operatorType);
   const defaultMethod = getDefaultAllocationMethod(tenant.operatorType);
+
+  // Build cost data for 471(c) engine
+  const costDataFor471c = [
+    ...cogsCategories.map((c) => ({ code: c.code, name: c.name, amount: 50000, taxTreatment: c.taxTreatment })),
+    ...nondeductibleCategories.map((c) => ({ code: c.code, name: c.name, amount: 80000, taxTreatment: c.taxTreatment })),
+    ...reclassifiable471c.map((c) => ({ code: c.code, name: c.name, amount: 120000, taxTreatment: c.taxTreatment })),
+  ];
+
+  // Demo prior years gross receipts (would come from company settings in production)
+  const priorYearsGrossReceipts = [
+    { taxYear: 2023, grossReceipts: 8500000 },
+    { taxYear: 2024, grossReceipts: 9200000 },
+    { taxYear: 2025, grossReceipts: 10100000 },
+  ];
 
   return (
     <AppShell
@@ -108,6 +191,82 @@ export default function AllocationsPage() {
       </div>
 
       <div className="mt-6">
+        {/* COGS Automation Controls */}
+        <div className="mb-6 rounded-2xl border border-brand/20 bg-brand/5 p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm">⚡</span>
+                <span className="text-sm font-medium text-text-primary">COGS Automation</span>
+                <Badge variant="info" size="sm">Beta</Badge>
+              </div>
+              <p className="mt-1 text-xs text-text-muted">
+                Auto-approve high-confidence allocations (≥90%) and run the full automation suite.
+                All actions are logged to the audit trail.
+              </p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button
+                onClick={handleAutoApprove}
+                disabled={autoApproving || runningAll}
+                className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-medium text-emerald-100 hover:bg-emerald-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {autoApproving ? "Auto-approving..." : "⚡ Auto-approve ≥90%"}
+              </button>
+              <button
+                onClick={handleRunAll}
+                disabled={autoApproving || runningAll}
+                className="rounded-xl border border-brand/30 bg-brand/10 px-4 py-2.5 text-sm font-medium text-brand hover:bg-brand/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {runningAll ? "Running..." : "▶ Run all agents"}
+              </button>
+            </div>
+          </div>
+
+          {/* Result banner */}
+          {automationResult && (
+            <div className="mt-4 rounded-xl border border-border bg-surface p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-medium text-text-primary">
+                    {automationResult.action}: {automationResult.message}
+                  </span>
+                  <Badge variant="neutral" size="sm" className="ml-2">
+                    {automationResult.source}
+                  </Badge>
+                </div>
+                <button
+                  onClick={() => setAutomationResult(null)}
+                  className="text-xs text-text-faint hover:text-text-muted"
+                >
+                  Dismiss
+                </button>
+              </div>
+              {automationResult.details.length > 0 && (
+                <ul className="mt-2 space-y-1">
+                  {automationResult.details.map((d, i) => (
+                    <li key={i} className="text-xs text-text-muted">
+                      · {d}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="mt-6">
+        {/* 471(c) Dual-Path Analysis */}
+        <div className="mb-6">
+          <Section471cDashboard
+            operatorType={tenant.operatorType}
+            grossRevenue={25000000}
+            costCategories={costDataFor471c}
+            priorYearsGrossReceipts={priorYearsGrossReceipts}
+          />
+        </div>
+
         <AllocationReviewQueue items={demoAllocationReviewQueue} />
       </div>
     </AppShell>

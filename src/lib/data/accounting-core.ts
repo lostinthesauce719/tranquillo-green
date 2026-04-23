@@ -1,6 +1,7 @@
 import "server-only";
 
 import { anyApi } from "convex/server";
+import { getAuthenticatedConvexClient, withTimeout } from "@/lib/data/convex-client";
 import {
   californiaOperatorDemo,
   demoChartOfAccounts,
@@ -16,7 +17,6 @@ import {
   type DemoCashReconciliationItem,
 } from "@/lib/demo/accounting-operations";
 import { getDemoTransactionDetail, type DemoTransactionDetail } from "@/lib/demo/transaction-workflows";
-import { getAuthenticatedConvexClient, withTimeout } from "@/lib/data/convex-client";
 
 export const DEMO_COMPANY_SLUG = californiaOperatorDemo.company.slug;
 
@@ -154,6 +154,7 @@ async function loadConvexWorkspace(slug: string): Promise<AccountingWorkspace | 
   if (!client) {
     return null;
   }
+
   const result = await withTimeout(client.query((anyApi as any).accountingCore.getWorkspaceBySlug, { slug }));
   if (!result) {
     return null;
@@ -202,9 +203,12 @@ async function loadConvexWorkspace(slug: string): Promise<AccountingWorkspace | 
 
 export async function loadAccountingWorkspace(slug = DEMO_COMPANY_SLUG): Promise<AccountingWorkspace> {
   try {
-    return (await loadConvexWorkspace(slug)) ?? buildDemoWorkspace();
+    const live = await loadConvexWorkspace(slug);
+    if (live) return live;
+    return { ...buildDemoWorkspace(), source: "demo" as const };
   } catch {
-    return buildDemoWorkspace();
+    console.error(`[Tranquillo] Convex unavailable for slug "${slug}" — falling back to demo data. Check CONVEX_URL and network.`);
+    return { ...buildDemoWorkspace(), source: "demo" as const };
   }
 }
 

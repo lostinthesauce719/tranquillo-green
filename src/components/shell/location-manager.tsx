@@ -29,20 +29,19 @@ export function LocationManager() {
   const [sqft, setSqft] = useState("");
 
   useEffect(() => {
-    loadLocations();
-  }, []);
-
-  async function loadLocations() {
-    try {
-      const res = await fetch(`/api/settings/locations?companyId=${tenant.companyId}`);
-      const data = await res.json();
-      if (data.ok) setLocations(data.locations);
-    } catch {
-      // silent fail
-    } finally {
-      setLoading(false);
+    async function load() {
+      try {
+        const res = await fetch(`/api/settings/locations?companyId=${tenant.companyId}`);
+        const data = await res.json();
+        if (data.ok) setLocations(data.locations);
+      } catch {
+        // silent fail
+      } finally {
+        setLoading(false);
+      }
     }
-  }
+    load();
+  }, [tenant.companyId]);
 
   async function handleAdd() {
     if (!name || !license || !city) return;
@@ -183,7 +182,16 @@ export function LocationManager() {
       {/* Location list */}
       <div className="mt-4 space-y-2">
         {loading ? (
-          <div className="text-sm text-text-muted">Loading locations...</div>
+          <div className="space-y-2">
+            {[1, 2].map((i) => (
+              <div key={i} className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3">
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-32 animate-pulse rounded-lg bg-surface-raised" />
+                  <div className="h-3 w-48 animate-pulse rounded-lg bg-surface-raised" />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : locations.length === 0 ? (
           <div className="text-sm text-text-muted">No locations yet. Add your first location above.</div>
         ) : (

@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { AppShell } from "@/components/shell/app-shell";
-import { ChartOfAccountsTable } from "@/components/accounting/chart-of-accounts-table";
-import { LiveMetricCard } from "@/components/ui/live-metric-card";
-import { StaggerContainer } from "@/components/ui/stagger-container";
-import { AnimatedCounter } from "@/components/ui/animated-counter";
-import { PulseDot } from "@/components/ui/pulse-dot";
+import { MetricCard } from "@/components/ui/metric-card";
+import { AccountVisualizer } from "@/components/accounting/account-visualizer";
+import { LocationMapPane } from "@/components/ui/location-map-pane";
 import {
   summarizeDemoChartOfAccounts,
   summarizeDemoReportingPeriods,
@@ -44,6 +42,11 @@ const workspaceLinks = [
     detail: "Work deterministic deductible vs nondeductible allocation cases with policy support and reviewer actions.",
   },
   {
+    href: "/dashboard/allocations/cogs-review",
+    label: "COGS intelligence",
+    detail: "Review every shiftable expense category, dollar impact, IRS risk, and IRC 263A absorption guidance for 280E survival.",
+  },
+  {
     href: "/dashboard/reconciliations",
     label: "Cash reconciliations",
     detail: "Tie drawers, vault, armored clearing, and bank balances with variance investigation workflow.",
@@ -68,95 +71,52 @@ export default async function AccountingPage() {
   const currentPeriod =
     workspace.reportingPeriods.find((period) => period.status === "open" || period.status === "review") ?? workspace.reportingPeriods[0];
 
-  const isLive = workspace.source === "convex";
-
   return (
     <AppShell
       title="Accounting"
-      description={`California-first accounting workspace for close, 280E review, transaction prep, and reporting period control. Rendering from ${workspace.source === "convex" ? "persisted Convex accounting data" : "demo fallback data"} so static builds stay safe while the backend path matures.`}
+      description="Close, 280E review, transaction prep, and reporting period control."
     >
-      <StaggerContainer className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <LiveMetricCard label="Ledger accounts" value={accountSummary.total} detail={`${accountSummary.active} active, ${accountSummary.inactive} inactive`} dotColor={isLive ? "green" : undefined} />
-        <LiveMetricCard label="Periods in motion" value={periodSummary.open + periodSummary.review} detail={`${periodSummary.closed} closed and ${periodSummary.blocked} currently blocked`} dotColor={isLive ? "green" : undefined} />
-        <LiveMetricCard label="Manual entry queue" value={transactionSummary.manualQueue} detail={`${transactionSummary.needsMapping} transactions still need mapping review`} dotColor={transactionSummary.needsMapping > 0 ? "amber" : "green"} />
-        <div className="rounded-2xl border border-border bg-surface-mid p-5">
-          <div className="text-xs uppercase tracking-[0.2em] text-text-muted">Current period</div>
-          <div className="mt-3 flex items-center text-3xl font-semibold">
-            <span>{currentPeriod?.label ?? "No period"}</span>
-          </div>
-          <div className="mt-2 flex items-center gap-2 text-sm text-text-muted">
-            {isLive && <PulseDot color="green" size="sm" />}
-            {(currentPeriod?.status ?? "open").toUpperCase()} close for {workspace.company.name}
-          </div>
-        </div>
-      </StaggerContainer>
+      <div className="grid gap-5 md:grid-cols-3">
+        <MetricCard label="Ledger accounts" value={String(accountSummary.total)} detail={`${accountSummary.active} active`} />
+        <MetricCard label="Periods in motion" value={String(periodSummary.open + periodSummary.review)} detail={`${periodSummary.closed} closed, ${periodSummary.blocked} blocked`} />
+        <MetricCard label="Current period" value={currentPeriod?.label ?? "No period"} detail={`${(currentPeriod?.status ?? "open").toUpperCase()} for ${workspace.company.name}`} />
+      </div>
 
-      <div className="mt-6 grid gap-4 xl:grid-cols-[1.7fr_1fr]">
-        <section className="rounded-2xl border border-border bg-surface-mid p-5">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mt-8 grid gap-5 xl:grid-cols-[1.5fr_1fr]">
+        {/* Main Data Visualizer Panel */}
+        <section className="rounded-[32px] border border-emerald-500/20 bg-white/5 p-6 backdrop-blur-md overflow-hidden relative shadow-lg">
+          <div className="absolute -right-32 -top-32 h-64 w-64 rounded-full bg-emerald-500/10 blur-[80px]"></div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between relative z-10">
             <div>
-              <div className="text-xs uppercase tracking-[0.2em] text-accent">{workspace.source === "convex" ? "Persisted Convex source" : "Demo fallback source"}</div>
-              <h2 className="mt-2 text-xl font-semibold">Chart of accounts</h2>
-              <p className="mt-2 max-w-2xl text-sm text-text-muted">
-                Realistic default ledger for a vertically integrated California operator. The route now prefers persisted Convex data on the server and falls back to demo records when runtime config is unavailable.
+              <div className="text-[11px] uppercase tracking-[0.2em] text-emerald-200/70">Chart of Accounts</div>
+              <h2 className="mt-2 text-2xl font-serif text-white glowing-mint-text">Ledger Visualizer</h2>
+              <p className="mt-1 max-w-2xl text-xs text-text-faint">
+                Real-time topological breakdown of ledger distribution and 280E configuration for {workspace.company.name}.
               </p>
             </div>
-            <div className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-muted">
-              {workspace.company.operatorType} operator • {workspace.company.defaultAccountingMethod} basis
+            <div className="rounded-full border border-emerald-500/30 bg-emerald-900/40 px-4 py-2 text-[10px] uppercase tracking-wider text-emerald-100 shadow-glow backdrop-blur-sm">
+              {workspace.company.operatorType} · {workspace.company.defaultAccountingMethod}
             </div>
           </div>
-          <div className="mt-5">
-            <ChartOfAccountsTable accounts={workspace.chartOfAccounts} />
+          
+          <div className="mt-12">
+            <AccountVisualizer accounts={workspace.chartOfAccounts} />
           </div>
         </section>
 
-        <div className="grid gap-4">
-          <section className="rounded-2xl border border-border bg-surface-mid p-5">
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">Workspace entry points</div>
-            <StaggerContainer className="mt-4 grid gap-3" staggerMs={60} baseDelayMs={50}>
+        <div className="flex flex-col gap-5">
+          <LocationMapPane companyName={workspace.company.name} state={workspace.company.state} />
+
+          <section className="flex-1 rounded-[24px] border border-emerald-500/20 bg-white/5 p-6 backdrop-blur-md">
+            <div className="text-[11px] uppercase tracking-[0.2em] text-emerald-200/70">Workspaces</div>
+            <div className="mt-5 space-y-3">
               {workspaceLinks.map((item) => (
-                <Link key={item.href} href={item.href} className="rounded-2xl border border-border bg-surface px-4 py-4 transition hover:bg-surface/70">
-                  <div className="font-medium text-text-primary">{item.label}</div>
-                  <div className="mt-2 text-sm text-text-muted">{item.detail}</div>
+                <Link key={item.href} href={item.href} className="group block rounded-2xl border border-emerald-500/10 bg-white/5 px-5 py-4 transition-tranquil hover:bg-emerald-500/10 hover:border-emerald-400/30">
+                  <div className="text-sm font-semibold text-white group-hover:glowing-mint-text">{item.label}</div>
+                  <div className="mt-1.5 text-xs leading-relaxed text-text-faint">{item.detail}</div>
                 </Link>
               ))}
-            </StaggerContainer>
-          </section>
-
-          <section className="rounded-2xl border border-border bg-surface-mid p-5">
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">Entity snapshot</div>
-            <h2 className="mt-2 text-lg font-semibold">{workspace.company.name}</h2>
-            <dl className="mt-4 space-y-3 text-sm">
-              <div className="flex items-center justify-between gap-4">
-                <dt className="text-text-muted">State footprint</dt>
-                <dd>{workspace.company.state}</dd>
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <dt className="text-text-muted">Locations</dt>
-                <dd><AnimatedCounter value={new Set((workspace.transactions ?? []).map((transaction) => transaction.location)).size || 0} /></dd>
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <dt className="text-text-muted">Licenses</dt>
-                <dd>{workspace.source === "convex" ? "Seeded in Convex" : "Demo-backed"}</dd>
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <dt className="text-text-muted">Timezone</dt>
-                <dd>{workspace.company.timezone}</dd>
-              </div>
-            </dl>
-          </section>
-
-          <section className="rounded-2xl border border-border bg-surface-mid p-5">
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">Close checklist alignment</div>
-            <ul className="mt-3 space-y-3 text-sm text-text-muted">
-              <li>• Reporting periods now show open, review, and closed states with checklist progress and blockers.</li>
-              <li>• Transactions table includes imported activity, suggested entry codes, and receipt follow-up flags.</li>
-              <li>• New imported-to-posted pipeline board shows staged handoff from import validation into reviewer and posting lanes.</li>
-              <li>• New month-end close dashboard connects periods, imports, posting, reconciliations, allocations, and support schedule readiness.</li>
-              <li>• Manual journal entry flow now restores working drafts and keeps a recent local draft list.</li>
-              <li>• CSV import staging adds mapping profiles, required-field validation, and row-level preview without backend jobs.</li>
-              <li>• Static-safe demo data still mirrors companies, locations, licenses, accounts, periods, and transaction prep.</li>
-            </ul>
+            </div>
           </section>
         </div>
       </div>

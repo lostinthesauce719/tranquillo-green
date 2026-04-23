@@ -1,29 +1,44 @@
-import { mutationGeneric, queryGeneric } from "convex/server";
 import { v } from "convex/values";
+import { authQuery, authMutation, requireCompanyAccessById } from "./lib/withAuth";
 
 const cashAccountType = v.union(v.literal("drawer"), v.literal("vault"), v.literal("bank_clearing"));
 
-export const listByCompany = queryGeneric({
-  args: {
+export const listByCompany = authQuery(
+  {
     companyId: v.id("cannabisCompanies"),
   },
-  handler: async (ctx, args) => {
-    return await ctx.db.query("cashAccounts").withIndex("by_company", (q) => q.eq("companyId", args.companyId)).collect();
-  },
-});
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
 
-export const upsert = mutationGeneric({
-  args: {
+    return await ctx.db.query("cashAccounts").withIndex("by_company", (q: any) => q.eq("companyId", args.companyId)).collect();
+  },
+);
+
+export const upsert = authMutation(
+  {
     companyId: v.id("cannabisCompanies"),
     locationId: v.optional(v.id("cannabisLocations")),
     name: v.string(),
     type: cashAccountType,
     active: v.boolean(),
   },
-  handler: async (ctx, args) => {
-    const existing = (
-      await ctx.db.query("cashAccounts").withIndex("by_company", (q) => q.eq("companyId", args.companyId)).collect()
-    ).find((record) => record.name === args.name);
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
+    if (args.locationId) {
+      const location = await ctx.db.get(args.locationId);
+      if (!location || location.companyId !== args.companyId) {
+        throw new Error("Cash account location must belong to the same company.");
+      }
+    }
+
+    // Use by_company_name index instead of collect+find
+    const existing = await ctx.db
+      .query("cashAccounts")
+      .withIndex("by_company_name", (q: any) =>
+        q.eq("companyId", args.companyId).eq("name", args.name)
+      )
+      .unique();
 
     if (existing) {
       await ctx.db.patch(existing._id, args);
@@ -32,4 +47,4 @@ export const upsert = mutationGeneric({
 
     return await ctx.db.insert("cashAccounts", args);
   },
-});
+);

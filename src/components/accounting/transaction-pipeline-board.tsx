@@ -46,7 +46,7 @@ export function TransactionPipelineBoard({
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-border bg-surface-mid px-4 py-3 text-sm text-text-muted">
-        Pipeline source: {source === "convex" ? "persisted import-job + transaction backend" : "demo-safe fallback data"}
+        Pipeline source: {source === "convex" ? "persisted import jobs and transactions with live promotion state" : "demo-safe fallback data with no persisted writes"}. Use this board to explain what is still stuck in imports versus what is ready for accounting release.
       </div>
       <div className="grid gap-4 xl:grid-cols-4">
         {stages.map((stage) => (
@@ -127,16 +127,16 @@ export function TransactionPipelineBoard({
                     <Link href={card.linkHref} className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-primary transition hover:bg-surface-mid">
                       Open workspace
                     </Link>
-                    <button className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm text-blue-100">
-                      Assign owner
-                    </button>
-                    <button className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-muted">
-                      Add note
-                    </button>
+                    <span className="rounded-xl border border-blue-500/30 bg-blue-500/10 px-3 py-2 text-sm text-blue-100">
+                      Owner: {card.owner}
+                    </span>
+                    <span className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-muted">
+                      Reviewer: {card.reviewer}
+                    </span>
                   </div>
                 </article>
               ))}
-              {stage.cards.length === 0 ? <div className="rounded-2xl border border-dashed border-border bg-surface p-4 text-sm text-text-muted">No cards in this stage for the current demo period.</div> : null}
+              {stage.cards.length === 0 ? <div className="rounded-2xl border border-dashed border-border bg-surface p-4 text-sm text-text-muted">No cards in this stage for the current demo period. This is a healthy empty state rather than a loading failure.</div> : null}
             </div>
           </section>
         ))}

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useTenant } from "@/lib/auth/tenant-context";
 import { getOperatorProfile, OPERATOR_PROFILES } from "@/lib/operator-profiles";
-import type { OperatorType } from "@/lib/navigation";
+
+type OperatorType = "dispensary" | "cultivator" | "manufacturer" | "distributor" | "delivery" | "vertical";
 
 const ALL_TYPES: { value: OperatorType; label: string; short: string; icon: string }[] = [
   { value: "dispensary", label: "Dispensary", short: "Retail", icon: "🏪" },
@@ -23,7 +24,7 @@ export function OperatorTypeSwitch({ inline = false }: { inline?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const currentType = tenant.operatorType;
+  const currentType = (tenant.operatorType ?? "dispensary") as OperatorType;
   const currentInfo = ALL_TYPES.find((t) => t.value === currentType);
   const profile = getOperatorProfile(currentType);
 

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useTenant } from "@/lib/auth/tenant-context";
 import { getOperatorProfile, OPERATOR_PROFILES } from "@/lib/operator-profiles";
-import type { OperatorType } from "@/lib/navigation";
+
+type OperatorType = "dispensary" | "cultivator" | "manufacturer" | "distributor" | "delivery" | "vertical";
 
 const ALL_OPERATOR_TYPES: { value: OperatorType; label: string; icon: string }[] = [
   { value: "dispensary", label: "Dispensary", icon: "🏪" },
@@ -22,7 +23,7 @@ export function OperatorBanner() {
     (tenant as any).additionalOperatorTypes ?? []
   );
 
-  const currentType = tenant.operatorType;
+  const currentType = (tenant.operatorType ?? "dispensary") as OperatorType;
   const profile = getOperatorProfile(currentType);
   const currentInfo = ALL_OPERATOR_TYPES.find((t) => t.value === currentType);
 
