@@ -248,12 +248,63 @@ export default defineSchema({
   taxProfiles: defineTable({
     companyId: v.id("cannabisCompanies"),
     state: v.string(),
-    exciseRule: v.string(),
-    salesTaxRule: v.string(),
-    filingFrequency: v.string(),
+    primaryJurisdictionId: v.optional(v.id("taxJurisdictions")), // state-level jurisdiction
+    nexusStates: v.array(v.string()), // ["CO", "CA"] — states where company has nexus
+    filingCalendar: v.record(v.string()), // e.g. { "CO-excise": "monthly", "CO-sales": "monthly" }
+    taxTypesEnabled: v.array(v.id("taxTypes")), // which tax types this company collects
     isPrimary: v.boolean(),
   }).index("by_company", ["companyId"]),
 
+
+
+  // ─── TAX ENGINE ──────────────────────────────────────────────────────
+  taxJurisdictions: defineTable({
+    companyId: v.optional(v.id("cannabisCompanies")), // null = system-wide (admin-managed)
+    stateCode: v.string(),
+    jurisdictionName: v.string(),
+    jurisdictionLevel: v.union(v.literal("state"), v.literal("county"), v.literal("city"), v.literal("special")),
+    filingFrequency: v.union(v.literal("monthly"), v.literal("quarterly"), v.literal("annually")),
+    nexusThreshold: v.optional(v.number()), // dollar threshold for nexus
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_company", ["companyId"]).index("by_state_code", ["stateCode"]).index("by_jurisdiction_level", ["jurisdictionLevel"]),
+
+  taxTypes: defineTable({
+    code: v.string(), // "excise", "sales", "income"
+    name: v.string(),
+    description: v.optional(v.string()),
+    calculationBasis: v.union(v.literal("percentage"), v.literal("fixed")),
+    appliesToProductCategories: v.array(v.string()), // ["*"] or ["flower", "concentrate", ...]
+    isIncludedInPrice: v.boolean(), // false = added at checkout
+  }).index("by_code", ["code"]),
+
+  taxRates: defineTable({
+    jurisdictionId: v.id("taxJurisdictions"),
+    taxTypeId: v.id("taxTypes"),
+    rate: v.number(),
+    rateType: v.union(v.literal("percentage"), v.literal("fixed_amount")),
+    effectiveFrom: v.number(),
+    effectiveTo: v.optional(v.number()),
+    productCategoryFilter: v.optional(v.string()),
+    notes: v.optional(v.string()),
+  }).index("by_jurisdiction", ["jurisdictionId"]).index("by_tax_type", ["taxTypeId"]).index("by_effective_dates", ["effectiveFrom", "effectiveTo"]),
+
+  taxCalculations: defineTable({
+    companyId: v.id("cannabisCompanies"),
+    transactionId: v.optional(v.id("transactions")),
+    journalEntryId: v.optional(v.id("transactions")),
+    jurisdictionId: v.id("taxJurisdictions"),
+    taxTypeId: v.id("taxTypes"),
+    taxableAmount: v.number(),
+    taxAmount: v.number(),
+    calculationMethod: v.string(), // "manual_rate"
+    calculatedAt: v.number(),
+    periodStart: v.number(),
+    periodEnd: v.number(),
+    isPosted: v.boolean(),
+    postedAt: v.optional(v.number()),
+  }).index("by_company", ["companyId"]).index("by_transaction", ["transactionId"]).index("by_period", ["periodStart", "periodEnd"]),
   taxFilings: defineTable({
     companyId: v.id("cannabisCompanies"),
     taxProfileId: v.id("taxProfiles"),

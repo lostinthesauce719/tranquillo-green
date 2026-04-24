@@ -121,6 +121,14 @@ export const createCompany = mutationGeneric({
     const identity = await requireIdentity(ctx);
     const clerkId = identity.subject;
 
+    // Validate arrays are non-empty
+    if (!args.operatorTypes?.length) {
+      throw new Error("At least one operator type must be selected.");
+    }
+    if (!args.accountingMethods?.length) {
+      throw new Error("At least one accounting method must be selected.");
+    }
+
     // Derive primary operator and additional types
     const primaryOperatorType = args.operatorTypes[0];
     const additionalOperatorTypes = args.operatorTypes.slice(1);

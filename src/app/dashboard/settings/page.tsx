@@ -8,6 +8,9 @@ import { AppShell } from "@/components/shell/app-shell";
 import { californiaOperatorDemo } from "@/lib/demo/accounting";
 import { LocationManager } from "@/components/shell/location-manager";
 import { MetrcConnectPanel } from "@/components/metrc/metrc-connect-panel";
+import { TaxSettingsPanel } from "@/components/accounting/tax-settings-panel";
+import { TaxRateTable } from "@/components/accounting/tax-rate-table";
+import { TaxLiabilityDashboard } from "@/components/accounting/tax-liability-dashboard";
 
 const OPERATOR_TYPES = [
   { value: "dispensary", label: "Dispensary" },
@@ -463,6 +466,18 @@ export default function SettingsPage() {
 
         {/* Operations — multi-profile */}
         <OperationsPanel />
+
+        {/* Tax Configuration */}
+        <TaxSettingsPanel className="mb-8" />
+
+
+        {/* Tax Rates Admin (owner/controller only) */}
+        {canEdit && (
+          <TaxRateTable className="mb-8" />
+        )}
+
+        {/* Tax Liability Overview */}
+        <TaxLiabilityDashboard className="mb-8" />
 
         {/* Integration Status */}
         <section className="rounded-2xl border border-border bg-surface-mid p-5">
