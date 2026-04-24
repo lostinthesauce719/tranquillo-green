@@ -29,6 +29,7 @@ export default defineSchema({
       v.literal("vertical"),
     )),
     defaultAccountingMethod: v.union(v.literal("cash"), v.literal("accrual")),
+    accountingMethods: v.optional(v.array(v.union(v.literal("cash"), v.literal("accrual")))),
     status: v.union(v.literal("onboarding"), v.literal("active"), v.literal("inactive")),
   }).index("by_slug", ["slug"]),
 
