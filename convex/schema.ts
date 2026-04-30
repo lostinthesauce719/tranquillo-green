@@ -6,7 +6,8 @@ export default defineSchema({
     name: v.string(),
     slug: v.string(),
     timezone: v.string(),
-    states: v.array(v.string()),
+    state: v.optional(v.string()),
+    states: v.optional(v.array(v.string())),
     operatorType: v.union(
       v.literal("dispensary"),
       v.literal("cultivator"),
@@ -250,7 +251,7 @@ export default defineSchema({
     state: v.string(),
     primaryJurisdictionId: v.optional(v.id("taxJurisdictions")), // state-level jurisdiction
     nexusStates: v.array(v.string()), // ["CO", "CA"] — states where company has nexus
-    filingCalendar: v.record(v.string()), // e.g. { "CO-excise": "monthly", "CO-sales": "monthly" }
+    filingCalendar: v.record(v.string(), v.string()), // e.g. { "CO-excise": "monthly", "CO-sales": "monthly" }
     taxTypesEnabled: v.array(v.id("taxTypes")), // which tax types this company collects
     isPrimary: v.boolean(),
   }).index("by_company", ["companyId"]),

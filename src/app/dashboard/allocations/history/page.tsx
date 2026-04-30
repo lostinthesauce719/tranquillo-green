@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AllocationOverrideHistoryWorkspace } from "@/components/accounting/allocation-override-history-workspace";
 import { AppShell } from "@/components/shell/app-shell";
 import { MetricCard } from "@/components/ui/metric-card";
+import { AiAssistant } from "@/components/ai/ai-assistant";
 import { demoAllocationReviewQueue, summarizeAllocationHistory } from "@/lib/demo/accounting-operations";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", {
@@ -12,11 +13,6 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
 
 export default function AllocationHistoryPage() {
   const summary = summarizeAllocationHistory(demoAllocationReviewQueue);
-  const supportGapCount = demoAllocationReviewQueue.reduce(
-    (sum, item) => sum + item.supportLinks.filter((link) => link.status === "missing").length,
-    0,
-  );
-  const similarDecisionCount = demoAllocationReviewQueue.reduce((sum, item) => sum + item.similarDecisions.length, 0);
 
   return (
     <AppShell
@@ -26,8 +22,8 @@ export default function AllocationHistoryPage() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Items with history" value={String(summary.itemCount)} detail="Recommendation, override, and approval events preserved" />
         <MetricCard label="Manual overrides" value={String(summary.overrideCount)} detail="Events where deductible treatment changed after review" />
-        <MetricCard label="Support gaps preserved" value={String(supportGapCount)} detail={`${summary.supportRequestCount} support request events remain in audit trail`} />
-        <MetricCard label="Prior comparables surfaced" value={String(similarDecisionCount)} detail={`${summary.policyExceptionCount} controller memo-backed exception decisions`} />
+        <MetricCard label="Policy exceptions" value={String(summary.policyExceptionCount)} detail="Controller memo-backed exception decisions" />
+        <MetricCard label="Deductible shift tracked" value={currencyFormatter.format(summary.totalShiftAmount)} detail={`${summary.supportRequestCount} support request events remain in audit trail`} />
       </div>
 
       <div className="mt-6 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
@@ -52,6 +48,9 @@ export default function AllocationHistoryPage() {
             <Link href="/dashboard/exports" className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-4 py-3 text-sm text-violet-100 transition hover:bg-violet-500/20">
               Open CPA export center
             </Link>
+            <Link href="/dashboard/allocations/policies" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
+              Manage policies
+            </Link>
           </div>
         </section>
       </div>
@@ -59,6 +58,8 @@ export default function AllocationHistoryPage() {
       <div className="mt-6">
         <AllocationOverrideHistoryWorkspace items={demoAllocationReviewQueue} />
       </div>
+
+      <AiAssistant pageContext="/dashboard/allocations/history" />
     </AppShell>
   );
 }

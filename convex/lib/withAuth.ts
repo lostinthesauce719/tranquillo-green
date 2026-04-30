@@ -189,3 +189,21 @@ export async function resolveCompanyFromIdentityClaims(
   // For now, return null (no automatic company assignment).
   return null;
 }
+
+
+export async function requireTenantRecordForTransaction(
+  ctx: AuthenticatedContext,
+  identity: Identity,
+  transactionId: string
+) {
+  const transaction = await ctx.db.get(transactionId);
+  if (!transaction) {
+    throw new Error("Transaction not found.");
+  }
+  const user = await getUserByClerkId(ctx, identity.subject);
+  if (!user || user.companyId !== transaction.companyId) {
+    throw new Error("Unauthorized: Transaction does not belong to your company.");
+  }
+  return transaction;
+}
+
