@@ -3,6 +3,11 @@
 import { AppShell } from "@/components/shell/app-shell";
 import { MetricCard } from "@/components/ui/metric-card";
 import type { InventoryProduct, InventoryBatch, InventoryMovement } from "@/lib/data/inventory";
+import { useTenant } from "@/lib/auth/tenant-context";
+import { useRouter } from "next/navigation";
+import { connectMetrc, getMetrcStatus, syncMetrc } from "@/app/api/metrc/actions";
+import type { MetrcSyncResult } from "@/lib/integrations/metrc-client";
+import { useEffect, useState } from "react";
 
 const movementTypeColor: Record<string, string> = {
   receive: "bg-emerald-500/20 text-emerald-300",
@@ -37,6 +42,53 @@ type Props = {
 };
 
 export default function InventoryClient({ source, products, batches, movements, stats }: Props) {
+  const router = useRouter();
+  const { companyId } = useTenant();
+  const [metrcStatus, setMetrcStatus] = useState<"connected" | "disconnected" | "error" | null>(null);
+  const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [syncResult, setSyncResult] = useState<MetrcSyncResult | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
+
+  // Load Metrc connection status on mount (only when using Convex data)
+  useEffect(() => {
+    if (source === "convex" && companyId) {
+      (async () => {
+        try {
+          const status = await getMetrcStatus({ companyId });
+          if (status.connected) {
+            setMetrcStatus("connected");
+            if (status.lastSync) setLastSync(new Date(status.lastSync));
+          } else {
+            setMetrcStatus("disconnected");
+          }
+        } catch (e) {
+          setMetrcStatus("error");
+          setStatusError((e as Error).message);
+        }
+      })();
+    }
+  }, [source, companyId]);
+
+  // Handler: sync from Metrc
+  async function handleMetrcSync() {
+    if (!companyId || metrcStatus !== "connected") return;
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const result = await syncMetrc({ companyId });
+      setSyncResult(result);
+      if (result.success) {
+        setLastSync(new Date());
+        // Refresh server data to show newly synced inventory
+        router.refresh();
+      }
+    } catch (e: any) {
+      setSyncResult({ success: false, source: "demo", packages: 0, movements: 0, discrepancies: [], details: [], error: e.message });
+    } finally {
+      setSyncing(false);
+    }
+  }
   const sourceLabel =
     source === "convex" ? "Live Convex data" : "Static demo definitions";
 
@@ -49,19 +101,108 @@ export default function InventoryClient({ source, products, batches, movements, 
           : "Seed-to-sale inventory tracking with batch-level cost basis. Connect Convex to enable live data."
       }
     >
-      {/* Metrc Coming Soon Badge */}
-      <div className="mb-6 flex items-center justify-between rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-5 py-4">
-        <div>
-          <div className="text-sm font-medium text-text-primary">Metrc Integration</div>
-          <div className="mt-1 text-xs text-text-muted">
-            Bi-directional sync with California Metrc for package tags, lab results, and state reporting.
+      {/* Metrc Integration Panel */}
+      {source === "convex" && companyId ? (
+        <div className="mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-5">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <div className="text-sm font-semibold text-emerald-300">Metrc Integration</div>
+                {metrcStatus === "connected" && (
+                  <span className="rounded-full border border-emerald-500/30 bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-300">
+                    Connected
+                  </span>
+                )}
+                {metrcStatus === "disconnected" && (
+                  <span className="rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-rose-300">
+                    Disconnected
+                  </span>
+                )}
+                {metrcStatus === "error" && (
+                  <span className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-300">
+                    Error
+                  </span>
+                )}
+              </div>
+              <div className="mt-1 text-xs text-text-muted">
+                Bi-directional sync with California Metrc for package tags, lab results, and state reporting.
+              </div>
+              {metrcStatus === "connected" && lastSync && (
+                <div className="mt-2 text-xs text-text-faint">
+                  Last sync: {lastSync.toLocaleString()}
+                </div>
+              )}
+              {statusError && (
+                <div className="mt-2 text-xs text-rose-300">Error: {statusError}</div>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {metrcStatus === "connected" ? (
+                <button
+                  onClick={handleMetrcSync}
+                  disabled={syncing}
+                  className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100 hover:bg-emerald-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {syncing ? "Syncing…" : "Sync Now"}
+                </button>
+              ) : (
+                <a
+                  href="/dashboard/settings"
+                  className="rounded-xl border border-border bg-background px-3 py-2 text-sm text-text-muted hover:bg-surface-raised transition-colors"
+                >
+                  Connect in Settings
+                </a>
+              )}
+            </div>
           </div>
-        </div>
-        <span className="rounded-full border border-emerald-500/30 bg-emerald-500/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-300">
-          Coming Soon
-        </span>
-      </div>
 
+          {/* Sync result summary */}
+          {syncResult && (
+            <div className="mt-4 rounded-lg border border-border bg-surface p-3 text-xs">
+              <div className="flex items-center gap-2">
+                <span className={syncResult.success ? "text-emerald-300" : "text-rose-300"}>{syncResult.success ? "✓ Sync completed" : "✗ Sync failed"}</span>
+                {syncResult.success && (
+                  <>
+                    <span className="text-text-muted">•</span>
+                    <span className="text-text-muted">{syncResult.packages} packages</span>
+                    <span className="text-text-muted">•</span>
+                    <span className="text-text-muted">{syncResult.movements} movements</span>
+                    {syncResult.discrepancies.length > 0 && (
+                      <>
+                        <span className="text-text-muted">•</span>
+                        <span className="text-amber-300">{syncResult.discrepancies.length} discrepancies</span>
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+              {syncResult.error && <div className="mt-2 text-rose-200">{syncResult.error}</div>}
+              {syncResult.details && syncResult.details.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {syncResult.details.map((d, i) => (
+                    <div key={i} className="text-text-muted">• {d}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="mb-6 flex items-center justify-between rounded-2xl border border-emerald-500/20 bg-emerald-500/5 px-5 py-4">
+          <div>
+            <div className="text-sm font-medium text-text-primary">Metrc Integration</div>
+            <div className="mt-1 text-xs text-text-muted">
+              Bi-directional sync with California Metrc for package tags, lab results, and state reporting.
+            </div>
+          </div>
+          <a
+            href="/dashboard/settings"
+            className="rounded-full border border-emerald-500/30 bg-emerald-500/20 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-emerald-300"
+          >
+            Connect
+          </a>
+        </div>
+      )}
       {/* Summary Metric Cards */}
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Active Products" value={String(products.filter((p) => p.active).length)} detail={`${products.filter((p) => p.category === "flower").length} flower SKUs · ${sourceLabel}`} />
