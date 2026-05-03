@@ -21,17 +21,24 @@ export default defineSchema({
       v.literal("cultivator"),
       v.literal("manufacturer"),
       v.literal("distributor"),
+      v.literal("delivery"),
+      v.literal("vertical"),
     ))),
     primaryOperatorType: v.optional(v.union(
       v.literal("dispensary"),
       v.literal("cultivator"),
       v.literal("manufacturer"),
       v.literal("distributor"),
+      v.literal("delivery"),
       v.literal("vertical"),
     )),
     defaultAccountingMethod: v.union(v.literal("cash"), v.literal("accrual")),
     accountingMethods: v.optional(v.array(v.union(v.literal("cash"), v.literal("accrual")))),
     status: v.union(v.literal("onboarding"), v.literal("active"), v.literal("inactive")),
+    // Sandbox trial mode fields
+    sandboxMode: v.optional(v.boolean()),
+    sandboxExpiresAt: v.optional(v.number()),
+    sandboxCreatedAt: v.optional(v.number()),
   }).index("by_slug", ["slug"]),
 
   cannabisLocations: defineTable({
@@ -170,7 +177,9 @@ export default defineSchema({
     quantityOnHand: v.number(),
     costBasis: v.optional(v.number()),
     source: v.union(v.literal("csv_import"), v.literal("metrc_import"), v.literal("manual")),
-  }).index("by_company", ["companyId"]).index("by_packageTag", ["packageTag"]),
+    mergedFrom: v.optional(v.array(v.id("inventoryBatches"))),
+    lastMergedAt: v.optional(v.number()),
+  }).index("by_company", ["companyId"]).index("by_packageTag", ["packageTag"]).index("by_company_packageTag", ["companyId", "packageTag"]),
 
   inventoryMovements: defineTable({
     companyId: v.id("cannabisCompanies"),
@@ -250,9 +259,9 @@ export default defineSchema({
     companyId: v.id("cannabisCompanies"),
     state: v.string(),
     primaryJurisdictionId: v.optional(v.id("taxJurisdictions")), // state-level jurisdiction
-    nexusStates: v.array(v.string()), // ["CO", "CA"] — states where company has nexus
-    filingCalendar: v.record(v.string(), v.string()), // e.g. { "CO-excise": "monthly", "CO-sales": "monthly" }
-    taxTypesEnabled: v.array(v.id("taxTypes")), // which tax types this company collects
+    nexusStates: v.optional(v.array(v.string())), // ["CO", "CA"] — states where company has nexus
+    filingCalendar: v.optional(v.record(v.string(), v.string())), // e.g. {"CO-excise": "monthly", "CO-sales": "monthly"}
+    taxTypesEnabled: v.optional(v.array(v.id("taxTypes"))), // which tax types this company collects
     isPrimary: v.boolean(),
   }).index("by_company", ["companyId"]),
 
@@ -322,7 +331,11 @@ export default defineSchema({
     title: v.string(),
     body: v.string(),
     resolvedAt: v.optional(v.number()),
-  }).index("by_company", ["companyId"]),
+    // NEW: source tracking for deduplication and traceability
+    sourceType: v.optional(v.string()),
+    sourceId: v.optional(v.string()),
+    dueAt: v.optional(v.number()),
+  }).index("by_company", ["companyId"]).index("by_company_dueAt", ["companyId", "dueAt"]).index("by_company_resolvedAt", ["companyId", "resolvedAt"]),
 
   complianceDocuments: defineTable({
     companyId: v.id("cannabisCompanies"),
@@ -574,12 +587,16 @@ export default defineSchema({
 
   integrationConfigs: defineTable({
     companyId: v.id("cannabisCompanies"),
-    provider: v.union(v.literal("quickbooks"), v.literal("metrc"), v.literal("dutchie")),
+    provider: v.union(v.literal("quickbooks"), v.literal("metrc"), v.literal("dutchie"), v.literal("square"), v.literal("toast"), v.literal("treez")),
     realmId: v.optional(v.string()),
     accessToken: v.string(),
     refreshToken: v.string(),
     accessTokenExpiresAt: v.number(),
     refreshTokenExpiresAt: v.number(),
+    apiSecret: v.optional(v.string()),
+    // POS-specific IDs
+    posLocationId: v.optional(v.string()),
+    restaurantId: v.optional(v.string()),
     // Metrc-specific fields (optional — null for QBO)
     integratorKey: v.optional(v.string()),
     userKey: v.optional(v.string()),

@@ -25,6 +25,7 @@ import type * as exportPackets from "../exportPackets.js";
 import type * as importJobs from "../importJobs.js";
 import type * as integrationConfigs from "../integrationConfigs.js";
 import type * as inventory from "../inventory.js";
+import type * as inventoryImport from "../inventoryImport.js";
 import type * as laborAndCogs from "../laborAndCogs.js";
 import type * as lib_withAuth from "../lib/withAuth.js";
 import type * as locations from "../locations.js";
@@ -60,6 +61,7 @@ declare const fullApi: ApiFromModules<{
   importJobs: typeof importJobs;
   integrationConfigs: typeof integrationConfigs;
   inventory: typeof inventory;
+  inventoryImport: typeof inventoryImport;
   laborAndCogs: typeof laborAndCogs;
   "lib/withAuth": typeof lib_withAuth;
   locations: typeof locations;

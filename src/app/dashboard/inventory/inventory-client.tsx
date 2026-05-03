@@ -6,8 +6,13 @@ import type { InventoryProduct, InventoryBatch, InventoryMovement } from "@/lib/
 import { useTenant } from "@/lib/auth/tenant-context";
 import { useRouter } from "next/navigation";
 import { connectMetrc, getMetrcStatus, syncMetrc } from "@/app/api/metrc/actions";
+
+import { parseCSV } from "@/lib/csv/parse";
+import { UploadCloud, FileText, Loader2 } from "lucide-react";
+
+import { importInventoryCsv } from "@/app/api/inventory/import/actions";
 import type { MetrcSyncResult } from "@/lib/integrations/metrc-client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 const movementTypeColor: Record<string, string> = {
   receive: "bg-emerald-500/20 text-emerald-300",
@@ -49,6 +54,16 @@ export default function InventoryClient({ source, products, batches, movements, 
   const [syncResult, setSyncResult] = useState<MetrcSyncResult | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
+  // CSV import state
+  const csvDataRef = useRef<{ headers: string[]; rows: Record<string, string>[] } | null>(null);
+  const csvInputRef = useRef<HTMLInputElement>(null);
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [csvStatus, setCsvStatus] = useState<"idle" | "parsing" | "ready" | "importing" | "done">("idle");
+  const [csvError, setCsvError] = useState<string | null>(null);
+  const [csvPreview, setCsvPreview] = useState<{ headers: string[]; rows: Record<string, string>[] } | null>(null);
+  const [importResults, setImportResults] = useState<Array<{ rowIdx: number; success: boolean; message: string }> | null>(null);
+
+
 
   // Load Metrc connection status on mount (only when using Convex data)
   useEffect(() => {
@@ -91,6 +106,89 @@ export default function InventoryClient({ source, products, batches, movements, 
   }
   const sourceLabel =
     source === "convex" ? "Live Convex data" : "Static demo definitions";
+
+
+  // ── CSV import handlers ──
+  const handleCsvFileChange = (file: File) => {
+    setCsvFile(file);
+    setCsvStatus("parsing");
+    setCsvError(null);
+    setCsvPreview(null);
+    setImportResults(null);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const { headers, rows } = parseCSV(text);
+        if (headers.length === 0) throw new Error("No headers found in CSV");
+        if (rows.length === 0) throw new Error("CSV contains no data rows");
+        csvFileRef.current = { headers, rows };
+        setCsvPreview({ headers, rows: rows.slice(0, 5) });
+        setCsvStatus("ready");
+      } catch (err: any) {
+        setCsvError(err.message ?? "Failed to parse CSV");
+        setCsvStatus("error");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const handleCsvDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    const dropped = e.dataTransfer.files[0];
+    if (dropped) handleCsvFileChange(dropped);
+  };
+
+  const handleCsvImport = async () => {
+    if (!csvFileRef.current || !companyId) return;
+    setCsvStatus("importing");
+    setImportResults(null);
+    try {
+      const { headers } = csvFileRef.current;
+      const rows = csvFileRef.current.rows;
+
+      // Build column-to-field mapping
+      const headerToField: Record<string, string> = {};
+      for (const h of headers) {
+        const norm = h.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+        if (/sku/.test(norm)) headerToField[h] = "sku";
+        else if (/(product|name)/.test(norm)) headerToField[h] = "productName";
+        else if (/(qty|quantity)/.test(norm)) headerToField[h] = "quantity";
+        else if (/(unit_cost|unitcost|cost)/.test(norm)) headerToField[h] = "unitCost";
+        else if (/(package|tag)/.test(norm)) headerToField[h] = "packageTag";
+        else if (/(location)/.test(norm)) headerToField[h] = "locationName";
+        else if (/(category)/.test(norm)) headerToField[h] = "category";
+        else if (/(uom|unit_measure)/.test(norm)) headerToField[h] = "unitOfMeasure";
+      }
+
+      const mappedRows: Array<{
+        productName: string;
+        sku: string;
+        packageTag?: string;
+        quantity: number;
+        unitCost: number;
+        category?: string;
+        unitOfMeasure?: string;
+        locationName?: string;
+      }> = [];
+
+      for (const row of rows) {
+        const mapped: any = {};
+        for (const [col, field] of Object.entries(headerToField)) {
+          mapped[field] = row[col]?.trim() ?? "";
+        }
+        mappedRows.push(mapped as any);
+      }
+
+      const results = await importInventoryCsv({ companyId, rows: mappedRows });
+      setImportResults(results);
+      setCsvStatus("done");
+      router.refresh();
+    } catch (err: any) {
+      setCsvError(err.message ?? "Import failed");
+      setCsvStatus("error");
+    }
+  };
 
   return (
     <AppShell
@@ -210,6 +308,105 @@ export default function InventoryClient({ source, products, batches, movements, 
         <MetricCard label="Total Units On Hand" value={stats.totalUnitsOnHand.toLocaleString()} detail={`Across ${stats.activeBatches} tracked batches`} />
         <MetricCard label="Inventory Value" value={formatCurrency(stats.totalInventoryValue)} detail="Cost basis-weighted valuation" />
       </div>
+
+
+      {/* ─── CSV Inventory Import ─── */}
+      {source === "convex" && companyId && csvStatus !== "idle" && (
+        <div className="mb-8 rounded-lg border border-border bg-surface p-4">
+          <h3 className="mb-2 text-sm font-semibold text-white">Inventory CSV Import</h3>
+
+          {csvStatus === "idle" && (
+            <div
+              className="mb-4 flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-border p-6 text-center hover:bg-surface-raised/50 cursor-pointer"
+              onDragOver={(e) => { e.preventDefault(); setCsvStatus("dragging"); }}
+              onDragLeave={(e) => { e.preventDefault(); setCsvStatus("idle"); }}
+              onDrop={handleCsvDrop}
+              onClick={() => csvInputRef.current?.click()}
+            >
+              <UploadCloud className="mb-2 h-6 w-6 text-text-muted" />
+              <p className="text-sm text-text-muted">Drag CSV here or click to upload</p>
+              <input
+                type="file"
+                accept=".csv"
+                className="hidden"
+                ref={csvInputRef}
+                onChange={handleCsvFileChange}
+              />
+            </div>
+          )}
+
+          {csvStatus === "parsing" && (
+            <div className="py-4 text-center text-sm text-text-muted">Parsing CSV…</div>
+          )}
+
+          {csvError && csvStatus !== "parsing" && (
+            <div className="py-2 text-center text-sm text-rose-300">{csvError}</div>
+          )}
+
+          {csvPreview && (
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-sm text-text-muted">Preview — {csvPreview.rows.length} rows</span>
+                <button
+                  onClick={handleCsvImport}
+                  disabled={csvStatus === "importing"}
+                  className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-100 hover:bg-emerald-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {csvStatus === "importing" ? (
+                    <><Loader2 className="mr-2 inline h-4 w-4 animate-spin" /> Importing…</>
+                  ) : (
+                    "Import to Inventory"
+                  )}
+                </button>
+              </div>
+
+              <div className="overflow-x-auto rounded-lg border border-border">
+                <table className="w-full border-collapse text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-surface-hover/30">
+                      {csvPreview.headers.map((h, idx) => (
+                        <th key={idx} className="px-2 py-1 text-left font-medium text-text-muted">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {csvPreview.rows.slice(0, 5).map((row, rIdx) => (
+                      <tr key={rIdx} className="border-b border-border/50">
+                        {csvPreview.headers.map((h, cIdx) => (
+                          <td key={cIdx} className="px-2 py-1 text-white">
+                            {row[h] ?? ""}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {csvPreview.rows.length > 5 && (
+                <div className="mt-1 text-xs text-text-muted">Showing first 5 rows</div>
+              )}
+            </div>
+          )}
+
+          {importResults && (
+            <div className="mt-4">
+              <div className="mb-2 font-semibold text-white">Import Summary</div>
+              <ul className="space-y-1">
+                {importResults.map((r) => (
+                  <li
+                    key={r.rowIdx}
+                    className={r.success ? "text-emerald-300" : "text-rose-300"}
+                  >
+                    Row {r.rowIdx + 1}: {r.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Inventory Batches Table */}
       <div className="mt-6 rounded-2xl border border-border bg-surface-mid p-5">
