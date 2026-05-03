@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useTenant } from "@/lib/auth/tenant-context";
 
-type TaxRate = any; // TODO: proper types
+interface TaxRate {
   _id: string;
   jurisdictionId: string;
   jurisdictionName?: string;

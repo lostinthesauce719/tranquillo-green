@@ -59,7 +59,7 @@ export default function AllocationHistoryPage() {
         <AllocationOverrideHistoryWorkspace items={demoAllocationReviewQueue} />
       </div>
 
-      <AiAssistant pageContext="/dashboard/allocations/history" />
+      <AiAssistant />
     </AppShell>
   );
 }

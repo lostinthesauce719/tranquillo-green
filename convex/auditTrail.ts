@@ -1,10 +1,10 @@
-import { mutationGeneric, queryGeneric } from "convex/server";
+import { authMutation, authQuery } from "./lib/withAuth";
 import { v } from "convex/values";
 import { requireCurrentUserRecord } from "./lib/withAuth";
 
 // ─── AUDIT TRAIL EVENTS ───────────────────────────────────────────────
 
-export const recordEvent = mutationGeneric({
+export const recordEvent = authMutation({
   args: {
     companyId: v.id("cannabisCompanies"),
     entityType: v.union(
@@ -52,7 +52,7 @@ export const recordEvent = mutationGeneric({
   },
 });
 
-export const getEventsByEntity = queryGeneric({
+export const getEventsByEntity = authQuery({
   args: {
     companyId: v.id("cannabisCompanies"),
     entityType: v.union(
@@ -77,7 +77,7 @@ export const getEventsByEntity = queryGeneric({
   },
 });
 
-export const getRecentEvents = queryGeneric({
+export const getRecentEvents = authQuery({
   args: {
     companyId: v.id("cannabisCompanies"),
     limit: v.optional(v.number()),
@@ -91,7 +91,7 @@ export const getRecentEvents = queryGeneric({
   },
 });
 
-export const getEventsByCompany = queryGeneric({
+export const getEventsByCompany = authQuery({
   args: { companyId: v.id("cannabisCompanies") },
   handler: async (ctx: any, args: any) => {
     return await ctx.db
@@ -104,7 +104,7 @@ export const getEventsByCompany = queryGeneric({
 
 // ─── OVERRIDE DECISIONS ────────────────────────────────────────────────
 
-export const recordOverride = mutationGeneric({
+export const recordOverride = authMutation({
   args: {
     companyId: v.id("cannabisCompanies"),
     allocationId: v.optional(v.id("cogsAllocations")),
@@ -183,7 +183,7 @@ export const recordOverride = mutationGeneric({
   },
 });
 
-export const getOverridesByAllocation = queryGeneric({
+export const getOverridesByAllocation = authQuery({
   args: {
     companyId: v.id("cannabisCompanies"),
     allocationId: v.id("cogsAllocations"),
@@ -199,7 +199,7 @@ export const getOverridesByAllocation = queryGeneric({
   },
 });
 
-export const getRecentOverrides = queryGeneric({
+export const getRecentOverrides = authQuery({
   args: {
     companyId: v.id("cannabisCompanies"),
     limit: v.optional(v.number()),
@@ -213,7 +213,7 @@ export const getRecentOverrides = queryGeneric({
   },
 });
 
-export const getOverridesByCompany = queryGeneric({
+export const getOverridesByCompany = authQuery({
   args: { companyId: v.id("cannabisCompanies") },
   handler: async (ctx: any, args: any) => {
     return await ctx.db
@@ -226,7 +226,7 @@ export const getOverridesByCompany = queryGeneric({
 
 // ─── PACKET GENERATION RECORDS ─────────────────────────────────────────
 
-export const recordPacketGeneration = mutationGeneric({
+export const recordPacketGeneration = authMutation({
   args: {
     companyId: v.id("cannabisCompanies"),
     periodId: v.optional(v.id("reportingPeriods")),
@@ -293,7 +293,7 @@ export const recordPacketGeneration = mutationGeneric({
   },
 });
 
-export const getPacketRecordsByBundle = queryGeneric({
+export const getPacketRecordsByBundle = authQuery({
   args: {
     companyId: v.id("cannabisCompanies"),
     bundleId: v.string(),
@@ -309,7 +309,7 @@ export const getPacketRecordsByBundle = queryGeneric({
   },
 });
 
-export const getRecentPacketRecords = queryGeneric({
+export const getRecentPacketRecords = authQuery({
   args: {
     companyId: v.id("cannabisCompanies"),
     limit: v.optional(v.number()),
@@ -323,7 +323,7 @@ export const getRecentPacketRecords = queryGeneric({
   },
 });
 
-export const getPacketRecordsByCompany = queryGeneric({
+export const getPacketRecordsByCompany = authQuery({
   args: { companyId: v.id("cannabisCompanies") },
   handler: async (ctx: any, args: any) => {
     return await ctx.db

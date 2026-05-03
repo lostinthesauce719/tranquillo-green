@@ -3,6 +3,25 @@
 import { useState, useEffect } from "react";
 import { useTenant } from "@/lib/auth/tenant-context";
 // Types inlined for MVP
+interface TaxType {
+  _id: string;
+  name: string;
+  code: string;
+}
+
+interface TaxJurisdiction {
+  _id: string;
+  jurisdictionName: string;
+  jurisdictionLevel: string;
+}
+
+interface TaxProfile {
+  primaryJurisdictionId?: string | null;
+  nexusStates?: string[];
+  taxTypesEnabled?: string[];
+  filingCalendar?: Record<string, string>;
+}
+
 
 interface TaxSettingsPanelProps {
   className?: string;

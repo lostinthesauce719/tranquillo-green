@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useTenant } from "@/lib/auth/tenant-context";
 
-type TaxLiabilityDashboardProps = any;
+interface TaxLiabilityDashboardProps {
   className?: string;
 }
 

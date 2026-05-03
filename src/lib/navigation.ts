@@ -25,9 +25,22 @@ export const moduleLinks: NavLink[] = [
   { href: "/dashboard/allocations/support-schedule", label: "280E Support Schedule", section: "Workflows" },
 
   // Operations — some are operator-specific
-  { href: "/dashboard/inventory", label: "Inventory", section: "Operations", operators: ["cultivator", "manufacturer", "vertical", "distributor", "delivery"] },
+  {
+    href: "/dashboard/inventory",
+    label: "Inventory",
+    section: "Operations",
+    operators: ["cultivator", "manufacturer", "vertical", "distributor", "delivery"],
+  },
+  {
+    href: "/dashboard/batches",
+    label: "Batches",
+    section: "Operations",
+    operators: ["cultivator", "manufacturer", "vertical", "distributor", "delivery"],
+  },
   { href: "/dashboard/compliance", label: "Compliance", section: "Operations" },
   { href: "/dashboard/reconciliations", label: "Reconciliations", section: "Operations" },
+
+  { href: "/dashboard/pos", label: "Point of Sale", section: "Operations", operators: ["dispensary", "delivery", "vertical"] },
 
   // Handoff
   { href: "/dashboard/exports", label: "CPA Export Center", section: "Handoff" },

@@ -162,7 +162,7 @@ export function AppShell({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const visibleLinks = tenant
-    ? filterLinksByOperator(moduleLinks, tenant.operatorType).filter((l) => canAccess(role, l.href))
+    ? filterLinksByOperator(moduleLinks, tenant.operatorType ?? "vertical").filter((l) => canAccess(role, l.href))
     : moduleLinks;
 
   const sections = groupBySection(visibleLinks);

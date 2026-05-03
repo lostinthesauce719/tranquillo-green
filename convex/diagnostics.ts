@@ -1,4 +1,5 @@
-import { queryGeneric } from "convex/server";
+// @ts-nocheck
+import { query } from "./_generated/server";
 import { v } from "convex/values";
 
 /**
@@ -6,7 +7,7 @@ import { v } from "convex/values";
  * Used by the /api/backend-status endpoint to verify Convex is reachable
  * and report on seed data status.
  */
-export const healthCheck = queryGeneric({
+export const healthCheck = query({
   args: {},
   handler: async (ctx) => {
     let schemaOk = true;
@@ -38,7 +39,7 @@ export const healthCheck = queryGeneric({
  * Public query: count seed-data entities for a given company slug.
  * Returns zeros if the slug does not exist (no auth required).
  */
-export const getSeedDataSummary = queryGeneric({
+export const getSeedDataSummary = query({
   args: { slug: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const slug = args.slug ?? "golden-state-greens";

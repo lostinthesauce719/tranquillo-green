@@ -8,11 +8,11 @@ import { getOperatorProfile, getCogsCategories, getNondeductibleCategories, getR
 
 export default function SupportSchedulePage() {
   const tenant = useTenant();
-  const profile = getOperatorProfile(tenant.operatorType);
-  const cogsCategories = getCogsCategories(tenant.operatorType);
-  const nondeductibleCategories = getNondeductibleCategories(tenant.operatorType);
-  const reclassifiable471c = getReclassifiable471cCosts(tenant.operatorType);
-  const fullyNondeductible = getFullyNondeductibleCosts(tenant.operatorType);
+  const profile = getOperatorProfile(tenant.operatorType ?? "vertical");
+  const cogsCategories = getCogsCategories(tenant.operatorType ?? "vertical");
+  const nondeductibleCategories = getNondeductibleCategories(tenant.operatorType ?? "vertical");
+  const reclassifiable471c = getReclassifiable471cCosts(tenant.operatorType ?? "vertical");
+  const fullyNondeductible = getFullyNondeductibleCosts(tenant.operatorType ?? "vertical");
 
   return (
     <AppShell

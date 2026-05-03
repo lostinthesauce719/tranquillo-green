@@ -3,6 +3,8 @@ import "server-only";
 import { auth } from "@clerk/nextjs/server";
 import { ConvexHttpClient } from "convex/browser";
 import { anyApi } from "convex/server";
+import fs from "fs";
+import { homedir } from "os";
 
 const CONVEX_JWT_TEMPLATE = process.env.CLERK_CONVEX_JWT_TEMPLATE?.trim() || "convex";
 
@@ -51,12 +53,31 @@ export async function getAuthenticatedConvexClient(): Promise<ConvexHttpClient |
   }
 
   const token = await getClerkConvexToken();
-  if (!token) {
-    return null;
+  if (token) {
+    client.setAuth(token);
+    return client;
   }
 
-  client.setAuth(token);
-  return client;
+  // No Clerk token — fall back to Convex CLI server token for server-side actions
+  // Priority: CONVEX_SERVER_KEY env, then ~/.convex/config.json accessToken (CLI auth)
+  let serverToken = process.env.CONVEX_SERVER_KEY;
+  if (!serverToken) {
+    try {
+      const homedirPath = homedir();
+      const configPath = `${homedirPath}/.convex/config.json`;
+      const raw = await fs.promises.readFile(configPath, "utf-8");
+      const cfg = JSON.parse(raw);
+      serverToken = cfg?.accessToken;
+    } catch (e) {
+      // ignore
+    }
+  }
+  if (serverToken) {
+    client.setAuth(serverToken);
+    return client;
+  }
+
+  return null;
 }
 
 export async function getConvexContext(companySlug: string) {

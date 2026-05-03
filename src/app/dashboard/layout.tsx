@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { TenantShell } from "@/components/shell/tenant-shell";
 import { DashboardAiShell } from "@/components/shell/dashboard-ai-shell";
 import { getAuthenticatedConvexClient } from "@/lib/data/convex-client";
+import { SandboxBanner } from "@/components/sandbox/SandboxBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ export default async function DashboardLayout({
   if (!user) {
     return (
       <TenantShell tenant={DEMO_TENANT}>
+        <SandboxBanner companyId={DEMO_TENANT.companyId} />
         <DashboardAiShell>{children}</DashboardAiShell>
       </TenantShell>
     );
@@ -66,11 +68,7 @@ export default async function DashboardLayout({
     redirect("/onboarding");
   }
 
-  const companySlug = persistedTenant.companySlug;
-  const companyName = persistedTenant.companyName;
-  const companyId = persistedTenant.companyId;
-  const role = persistedTenant.role;
-  const operatorType = persistedTenant.operatorType;
+  const { companyId, companySlug, companyName, role, operatorType } = persistedTenant;
 
   return (
     <TenantShell
@@ -82,6 +80,7 @@ export default async function DashboardLayout({
         operatorType,
       }}
     >
+      <SandboxBanner companyId={companyId} />
       <DashboardAiShell>{children}</DashboardAiShell>
     </TenantShell>
   );

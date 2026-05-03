@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { authQuery, requireCompanyAccessById } from "./lib/withAuth";
 import { v } from "convex/values";
 

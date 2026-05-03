@@ -55,10 +55,10 @@ export default function InventoryClient({ source, products, batches, movements, 
   const [syncing, setSyncing] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
   // CSV import state
-  const csvDataRef = useRef<{ headers: string[]; rows: Record<string, string>[] } | null>(null);
+  const csvFileRef = useRef<{ headers: string[]; rows: Record<string, string>[] } | null>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
   const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [csvStatus, setCsvStatus] = useState<"idle" | "parsing" | "ready" | "importing" | "done">("idle");
+  const [csvStatus, setCsvStatus] = useState<"idle" | "parsing" | "ready" | "importing" | "done" | "error" | "dragging">("idle");
   const [csvError, setCsvError] = useState<string | null>(null);
   const [csvPreview, setCsvPreview] = useState<{ headers: string[]; rows: Record<string, string>[] } | null>(null);
   const [importResults, setImportResults] = useState<Array<{ rowIdx: number; success: boolean; message: string }> | null>(null);
@@ -311,7 +311,7 @@ export default function InventoryClient({ source, products, batches, movements, 
 
 
       {/* ─── CSV Inventory Import ─── */}
-      {source === "convex" && companyId && csvStatus !== "idle" && (
+       {source === "convex" && companyId && (
         <div className="mb-8 rounded-lg border border-border bg-surface p-4">
           <h3 className="mb-2 text-sm font-semibold text-white">Inventory CSV Import</h3>
 
@@ -330,7 +330,7 @@ export default function InventoryClient({ source, products, batches, movements, 
                 accept=".csv"
                 className="hidden"
                 ref={csvInputRef}
-                onChange={handleCsvFileChange}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleCsvFileChange(f); }}
               />
             </div>
           )}

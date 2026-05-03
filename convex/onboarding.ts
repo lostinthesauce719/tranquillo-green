@@ -1,4 +1,4 @@
-import { mutationGeneric, queryGeneric } from "convex/server";
+import { authMutation, authQuery } from "./lib/withAuth";
 import { v } from "convex/values";
 import { requireIdentity, requireCurrentUserRecord, getUserByClerkId } from "./lib/withAuth";
 
@@ -6,7 +6,7 @@ import { requireIdentity, requireCurrentUserRecord, getUserByClerkId } from "./l
  * Get the onboarding progress record for the current user and a given tour.
  * Returns null if no record exists.
  */
-export const getProgress = queryGeneric({
+export const getProgress = authQuery({
   args: {
     tourId: v.string(),
   },
@@ -17,7 +17,7 @@ export const getProgress = queryGeneric({
 
     const record = await ctx.db
       .query("onboardingProgress")
-      .withIndex("by_user_tour", (q) => q.eq("userId", userId).eq("tourId", args.tourId))
+      .withIndex("by_user_tour", (q: any) => q.eq("userId", userId).eq("tourId", args.tourId))
       .first();
 
     return record ?? null;
@@ -27,7 +27,7 @@ export const getProgress = queryGeneric({
 /**
  * Mark a tour as started (or restart it). Sets status to "in_progress".
  */
-export const startTour = mutationGeneric({
+export const startTour = authMutation({
   args: {
     tourId: v.string(),
   },
@@ -38,7 +38,7 @@ export const startTour = mutationGeneric({
 
     const existing = await ctx.db
       .query("onboardingProgress")
-      .withIndex("by_user_tour", (q) => q.eq("userId", userId).eq("tourId", args.tourId))
+      .withIndex("by_user_tour", (q: any) => q.eq("userId", userId).eq("tourId", args.tourId))
       .first();
 
     if (existing) {
@@ -63,7 +63,7 @@ export const startTour = mutationGeneric({
 /**
  * Mark a tour as completed.
  */
-export const completeTour = mutationGeneric({
+export const completeTour = authMutation({
   args: {
     tourId: v.string(),
   },
@@ -74,7 +74,7 @@ export const completeTour = mutationGeneric({
 
     const existing = await ctx.db
       .query("onboardingProgress")
-      .withIndex("by_user_tour", (q) => q.eq("userId", userId).eq("tourId", args.tourId))
+      .withIndex("by_user_tour", (q: any) => q.eq("userId", userId).eq("tourId", args.tourId))
       .first();
 
     if (existing) {
@@ -98,7 +98,7 @@ export const completeTour = mutationGeneric({
  * Create a new cannabis company during onboarding and link it to the current user.
  * This is the core backend integration for the onboarding flow.
  */
-export const createCompany = mutationGeneric({
+export const createCompany = authMutation({
   args: {
     name: v.string(),
     states: v.array(v.string()),
@@ -160,7 +160,7 @@ export const createCompany = mutationGeneric({
       states: args.states,
       operatorType: primaryOperatorType,
       primaryOperatorType,
-      additionalOperatorTypes: additionalOperatorTypes.length > 0 ? additionalOperatorTypes : null,
+      additionalOperatorTypes: additionalOperatorTypes,
       defaultAccountingMethod: args.accountingMethods[0] ?? "cash",
       accountingMethods: args.accountingMethods,
       status: "active",

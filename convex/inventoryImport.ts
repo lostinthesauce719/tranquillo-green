@@ -1,4 +1,4 @@
-import { mutationGeneric } from "convex/server";
+import { authMutation } from "./lib/withAuth";
 import { v } from "convex/values";
 
 /**
@@ -18,7 +18,7 @@ import { v } from "convex/values";
  *  - Upserts the Inventory Batch (by packageTag; generates one if missing)
  *  - Creates batches with source = "csv_import"
  */
-export const importInventoryFromCsv = mutationGeneric({
+export const importInventoryFromCsv = authMutation({
   args: {
     companyId: v.id("cannabisCompanies"),
     rows: v.array(
@@ -45,7 +45,7 @@ export const importInventoryFromCsv = mutationGeneric({
         // Try to find existing product by SKU within company
         const foundProducts = await ctx.db
           .query("products")
-          .withIndex("by_company_sku", (q) => q.eq("companyId", companyId).eq("sku", row.sku))
+          .withIndex("by_company_sku", (q: any) => q.eq("companyId", companyId).eq("sku", row.sku))
           .collect();
         let productId = foundProducts[0]?._id;
 

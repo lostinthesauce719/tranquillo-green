@@ -20,7 +20,7 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
 export default function AllocationsPage() {
   const summary = summarizeAllocationQueue(demoAllocationReviewQueue);
   const tenant = useTenant();
-  const profile = getOperatorProfile(tenant.operatorType);
+  const profile = getOperatorProfile(tenant.operatorType ?? "vertical");
 
   // COGS automation state
   const [autoApproving, setAutoApproving] = useState(false);
@@ -86,10 +86,10 @@ export default function AllocationsPage() {
       setRunningAll(false);
     }
   }, []);
-  const cogsCategories = getCogsCategories(tenant.operatorType);
-  const nondeductibleCategories = getNondeductibleCategories(tenant.operatorType);
-  const reclassifiable471c = getReclassifiable471cCosts(tenant.operatorType);
-  const defaultMethod = getDefaultAllocationMethod(tenant.operatorType);
+  const cogsCategories = getCogsCategories(tenant.operatorType ?? "vertical");
+  const nondeductibleCategories = getNondeductibleCategories(tenant.operatorType ?? "vertical");
+  const reclassifiable471c = getReclassifiable471cCosts(tenant.operatorType ?? "vertical");
+  const defaultMethod = getDefaultAllocationMethod(tenant.operatorType ?? "vertical");
 
   // Build cost data for 471(c) engine
   const costDataFor471c = [
@@ -260,7 +260,7 @@ export default function AllocationsPage() {
         {/* 471(c) Dual-Path Analysis */}
         <div className="mb-6">
           <Section471cDashboard
-            operatorType={tenant.operatorType}
+            operatorType={tenant.operatorType ?? "vertical"}
             grossRevenue={25000000}
             costCategories={costDataFor471c}
             priorYearsGrossReceipts={priorYearsGrossReceipts}

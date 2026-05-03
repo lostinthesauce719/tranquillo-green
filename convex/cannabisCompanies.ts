@@ -1,8 +1,8 @@
-import { mutationGeneric, queryGeneric } from "convex/server";
+import { authMutation, authQuery } from "./lib/withAuth";
 import { v } from "convex/values";
 import { AuthenticatedContext, CustomCtx, createEnrichedContext, requireIdentity, requireCurrentUserRecord, resolveRoleFromIdentityClaims } from "./lib/withAuth";
 
-export const getBySlug = queryGeneric({
+export const getBySlug = authQuery({
   args: {
     slug: v.string(),
   },
@@ -14,7 +14,7 @@ export const getBySlug = queryGeneric({
   },
 });
 
-export const create = mutationGeneric({
+export const create = authMutation({
   args: {
     name: v.string(),
     states: v.array(v.string()), // Changed to array
@@ -84,7 +84,7 @@ export const create = mutationGeneric({
   },
 });
 
-export const updateStatus = mutationGeneric({
+export const updateStatus = authMutation({
   args: {
     companyId: v.id("cannabisCompanies"),
     status: v.union(v.literal("onboarding"), v.literal("active"), v.literal("inactive")),

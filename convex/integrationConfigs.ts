@@ -1,11 +1,11 @@
-import { mutationGeneric, queryGeneric } from "convex/server";
+import { authMutation, authQuery } from "./lib/withAuth";
 import { v } from "convex/values";
 import { AuthenticatedContext, CustomCtx, createEnrichedContext, requireIdentity, requireCurrentUserRecord, resolveRoleFromIdentityClaims } from "./lib/withAuth";
 
 /**
  * Store or update QuickBooks integration tokens for a company.
  */
-export const upsertQBOTokens = mutationGeneric({
+export const upsertQBOTokens = authMutation({
   args: {
     companyId: v.id("cannabisCompanies"),
     realmId: v.string(),
@@ -55,7 +55,7 @@ export const upsertQBOTokens = mutationGeneric({
  * Get QuickBooks integration status for a company.
  * Returns connection status but never exposes tokens.
  */
-export const getQBOStatus = queryGeneric({
+export const getQBOStatus = authQuery({
   args: { companyId: v.id("cannabisCompanies") },
   handler: async (baseCtx: AuthenticatedContext, args) => {
     const ctx = await createEnrichedContext(baseCtx);
@@ -89,7 +89,7 @@ export const getQBOStatus = queryGeneric({
 /**
  * Disconnect QuickBooks integration for a company.
  */
-export const disconnectQBO = mutationGeneric({
+export const disconnectQBO = authMutation({
   args: { companyId: v.id("cannabisCompanies") },
   handler: async (baseCtx: AuthenticatedContext, args) => {
     const ctx = await createEnrichedContext(baseCtx);
@@ -113,7 +113,7 @@ export const disconnectQBO = mutationGeneric({
 });
 
 // Add a new internal action to get tokens, only callable from the server
-export const getQBOTokensInternal = mutationGeneric({
+export const getQBOTokensInternal = authMutation({
   args: { companyId: v.id("cannabisCompanies") },
   handler: async (baseCtx: AuthenticatedContext, args) => {
     const ctx = await createEnrichedContext(baseCtx);
@@ -145,7 +145,7 @@ export const getQBOTokensInternal = mutationGeneric({
  * Store or update Metrc integration credentials for a company.
  * Supports multiple state licenses via separate records.
  */
-export const upsertMetrcConfig = mutationGeneric({
+export const upsertMetrcConfig = authMutation({
   args: {
     companyId: v.id("cannabisCompanies"),
     state: v.string(),
@@ -202,7 +202,7 @@ export const upsertMetrcConfig = mutationGeneric({
  * Get all Metrc configurations for a company.
  * Server-only internal use.
  */
-export const getMetrcConfigsInternal = queryGeneric({
+export const getMetrcConfigsInternal = authQuery({
   args: { companyId: v.id("cannabisCompanies") },
   handler: async (baseCtx: AuthenticatedContext, args) => {
     const ctx = await createEnrichedContext(baseCtx);
@@ -223,7 +223,7 @@ export const getMetrcConfigsInternal = queryGeneric({
 /**
  * Disconnect a Metrc integration for a specific state.
  */
-export const disconnectMetrc = mutationGeneric({
+export const disconnectMetrc = authMutation({
   args: { companyId: v.id("cannabisCompanies"), state: v.string() },
   handler: async (baseCtx: AuthenticatedContext, args) => {
     const ctx = await createEnrichedContext(baseCtx);
@@ -246,3 +246,279 @@ export const disconnectMetrc = mutationGeneric({
   },
 });
 
+
+
+// ── Square POS Integration ────────────────────────────────────────────────────
+
+/**
+ * Store or update Square OAuth tokens for a company.
+ */
+export const upsertSquareConfig = authMutation({
+  args: {
+    companyId: v.id("cannabisCompanies"),
+    accessToken: v.string(),
+    refreshToken: v.string(),
+    accessTokenExpiresAt: v.number(),
+    refreshTokenExpiresAt: v.number(),
+    realmId: v.optional(v.string()), // merchantId
+    locationId: v.optional(v.string()),
+  },
+  handler: async (baseCtx: AuthenticatedContext, args) => {
+    const ctx = await createEnrichedContext(baseCtx);
+
+    if (ctx.session.companyId !== (args.companyId as unknown as string)) {
+      throw new Error("Unauthorized: Cannot upsert Square config for another company.");
+    }
+
+    const existing = await ctx.db
+      .query("integrationConfigs")
+      .withIndex("by_company_provider", (q: any) =>
+        q.eq("companyId", args.companyId).eq("provider", "square")
+      )
+      .collect();
+
+    const now = Date.now();
+    const doc = {
+      companyId: args.companyId,
+      provider: "square" as const,
+      accessToken: args.accessToken,
+      refreshToken: args.refreshToken,
+      accessTokenExpiresAt: args.accessTokenExpiresAt,
+      refreshTokenExpiresAt: args.refreshTokenExpiresAt,
+      realmId: args.realmId,
+      posLocationId: args.locationId,
+      status: "connected" as const,
+      connectedAt: existing[0]?.connectedAt ?? now,
+      updatedAt: now,
+    };
+
+    if (existing[0]) {
+      await ctx.db.replace(existing[0]._id, doc);
+      return existing[0]._id;
+    } else {
+      return await ctx.db.insert("integrationConfigs", doc);
+    }
+  },
+});
+
+/**
+ * Get Square integration configurations (including tokens) for internal server use.
+ */
+export const getSquareConfigsInternal = authQuery({
+  args: { companyId: v.id("cannabisCompanies") },
+  handler: async (baseCtx: AuthenticatedContext, args) => {
+    const ctx = await createEnrichedContext(baseCtx);
+
+    if (ctx.session.companyId !== (args.companyId as unknown as string)) {
+      throw new Error("Unauthorized: Cannot fetch Square configs for another company.");
+    }
+
+    const configs = await ctx.db
+      .query("integrationConfigs")
+      .withIndex("by_company_provider", (q: any) =>
+        q.eq("companyId", args.companyId).eq("provider", "square")
+      )
+      .collect();
+
+    return configs.filter((c: any) => c.status === "connected");
+  },
+});
+
+/**
+ * Disconnect Square integration for a company.
+ */
+export const disconnectSquare = authMutation({
+  args: { companyId: v.id("cannabisCompanies") },
+  handler: async (baseCtx: AuthenticatedContext, args) => {
+    const ctx = await createEnrichedContext(baseCtx);
+
+    if (ctx.session.companyId !== (args.companyId as unknown as string)) {
+      throw new Error("Unauthorized: Cannot disconnect Square for another company.");
+    }
+
+    const configs = await ctx.db
+      .query("integrationConfigs")
+      .withIndex("by_company_provider", (q: any) =>
+        q.eq("companyId", args.companyId).eq("provider", "square")
+      )
+      .collect();
+
+    for (const config of configs) {
+      await ctx.db.delete(config._id);
+    }
+
+    return { success: true };
+  },
+});
+
+// ── Toast POS Integration ────────────────────────────────────────────────────
+
+/**
+ * Store or update Toast OAuth tokens for a company.
+ * Toast token fields: accessToken, refreshToken, expiry fields.
+ * restaurantId is stored in restaurantId key (or realmId).
+ */
+export const upsertToastConfig = authMutation({
+  args: {
+    companyId: v.id("cannabisCompanies"),
+    accessToken: v.string(),
+    refreshToken: v.string(),
+    accessTokenExpiresAt: v.number(),
+    refreshTokenExpiresAt: v.number(),
+    restaurantId: v.optional(v.string()),
+  },
+  handler: async (baseCtx: AuthenticatedContext, args) => {
+    const ctx = await createEnrichedContext(baseCtx);
+
+    if (ctx.session.companyId !== (args.companyId as unknown as string)) {
+      throw new Error("Unauthorized: Cannot upsert Toast config for another company.");
+    }
+
+    const existing = await ctx.db
+      .query("integrationConfigs")
+      .withIndex("by_company_provider", (q: any) =>
+        q.eq("companyId", args.companyId).eq("provider", "toast")
+      )
+      .collect();
+
+    const now = Date.now();
+    const doc = {
+      companyId: args.companyId,
+      provider: "toast" as const,
+      accessToken: args.accessToken,
+      refreshToken: args.refreshToken,
+      accessTokenExpiresAt: args.accessTokenExpiresAt,
+      refreshTokenExpiresAt: args.refreshTokenExpiresAt,
+      realmId: args.restaurantId, // canonical ID for the restaurant
+      restaurantId: args.restaurantId,  // dedicated field for POS mapping
+      status: "connected" as const,
+      connectedAt: existing[0]?.connectedAt ?? now,
+      updatedAt: now,
+    };
+
+    if (existing[0]) {
+      await ctx.db.replace(existing[0]._id, doc);
+      return existing[0]._id;
+    } else {
+      return await ctx.db.insert("integrationConfigs", doc);
+    }
+  },
+});
+
+export const getToastConfigsInternal = authQuery({
+  args: { companyId: v.id("cannabisCompanies") },
+  handler: async (baseCtx: AuthenticatedContext, args) => {
+    const ctx = await createEnrichedContext(baseCtx);
+    if (ctx.session.companyId !== (args.companyId as unknown as string)) {
+      throw new Error("Unauthorized");
+    }
+    const configs = await ctx.db
+      .query("integrationConfigs")
+      .withIndex("by_company_provider", (q: any) =>
+        q.eq("companyId", args.companyId).eq("provider", "toast")
+      )
+      .collect();
+    return configs.filter((c: any) => c.status === "connected");
+  },
+});
+
+export const disconnectToast = authMutation({
+  args: { companyId: v.id("cannabisCompanies") },
+  handler: async (baseCtx: AuthenticatedContext, args) => {
+    const ctx = await createEnrichedContext(baseCtx);
+    if (ctx.session.companyId !== (args.companyId as unknown as string)) {
+      throw new Error("Unauthorized");
+    }
+    const configs = await ctx.db
+      .query("integrationConfigs")
+      .withIndex("by_company_provider", (q: any) =>
+        q.eq("companyId", args.companyId).eq("provider", "toast")
+      )
+      .collect();
+    for (const config of configs) {
+      await ctx.db.delete(config._id);
+    }
+    return { success: true };
+  },
+});
+
+// ── Treez POS Integration ────────────────────────────────────────────────────
+
+/**
+ * Store Treez API credentials (key/secret).
+ */
+export const upsertTreezConfig = authMutation({
+  args: {
+    companyId: v.id("cannabisCompanies"),
+    apiKey: v.string(),
+    apiSecret: v.string(),
+  },
+  handler: async (baseCtx: AuthenticatedContext, args) => {
+    const ctx = await createEnrichedContext(baseCtx);
+    if (ctx.session.companyId !== (args.companyId as unknown as string)) {
+      throw new Error("Unauthorized");
+    }
+
+    const existing = await ctx.db
+      .query("integrationConfigs")
+      .withIndex("by_company_provider", (q: any) =>
+        q.eq("companyId", args.companyId).eq("provider", "treez")
+      )
+      .collect();
+
+    const now = Date.now();
+    const doc = {
+      companyId: args.companyId,
+      provider: "treez" as const,
+      accessToken: args.apiKey,      // key in generic field
+      apiSecret: args.apiSecret,
+      status: "connected" as const,
+      connectedAt: existing[0]?.connectedAt ?? now,
+      updatedAt: now,
+    };
+
+    if (existing[0]) {
+      await ctx.db.replace(existing[0]._id, doc);
+      return existing[0]._id;
+    } else {
+      return await ctx.db.insert("integrationConfigs", doc);
+    }
+  },
+});
+
+export const getTreezConfigsInternal = authQuery({
+  args: { companyId: v.id("cannabisCompanies") },
+  handler: async (baseCtx: AuthenticatedContext, args) => {
+    const ctx = await createEnrichedContext(baseCtx);
+    if (ctx.session.companyId !== (args.companyId as unknown as string)) {
+      throw new Error("Unauthorized");
+    }
+    const configs = await ctx.db
+      .query("integrationConfigs")
+      .withIndex("by_company_provider", (q: any) =>
+        q.eq("companyId", args.companyId).eq("provider", "treez")
+      )
+      .collect();
+    return configs.filter((c: any) => c.status === "connected");
+  },
+});
+
+export const disconnectTreez = authMutation({
+  args: { companyId: v.id("cannabisCompanies") },
+  handler: async (baseCtx: AuthenticatedContext, args) => {
+    const ctx = await createEnrichedContext(baseCtx);
+    if (ctx.session.companyId !== (args.companyId as unknown as string)) {
+      throw new Error("Unauthorized");
+    }
+    const configs = await ctx.db
+      .query("integrationConfigs")
+      .withIndex("by_company_provider", (q: any) =>
+        q.eq("companyId", args.companyId).eq("provider", "treez")
+      )
+      .collect();
+    for (const config of configs) {
+      await ctx.db.delete(config._id);
+    }
+    return { success: true };
+  },
+});
