@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { withAuth, securityHeaders } from "@/lib/api-helpers";
 import { getAuthenticatedConvexClient } from "@/lib/data/convex-client";
 import { anyApi } from "convex/server";
-import { requireCompanyAccessById } from "convex/lib/withAuth";
 
 export const POST = withAuth(async (request, auth) => {
   try {
@@ -22,14 +21,13 @@ export const POST = withAuth(async (request, auth) => {
       );
     }
 
-    // Verify user has access to the company
-    const identity = await client.auth.getUserIdentity();
-    if (!identity) {
+    // Verify user has access to the company via Convex query
+    const access = await client.query((anyApi as any).companies.checkCompanyAccess, { companyId });
+    if (!access?.hasAccess) {
       return securityHeaders(
-        NextResponse.json({ ok: false, message: "Unauthorized" }, { status: 401 })
+        NextResponse.json({ ok: false, message: "Unauthorized: Not a member of this company" }, { status: 403 })
       );
     }
-    await client.requireCompanyAccessById(identity, companyId);
 
     const updated = await client.mutation((anyApi as any).companies.updateCompany, {
       companyId,

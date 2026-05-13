@@ -214,8 +214,8 @@ export async function loadComplianceWorkspace(
         alertsSummary: {
           total: resolvedAlerts.length,
           unresolved: resolvedAlerts.length,
-          critical: resolvedAlerts.filter((a) => a.severity === "critical").length,
-          warning: resolvedAlerts.filter((a) => a.severity === "warning").length,
+          critical: resolvedAlerts.filter((a: any) => a.severity === "critical").length,
+          warning: resolvedAlerts.filter((a: any) => a.severity === "warning").length,
         },
       };
     }

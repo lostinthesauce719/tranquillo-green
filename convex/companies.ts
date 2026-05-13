@@ -75,3 +75,18 @@ export const updateCompany = authMutation({
     return await ctx.db.get(companyId);
   },
 );
+
+// ─── COMPANY ACCESS CHECK (for Next.js API routes) ──────────────────────────
+export const checkCompanyAccess = authQuery({
+  args: { companyId: v.id("cannabisCompanies") },
+}, async (ctx, args, identity) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_clerk_id", (q: any) => q.eq("clerkId", identity.subject))
+      .unique();
+    if (!user || user.companyId !== args.companyId) {
+      return { hasAccess: false };
+    }
+    return { hasAccess: true };
+  },
+);

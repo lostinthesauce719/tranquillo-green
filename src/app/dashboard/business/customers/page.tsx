@@ -26,6 +26,7 @@ type Lead = {
   painPoints: string[];
   status: "new" | "qualified" | "converted" | "unqualified";
   createdAt: number;
+  acquisitionSource: string;
 };
 
 export default function CustomerAdminPage() {
@@ -118,7 +119,9 @@ export default function CustomerAdminPage() {
               </tr>
             </thead>
             <tbody>
-<>
+              {view === "customers"
+                ? customers.map((row) => (
+                    <tr key={row._id} className="border-t border-neutral-700">
                       <td className="p-3 text-white">{row.companyName}</td>
                       <td className="p-3 text-neutral-300">{row.tier}</td>
                       <td className="p-3 text-neutral-300">${(row.mrrCents / 100).toFixed(2)}</td>
@@ -132,24 +135,20 @@ export default function CustomerAdminPage() {
                       <td className="p-3 text-neutral-400">
                         {new Date(row.activationDate).toLocaleDateString()}
                       </td>
-                    </>
-                  </tr>
-                ))
-              ) : (
-                leads.map((row) => (
-                  <tr key={row._id} className="border-t border-neutral-700">
-                    <>
+                    </tr>
+                  ))
+                : leads.map((row) => (
+                    <tr key={row._id} className="border-t border-neutral-700">
                       <td className="p-3 text-white">{row.companyName}</td>
                       <td className="p-3 text-neutral-300">{row.operatorType}</td>
                       <td className="p-3 text-neutral-300">{row.state}</td>
                       <td className="p-3 text-neutral-400">
-                        {new Date(row.acquiredAt).toLocaleDateString()}
+                        {new Date(row.createdAt).toLocaleDateString()}
                       </td>
                       <td className="p-3 text-neutral-300">{row.acquisitionSource}</td>
-                    </>
-                  </tr>
-                ))
-              )
+                    </tr>
+                  ))
+              }
             </tbody>
           </table>
         </div>

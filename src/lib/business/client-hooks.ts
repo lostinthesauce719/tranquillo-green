@@ -135,10 +135,10 @@ export function useAllCustomers() {
   return useCallback(async () => {
     try {
       // Use the type-safe Convex API from the generated types
-      return await convex.query(api.business.listCustomers, {});
+      return await (convex as any).query("business/listCustomers", {});
     } catch (error) {
       console.error("Fetch all customers failed:", error);
-      return [] as Customer[];
+      return [];
     }
   }, []);
 }

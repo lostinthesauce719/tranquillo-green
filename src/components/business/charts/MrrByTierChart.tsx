@@ -59,7 +59,7 @@ export function MrrByTierChart() {
     let mounted = true;
     fetchMrrByTier().then((tierData) => {
       if (mounted) {
-        const total = tierData.reduce((sum, item) => sum + item.mrrCents, 0);
+        const total = tierData.reduce((sum: number, item: any) => sum + item.mrrCents, 0);
         const chartData = tierData.map((item: any) => ({
           name: item.tier,
           mrrCents: item.mrrCents,

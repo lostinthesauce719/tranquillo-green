@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { AllocationPolicyWorkspace } from "@/components/accounting/allocation-policy-workspace";
 import { AppShell } from "@/components/shell/app-shell";
 import { AiAssistant } from "@/components/ai/ai-assistant";

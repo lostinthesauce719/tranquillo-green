@@ -66,7 +66,7 @@ export function RevenueTrendChart() {
     let mounted = true;
     fetchDailyMetrics().then((metrics) => {
       if (mounted) {
-        const chartData = metrics.map((m) => ({
+        const chartData = metrics.map((m: any) => ({
           date: m.date,
           mrrCents: m.mrrCents || 0,
           activeCustomers: m.activeCustomers || 0,

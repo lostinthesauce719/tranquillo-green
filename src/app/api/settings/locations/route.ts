@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { withAuth, securityHeaders } from "@/lib/api-helpers";
 import { getAuthenticatedConvexClient } from "@/lib/data/convex-client";
 import { anyApi } from "convex/server";
-import { requireCompanyAccessById } from "convex/lib/withAuth";
 
 export const GET = withAuth(async (request, auth) => {
   try {
@@ -23,13 +22,12 @@ export const GET = withAuth(async (request, auth) => {
     }
 
     // Verify user has access to the company
-    const identity = await client.auth.getUserIdentity();
-    if (!identity) {
+    const access = await client.query((anyApi as any).companies.checkCompanyAccess, { companyId });
+    if (!access?.hasAccess) {
       return securityHeaders(
-        NextResponse.json({ ok: false, message: "Unauthorized" }, { status: 401 })
+        NextResponse.json({ ok: false, message: "Unauthorized: Not a member of this company" }, { status: 403 })
       );
     }
-    await client.requireCompanyAccessById(identity, companyId);
 
     const locations = await client.query((anyApi as any).locations.listByCompany, { companyId });
     return securityHeaders(NextResponse.json({ ok: true, locations }));
@@ -59,13 +57,12 @@ export const POST = withAuth(async (request, auth) => {
     }
 
     // Verify user has access to the company
-    const identity = await client.auth.getUserIdentity();
-    if (!identity) {
+    const access = await client.query((anyApi as any).companies.checkCompanyAccess, { companyId });
+    if (!access?.hasAccess) {
       return securityHeaders(
-        NextResponse.json({ ok: false, message: "Unauthorized" }, { status: 401 })
+        NextResponse.json({ ok: false, message: "Unauthorized: Not a member of this company" }, { status: 403 })
       );
     }
-    await client.requireCompanyAccessById(identity, companyId);
 
     const location = await client.mutation((anyApi as any).locations.addLocation, body);
     return securityHeaders(NextResponse.json({ ok: true, location }));
@@ -106,13 +103,12 @@ export const DELETE = withAuth(async (request, auth) => {
     }
 
     // Verify user has access to the company that owns this location
-    const identity = await client.auth.getUserIdentity();
-    if (!identity) {
+    const access = await client.query((anyApi as any).companies.checkCompanyAccess, { companyId: location.companyId });
+    if (!access?.hasAccess) {
       return securityHeaders(
-        NextResponse.json({ ok: false, message: "Unauthorized" }, { status: 401 })
+        NextResponse.json({ ok: false, message: "Unauthorized: Not a member of this company" }, { status: 403 })
       );
     }
-    await client.requireCompanyAccessById(identity, location.companyId);
 
     await client.mutation((anyApi as any).locations.deleteLocation, { locationId });
     return securityHeaders(NextResponse.json({ ok: true }));

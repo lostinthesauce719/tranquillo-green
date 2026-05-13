@@ -467,7 +467,7 @@ export function CsvImportWorkflow({
                         >
                           {availableTargets.map((target) => (
                             <option key={target} value={target}>
-                              {targetFieldLabels[target]}
+                              {targetFieldLabels[target as keyof typeof targetFieldLabels]}
                             </option>
                           ))}
                         </select>

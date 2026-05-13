@@ -62,7 +62,6 @@ export function GuidedTour({ tourId, steps }: GuidedTourProps) {
           primaryColor: "#22855A",
           backgroundColor: "#0b1120",
           textColor: "#e2e8f0",
-          headingColor: "#e2e8f0",
         },
         tooltipContainer: {
           textAlign: "left",
