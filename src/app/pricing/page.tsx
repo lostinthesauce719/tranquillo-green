@@ -2,29 +2,32 @@ import { Check } from "lucide-react";
 
 const TIERS = [
   {
-    name: "Essentials",
-    price: 299,
-    description: "Single-license operators getting started with 280E compliance",
+    name: "Dispensary",
+    price: 497,
+    period: "/mo",
+    description: "Single-location dispensaries getting started with cannabis financial operations",
     features: [
       "Single entity (1 license type)",
       "Up to $2M annual revenue",
       "280E + 471(c) allocation engine",
-      "Basic COGS tracking",
-      "Quarterly support schedule generation",
+      "Cash reconciliation",
       "Metrc sync (1 location)",
+      "Month-end close workflows",
+      "CPA export packets",
       "Email support",
     ],
     cta: "Start Free Trial",
     popular: false,
   },
   {
-    name: "Growth",
-    price: 599,
-    description: "Multi-entity operators scaling across multiple licenses",
+    name: "Cultivator",
+    price: 697,
+    period: "/mo",
+    description: "Multi-entity operators scaling across licenses and locations",
     features: [
       "Multiple entities & license types",
       "Up to $10M annual revenue",
-      "Everything in Essentials",
+      "Everything in Dispensary",
       "Multi-entity consolidation",
       "Advanced audit trail",
       "CPA collaboration workspace",
@@ -36,17 +39,18 @@ const TIERS = [
   },
   {
     name: "Enterprise",
-    price: 999,
-    description: "MSO with complex operations and dedicated needs",
+    price: 1497,
+    period: "/mo",
+    description: "MSOs with complex multi-state operations and dedicated needs",
     features: [
       "Unlimited entities & licenses",
       "Unlimited revenue",
-      "Everything in Growth",
+      "Everything in Cultivator",
       "API access",
       "Custom reporting",
       "Dedicated account manager",
       "SLA guarantees",
-      "On-premise deployment option",
+      "Multi-state support",
     ],
     cta: "Contact Sales",
     popular: false,
@@ -56,7 +60,8 @@ const TIERS = [
 const CPA_TIER = {
   name: "CPA Firm",
   price: 199,
-  description: "For cannabis CPA firms serving multiple clients",
+  period: "/mo",
+  description: "For cannabis CPA firms serving multiple operator clients",
   features: [
     "Cover up to 10 client entities",
     "Full 280E + 471(c) engine for all clients",
@@ -71,7 +76,7 @@ const CPA_TIER = {
 
 export const metadata = {
   title: "Pricing — Tranquillo Green",
-  description: "Simple, transparent pricing for cannabis financial operations. Choose the plan that fits your operation.",
+  description: "Simple, transparent pricing for cannabis financial operations. From single-location dispensaries to multi-state operators.",
 };
 
 export default function PricingPage() {
@@ -84,8 +89,8 @@ export default function PricingPage() {
             Simple, Transparent Pricing
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-text-muted">
-            No hidden fees. No surprises. Pay for the features you need, when you need them.
-            All plans include 280E + 471(c) allocation.
+            From automated tax compliance to multi-entity consolidation.
+            Every plan includes the full financial operations platform.
           </p>
         </div>
       </div>
@@ -139,7 +144,7 @@ export default function PricingPage() {
                 <span className="text-5xl font-bold text-text-primary">
                   ${tier.price}
                 </span>
-                <span className="text-text-muted">/month</span>
+                <span className="text-text-muted">{tier.period}</span>
               </div>
 
               <ul className="mb-8 space-y-3">
@@ -152,7 +157,7 @@ export default function PricingPage() {
               </ul>
 
               <a
-                href={tier.price === 999 ? "/contact" : "/onboarding"}
+                href={tier.price === 1497 ? "/contact" : "/onboarding"}
                 className={`block w-full rounded-lg px-6 py-3 text-center font-semibold transition-colors ${
                   tier.popular
                     ? "bg-brand text-white hover:bg-brand/90"
@@ -178,7 +183,7 @@ export default function PricingPage() {
               </div>
               <div className="text-right">
                 <span className="text-4xl font-bold text-accent">${CPA_TIER.price}</span>
-                <span className="text-text-muted">/month</span>
+                <span className="text-text-muted">{CPA_TIER.period}</span>
               </div>
             </div>
 
@@ -195,7 +200,7 @@ export default function PricingPage() {
               href="/contact?type=cpa"
               className="block w-full rounded-lg bg-accent px-6 py-4 text-center font-semibold text-white transition-colors hover:bg-accent/90"
             >
-              Get CPA Access
+              {CPA_TIER.cta}
             </a>
           </div>
         </div>
@@ -212,8 +217,8 @@ export default function PricingPage() {
               </h3>
               <p className="mt-2 text-text-muted">
                 All plans come with a 14-day free trial. No credit card required.
-                You&apos;ll get full access to all features in that tier so you can
-                test the platform with your own data.
+                You&apos;ll get full access to all features in that tier — including
+                the 280E allocation engine, cash reconciliation, and CPA exports.
               </p>
             </div>
             <div>
@@ -228,11 +233,11 @@ export default function PricingPage() {
             </div>
             <div>
               <h3 className="font-semibold text-text-primary">
-                What&apos;s the difference between Essentials and Growth?
+                What&apos;s the difference between Dispensary and Cultivator?
               </h3>
               <p className="mt-2 text-text-muted">
-                Essentials is for single-location operators under $2M revenue.
-                Growth adds multi-entity consolidation, advanced audit trail,
+                Dispensary is for single-location operators under $2M revenue.
+                Cultivator adds multi-entity consolidation, advanced audit trail,
                 CPA collaboration tools, and priority support for growing operations.
               </p>
             </div>
@@ -241,9 +246,9 @@ export default function PricingPage() {
                 Do you offer custom enterprise contracts?
               </h3>
               <p className="mt-2 text-text-muted">
-                Yes. Enterprise customers can add on-premise deployment, custom
-                integrations, and dedicated account management. Contact us to
-                discuss your specific requirements.
+                Yes. Enterprise customers get API access, custom reporting,
+                dedicated account management, and SLA guarantees. Contact us to
+                discuss multi-state and MSO requirements.
               </p>
             </div>
           </div>

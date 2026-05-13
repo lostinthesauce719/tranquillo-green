@@ -40,6 +40,30 @@ function CheckIcon({ className }: { className?: string }) {
   );
 }
 
+function CashIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <rect x="2" y="6" width="20" height="12" rx="2" />
+      <circle cx="12" cy="12" r="3" />
+      <path d="M6 6V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2" />
+      <line x1="6" y1="18" x2="6" y2="17.5" />
+      <line x1="18" y1="18" x2="18" y2="17.5" />
+    </svg>
+  );
+}
+
+function EntityIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+      <path d="M10 6.5h4M6.5 10v4M17.5 10v4M10 17.5h4" />
+    </svg>
+  );
+}
+
 /* ─── Page ───────────────────────────────────────────────────── */
 
 export default function HomePage() {
@@ -76,22 +100,17 @@ export default function HomePage() {
           </div>
 
           <h1 className="mt-8 text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl">
-            Your cannabis company is paying{" "}
-            <span className="text-accent">up to 70%</span>{" "}
-            in taxes.
+            Financial operations built for{" "}
+            <span className="text-accent">cannabis.</span>
           </h1>
           <p className="mt-4 text-3xl font-bold leading-tight text-brand sm:text-4xl">
-            That ends now.
+            From seed to sale to IRS audit.
           </p>
 
           <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-text-secondary">
-            280E forces cannabis operators to pay taxes on gross profit — not net.
-            The fix is proper COGS allocation. We automate it in 3 minutes.
-          </p>
-
-          <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-text-muted">
-            With IRC 471(c) small business election, we capture even more costs into COGS —
-            facility rent, inventory labor, shipping — turning nondeductible expenses into tax savings.
+            Multi-entity accounting, automated 280E allocations, Metrc-integrated inventory,
+            and cash reconciliation — in one platform that keeps your CFO, your CPA,
+            and the IRS on the same page.
           </p>
 
           <div className="mt-10 flex flex-wrap justify-center gap-4">
@@ -117,47 +136,48 @@ export default function HomePage() {
         <section className="mt-20 rounded-2xl border border-border bg-surface/60 p-8 backdrop-blur-sm">
           <div className="grid gap-8 sm:grid-cols-4">
             <div className="text-center">
-              <div className="text-4xl font-bold text-accent">70%+</div>
+              <div className="text-4xl font-bold text-accent">45K+</div>
               <div className="mt-2 text-sm text-text-muted">
-                Effective tax rate without proper COGS allocation
+                Licensed cannabis operators in the US
               </div>
             </div>
             <div className="text-center">
               <div className="text-4xl font-bold text-accent">$2.2B</div>
               <div className="mt-2 text-sm text-text-muted">
-                In excess taxes paid by cannabis operators annually
+                In excess taxes paid by operators annually
               </div>
             </div>
             <div className="text-center">
               <div className="text-4xl font-bold text-brand">8-20hrs → 3min</div>
               <div className="mt-2 text-sm text-text-muted">
-                Manual 280E workpapers vs. automated allocation
+                Manual bookkeeping vs. automated close
               </div>
             </div>
             <div className="text-center">
-              <div className="text-4xl font-bold text-accent">471(c)</div>
+              <div className="text-4xl font-bold text-accent">280E+471c</div>
               <div className="mt-2 text-sm text-text-muted">
-                Small business inventory method — capture more costs into COGS
+                Tax compliance engine — included in every plan
               </div>
             </div>
           </div>
         </section>
 
-        {/* ── PROOF POINTS ─────────────────────────────── */}
+        {/* ── PROOF POINTS: FINANCIAL OPERATIONS PILLARS ── */}
         <section className="mt-20">
           <h2 className="text-center text-sm font-semibold uppercase tracking-[0.2em] text-text-muted">
-            How it works
+            One platform. Every financial operation.
           </h2>
 
-          <div className="mt-10 grid gap-6 sm:grid-cols-3">
+          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             <div className="tranquillo-card rounded-2xl border border-border bg-surface/40 p-6 backdrop-blur-sm transition-all duration-200 hover:border-brand/20 hover:shadow-lg hover:shadow-brand/5">
               <AllocationIcon className="h-8 w-8 text-brand" />
               <h3 className="mt-4 text-lg font-semibold text-text-primary">
-                280E + 471(c) Allocation Engine
+                280E + 471(c) Tax Engine
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-text-muted">
-                Automatically allocates COGS under 26 USC 280E and 471(c) with full audit trail.
+                Automated COGS allocation under IRC 280E and 471(c) with full audit trail.
                 Captures facility rent, inventory labor, and shipping into deductible COGS.
+                Keeps you compliant as the tax landscape shifts.
               </p>
             </div>
 
@@ -173,15 +193,91 @@ export default function HomePage() {
             </div>
 
             <div className="tranquillo-card rounded-2xl border border-border bg-surface/40 p-6 backdrop-blur-sm transition-all duration-200 hover:border-brand/20 hover:shadow-lg hover:shadow-brand/5">
+              <CashIcon className="h-8 w-8 text-brand" />
+              <h3 className="mt-4 text-lg font-semibold text-text-primary">
+                Cash Reconciliation
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-text-muted">
+                Daily cash reconciliation built for an industry that runs on cash.
+                Bank feed integration, variance tracking, and deposit matching
+                — so your books match what's in the vault.
+              </p>
+            </div>
+
+            <div className="tranquillo-card rounded-2xl border border-border bg-surface/40 p-6 backdrop-blur-sm transition-all duration-200 hover:border-brand/20 hover:shadow-lg hover:shadow-brand/5">
+              <EntityIcon className="h-8 w-8 text-brand" />
+              <h3 className="mt-4 text-lg font-semibold text-text-primary">
+                Multi-Entity Management
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-text-muted">
+                Consolidate multiple entities, locations, and license types.
+                Intercompany eliminations, unified reporting, and per-entity
+                P&L — built for operators who've outgrown spreadsheets.
+              </p>
+            </div>
+
+            <div className="tranquillo-card rounded-2xl border border-border bg-surface/40 p-6 backdrop-blur-sm transition-all duration-200 hover:border-brand/20 hover:shadow-lg hover:shadow-brand/5">
               <ExportIcon className="h-8 w-8 text-brand" />
               <h3 className="mt-4 text-lg font-semibold text-text-primary">
                 CPA Export Packets
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-text-muted">
                 One-click export in QBO format. Your CPA gets audit-ready workpapers,
-                not a spreadsheet mess.
+                not a spreadsheet mess. White-label ready for CPA firms.
               </p>
             </div>
+
+            <div className="tranquillo-card rounded-2xl border border-border bg-surface/40 p-6 backdrop-blur-sm transition-all duration-200 hover:border-brand/20 hover:shadow-lg hover:shadow-brand/5">
+              <CheckIcon className="h-8 w-8 text-brand" />
+              <h3 className="mt-4 text-lg font-semibold text-text-primary">
+                Month-End Close
+              </h3>
+              <p className="mt-2 text-sm leading-relaxed text-text-muted">
+                Close the books in days, not weeks. Automated journal entries,
+                period lock, close checklists, and review workflows —
+                so you're always audit-ready.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── CFO / OPERATOR SECTION ───────────────────── */}
+        <section className="mt-20 rounded-2xl border border-border bg-surface-raised p-8 lg:p-12">
+          <div className="lg:flex lg:items-start lg:gap-12">
+            <div className="lg:flex-1">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent">
+                For Cannabis CFOs & Operators
+              </div>
+              <h2 className="mt-4 text-3xl font-bold tracking-tight text-text-primary">
+                Your financial stack, finally unified.
+              </h2>
+              <p className="mt-4 text-base leading-relaxed text-text-muted">
+                Cannabis operators juggle 4-7 software systems. Tranquillo replaces the
+                accounting, tax compliance, and reconciliation layer with one platform
+                that talks to your POS, your seed-to-sale system, and your CPA.
+              </p>
+              <p className="mt-4 text-base leading-relaxed text-text-muted">
+                Whether you're a single-location dispensary or a multi-state operator
+                with 10+ entities — the platform scales with you.
+              </p>
+            </div>
+
+            <ul className="mt-8 space-y-3 lg:mt-0 lg:w-80">
+              {[
+                "Multi-entity consolidation & intercompany eliminations",
+                "Automated 280E + 471(c) COGS allocation",
+                "Metrc inventory ↔ books reconciliation",
+                "Daily cash reconciliation & bank feeds",
+                "CPA-ready audit packets & workpapers",
+                "Month-end close workflows & checklists",
+                "Role-based access (CFO, controller, CPA, viewer)",
+              ].map((feature) => (
+                <li key={feature} className="flex items-start gap-3">
+                  <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                  <span className="text-sm text-text-secondary">{feature}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
 
@@ -198,7 +294,7 @@ export default function HomePage() {
               <p className="mt-4 text-base leading-relaxed text-text-muted">
                 Stop rebuilding 280E and 471(c) allocations from scratch for every client.
                 Tranquillo gives you the tools to serve cannabis operators at scale —
-                maximizing COGS deductions under both provisions.
+                with white-label exports, multi-client workflows, and audit-ready documentation.
               </p>
             </div>
 
@@ -216,10 +312,11 @@ export default function HomePage() {
         {/* ── FINAL CTA ────────────────────────────────── */}
         <section className="mt-20 text-center">
           <h2 className="text-3xl font-bold tracking-tight text-text-primary">
-            Audit-ready from day one.
+            Financial clarity for cannabis operators.
           </h2>
           <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-text-muted">
-            Connect QuickBooks + Metrc. Get your 280E + 471(c) allocation in 3 minutes, not 20 hours.
+            From automated tax compliance to multi-entity consolidation —
+            see why cannabis operators and their CPAs are switching to Tranquillo Green.
           </p>
           <div className="mt-8">
             <Link

@@ -1,4 +1,3 @@
-export const runtime = "edge";
 export const preferredRegion = "iad1";
 
 import { NextResponse } from "next/server";

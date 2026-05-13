@@ -38,9 +38,13 @@ export const moduleLinks: NavLink[] = [
     operators: ["cultivator", "manufacturer", "vertical", "distributor", "delivery"],
   },
   { href: "/dashboard/compliance", label: "Compliance", section: "Operations" },
-  { href: "/dashboard/reconciliations", label: "Reconciliations", section: "Operations" },
+  { href: "/dashboard/reconciliations", label: "Cash Reconciliation", section: "Operations" },
 
   { href: "/dashboard/pos", label: "Point of Sale", section: "Operations", operators: ["dispensary", "delivery", "vertical"] },
+
+  // Reporting
+  { href: "/dashboard/reports", label: "Financial Reports", section: "Reporting" },
+  { href: "/dashboard/business/metrics", label: "Business Metrics", section: "Reporting" },
 
   // Handoff
   { href: "/dashboard/exports", label: "CPA Export Center", section: "Handoff" },

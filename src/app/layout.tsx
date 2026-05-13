@@ -11,8 +11,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Tranquillo Green",
-  description: "Cannabis accounting, compliance, and 280E defensibility OS.",
+  title: "Tranquillo Green — Cannabis Financial Operations Platform",
+  description: "Multi-entity accounting, automated 280E + 471(c) allocations, Metrc-integrated inventory, and cash reconciliation — built for cannabis operators and their CPAs.",
 };
 
 export const dynamic = "force-dynamic";

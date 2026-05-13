@@ -339,13 +339,12 @@ export default function PartnerPage() {
               CPA Partner Program
             </div>
             <h1 className="text-4xl font-semibold leading-tight sm:text-5xl lg:text-6xl">
-              Stop Building 280E Cost Studies by Hand
+              The financial operations platform your cannabis clients need.
             </h1>
             <p className="mt-6 text-xl text-text-muted leading-relaxed max-w-2xl">
-              Automate what takes 40+ hours per client. Tranquillo Green&apos;s allocation
-              engine replaces manual cost studies with audit-ready, defensible
-              methodology—so you can scale your cannabis practice without scaling
-              headcount.
+              Multi-entity accounting, automated 280E allocations, Metrc-integrated inventory,
+              and cash reconciliation — in one platform. White-label ready so you can deliver
+              it under your firm&apos;s brand.
             </p>
             <div className="mt-10 flex flex-wrap gap-4">
               <button
@@ -381,9 +380,9 @@ export default function PartnerPage() {
       <section className="py-20 sm:py-28">
         <div className="mx-auto max-w-6xl px-6">
           <SectionHeader
-            eyebrow="How It Works"
-            title="From client connection to audit-ready export in three steps"
-            description="We automated the manual work so you can focus on advisory, not data entry."
+            eyebrow="CPA Partner Program"
+            title="Offer your clients a complete financial operations platform"
+            description="From automated tax compliance to multi-entity consolidation — deliver more value to every cannabis client."
           />
           <div className="mt-16 grid gap-8 md:grid-cols-3">
             {howItWorks.map((step, index) => (

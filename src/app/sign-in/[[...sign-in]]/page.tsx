@@ -14,7 +14,7 @@ export default function SignInPage() {
             Sign in to Green
           </h1>
           <p className="mt-1 text-sm text-text-muted">
-            Accounting and compliance OS for cannabis operators.
+            Cannabis financial operations platform.
           </p>
         </div>
 
