@@ -42,9 +42,26 @@ export function TaxSettingsPanel({ className }: TaxSettingsPanelProps) {
 
   // Form fields
   const [primaryJurisdictionId, setPrimaryJurisdictionId] = useState<string>("");
-  const [nexusStates, setNexusStates] = useState<string[]>(["CO"]);
+  const [nexusStates, setNexusStates] = useState<string[]>(["CA"]);
   const [taxTypesEnabled, setTaxTypesEnabled] = useState<string[]>([]);
   const [filingCalendar, setFilingCalendar] = useState<Record<string, string>>({});
+
+  // Demo fallback: pre-populate with CA data when API returns empty
+  const demoJurisdictions: TaxJurisdiction[] = [
+    { _id: "j-ca", jurisdictionName: "California", jurisdictionLevel: "state" },
+    { _id: "j-ca-excise", jurisdictionName: "California Excise", jurisdictionLevel: "state" },
+    { _id: "j-ca-local", jurisdictionName: "California Local", jurisdictionLevel: "local" },
+  ];
+
+  const demoTaxTypes: TaxType[] = [
+    { _id: "tt-excise", name: "Cannabis Excise Tax", code: "EXCISE" },
+    { _id: "tt-sales", name: "Sales Tax", code: "SALES" },
+    { _id: "tt-cultivation", name: "Cultivation Tax", code: "CULT" },
+    { _id: "tt-local", name: "Local Cannabis Tax", code: "LOCAL" },
+  ];
+
+  const effectiveJurisdictions = jurisdictions.length > 0 ? jurisdictions : demoJurisdictions;
+  const effectiveTaxTypes = taxTypes.length > 0 ? taxTypes : demoTaxTypes;
 
   // Load on mount
   useEffect(() => {
@@ -59,10 +76,20 @@ export function TaxSettingsPanel({ className }: TaxSettingsPanelProps) {
 
           if (data.profile) {
             setPrimaryJurisdictionId(data.profile.primaryJurisdictionId ?? "");
-            setNexusStates(data.profile.nexusStates ?? []);
+            setNexusStates(data.profile.nexusStates ?? ["CA"]);
             setTaxTypesEnabled(data.profile.taxTypesEnabled ?? []);
             setFilingCalendar(data.profile.filingCalendar ?? {});
+          } else {
+            // Demo mode: pre-populate CA
+            setPrimaryJurisdictionId("j-ca");
+            setNexusStates(["CA"]);
+            setTaxTypesEnabled(["tt-excise", "tt-sales"]);
           }
+        } else {
+          // API failed — use demo defaults
+          setPrimaryJurisdictionId("j-ca");
+          setNexusStates(["CA"]);
+          setTaxTypesEnabled(["tt-excise", "tt-sales"]);
         }
       } catch (e) {
         setMessage({ type: "error", text: "Failed to load tax settings" });
@@ -151,7 +178,7 @@ export function TaxSettingsPanel({ className }: TaxSettingsPanelProps) {
               className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-brand disabled:opacity-50"
             >
               <option value="">Select jurisdiction…</option>
-              {jurisdictions.map((j) => (
+              {effectiveJurisdictions.map((j) => (
                 <option key={j._id} value={j._id}>
                   {jurisdictionLabel(j)}
                 </option>
@@ -195,7 +222,7 @@ export function TaxSettingsPanel({ className }: TaxSettingsPanelProps) {
         <div>
           <label className="mb-2 block text-xs text-text-muted">Enabled Tax Types</label>
           <div className="flex flex-wrap gap-3">
-            {taxTypes.map((tt) => (
+            {effectiveTaxTypes.map((tt) => (
               <label
                 key={tt._id}
                 className={`inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm cursor-pointer transition ${
@@ -221,15 +248,27 @@ export function TaxSettingsPanel({ className }: TaxSettingsPanelProps) {
           </div>
         </div>
 
-        {/* Filing Calendar (simple: just show current mapping; full UI deferred) */}
+        {/* Filing Calendar */}
         <div className="rounded-lg border border-border bg-surface p-4">
-          <h3 className="mb-2 text-sm font-medium text-text-primary">Filing Calendar (derived)</h3>
+          <h3 className="mb-2 text-sm font-medium text-text-primary">Filing Calendar</h3>
           <p className="text-xs text-text-muted">
-            Filing frequencies are determined per jurisdiction + tax type based on state rules.
-            Full calendar configuration coming in next sprint.
+            Filing frequencies are determined per jurisdiction and tax type based on state rules.
+            Configure your jurisdictions and tax types above to auto-generate filing deadlines.
           </p>
           {Object.keys(filingCalendar).length > 0 && (
-            <pre className="mt-2 overflow-auto text-xs text-text-faint">{JSON.stringify(filingCalendar, null, 2)}</pre>
+            <div className="mt-3 space-y-1">
+              {Object.entries(filingCalendar).map(([key, freq]) => (
+                <div key={key} className="flex items-center justify-between text-xs">
+                  <span className="text-text-secondary">{key}</span>
+                  <span className="text-text-muted">{freq}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {Object.keys(filingCalendar).length === 0 && (
+            <div className="mt-3 rounded-lg border border-dashed border-border px-4 py-3 text-center text-xs text-text-muted">
+              No filing calendar configured yet. Select a jurisdiction and tax types above to get started.
+            </div>
           )}
         </div>
 

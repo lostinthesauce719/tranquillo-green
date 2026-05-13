@@ -371,6 +371,11 @@ export default function SettingsPage() {
       title="Settings"
       description="Company profile, locations, integrations, and your account details."
     >
+      {/* Demo mode banner */}
+      <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-300">
+        <strong>Demo mode</strong> — Showing sample data. Connect your live systems for real-time compliance tracking.
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Company Profile */}
         <section className="rounded-2xl border border-border bg-surface-mid p-5">
@@ -434,9 +439,7 @@ export default function SettingsPage() {
         <section className="rounded-2xl border border-border bg-surface-mid p-5">
           <div className="text-xs uppercase tracking-[0.2em] text-accent">Current User</div>
           <h2 className="mt-2 text-xl font-semibold">
-            {user?.fullName ?? user?.firstName ?? (
-              <span className="inline-block h-6 w-40 animate-pulse rounded-lg bg-surface-raised" />
-            )}
+            {user?.fullName ?? user?.firstName ?? "Demo User"}
           </h2>
           <p className="mt-2 max-w-lg text-sm text-text-muted">
             Your account details and role within this tenant.
@@ -445,7 +448,7 @@ export default function SettingsPage() {
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <span className="text-sm text-text-muted">Email</span>
               <span className="text-sm font-medium text-text-primary">
-                {user?.primaryEmailAddress?.emailAddress ?? "—"}
+                {user?.primaryEmailAddress?.emailAddress ?? "demo@tranquillogreen.com"}
               </span>
             </div>
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">

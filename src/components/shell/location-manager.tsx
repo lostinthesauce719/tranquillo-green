@@ -182,18 +182,24 @@ export function LocationManager() {
       {/* Location list */}
       <div className="mt-4 space-y-2">
         {loading ? (
-          <div className="space-y-2">
-            {[1, 2].map((i) => (
-              <div key={i} className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3">
-                <div className="flex-1 space-y-2">
-                  <div className="h-4 w-32 animate-pulse rounded-lg bg-surface-raised" />
-                  <div className="h-3 w-48 animate-pulse rounded-lg bg-surface-raised" />
-                </div>
-              </div>
-            ))}
+          <div className="rounded-xl border border-border bg-surface px-4 py-6 text-center">
+            <div className="text-sm text-text-muted">Loading locations…</div>
           </div>
         ) : locations.length === 0 ? (
-          <div className="text-sm text-text-muted">No locations yet. Add your first location above.</div>
+          <div className="rounded-xl border border-dashed border-border bg-surface px-6 py-8 text-center">
+            <div className="text-2xl mb-2">📍</div>
+            <div className="text-sm font-medium text-text-primary">No locations yet</div>
+            <p className="mt-1 text-xs text-text-muted max-w-sm mx-auto">
+              Add your locations to enable square-footage-based 280E COGS allocation.
+              Each location can have its own license, city, and operating costs.
+            </p>
+            <button
+              onClick={() => setShowAdd(true)}
+              className="mt-3 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-brand/90"
+            >
+              + Add Your First Location
+            </button>
+          </div>
         ) : (
           locations.map((loc) => (
             <div key={loc._id} className="flex items-center gap-3 rounded-xl border border-border bg-surface px-4 py-3">
