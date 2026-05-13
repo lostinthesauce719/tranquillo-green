@@ -132,6 +132,19 @@ export async function syncMetrc(input: {
     details.push("COGS calculation updated from simulated sales movements");
     details.push("Compliance flags refreshed — demo sync complete ✓");
 
+    // --- Persist inventory from Metrc packages (demo) ---
+    try {
+      const convex = await getAuthenticatedConvexClient();
+      if (!convex) throw new Error("Convex client unavailable");
+      await convex.mutation(
+        (anyApi as any).inventory.syncMetrcInventory,
+        { companyId: input.companyId, packages: demoPackages }
+      );
+      details.push(`✓ Persisted ${demoPackages.length} inventory batches`);
+    } catch (e: any) {
+      details.push(`✗ Failed to persist inventory: ${e.message}`);
+    }
+
     return {
       success: true,
       source: "demo",
@@ -167,6 +180,19 @@ export async function syncMetrc(input: {
     details.push(`⏳ Processing ${movements.toLocaleString()} inventory movements`);
     details.push("🔄 Updating COGS allocation tables");
     details.push("✅ Sync complete");
+
+    // --- Persist inventory from Metrc packages (real) ---
+    try {
+      const convex = await getAuthenticatedConvexClient();
+      if (!convex) throw new Error("Convex client unavailable");
+      await convex.mutation(
+        (anyApi as any).inventory.syncMetrcInventory,
+        { companyId: input.companyId, packages }
+      );
+      details.push(`✓ Persisted ${packages.length} inventory batches`);
+    } catch (e: any) {
+      details.push(`✗ Failed to persist inventory: ${e.message}`);
+    }
 
     return {
       success: true,

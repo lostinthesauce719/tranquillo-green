@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { withAuth, securityHeaders } from "@/lib/api-helpers";
 import { getAuthenticatedConvexClient } from "@/lib/data/convex-client";
 import { anyApi } from "convex/server";
+import { requireCompanyAccessById } from "convex/lib/withAuth";
 
 export const POST = withAuth(async (request, auth) => {
   try {
@@ -20,6 +21,15 @@ export const POST = withAuth(async (request, auth) => {
         NextResponse.json({ ok: false, message: "Convex not available" }, { status: 503 })
       );
     }
+
+    // Verify user has access to the company
+    const identity = await client.auth.getUserIdentity();
+    if (!identity) {
+      return securityHeaders(
+        NextResponse.json({ ok: false, message: "Unauthorized" }, { status: 401 })
+      );
+    }
+    await client.requireCompanyAccessById(identity, companyId);
 
     const updated = await client.mutation((anyApi as any).companies.updateCompany, {
       companyId,

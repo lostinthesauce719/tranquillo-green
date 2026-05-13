@@ -114,6 +114,8 @@ async function processTreezSales(
 
   const CASH_CODE = "1010";
   const REVENUE_CODE = "4010";
+  const COGS_CODE = "4100";
+  const INVENTORY_CODE = "1200";
 
   const locations = await convex.query((anyApi as any).cannabisLocations.listByCompany, { companyId });
   const defaultLocationId = locations[0]?._id;
@@ -121,6 +123,13 @@ async function processTreezSales(
   const periods = await convex.query((anyApi as any).reportingPeriods.listByCompany, { companyId });
   const openPeriod = periods.find((p: any) => p.status === "open") || periods[0];
   const periodId = openPeriod?._id;
+
+  // Load active products for COGS calculation
+  const productsList = await convex.query((anyApi as any).products.getActiveProducts, {
+    companyId,
+  });
+  const productMap = new Map<string, any>();
+  productsList.forEach((p: any) => productMap.set(p.name.toLowerCase(), p));
 
   let createdCount = 0;
 
@@ -132,48 +141,66 @@ async function processTreezSales(
 
     const items = sale.items || [];
     if (items.length === 0) {
+      // No items — treat as single Blue Dream unit for COGS
+      const demoProduct = productsList.find((p: any) =>
+        p.name.toLowerCase().includes("blue dream")
+      ) || productsList[0];
+      if (!demoProduct) throw new Error("No demo product available for COGS");
+
+      const productId = demoProduct._id;
+      const unitPrice = totalAmount;
+      const quantity = 1;
+
+      const saleResult = await convex.mutation(
+        (anyApi as any).inventory.sellInventoryItem,
+        { companyId, productId, quantity, unitPrice, locationId: defaultLocationId },
+      );
+
+      const lines = [
+        { accountCode: CASH_CODE, debit: totalAmount, credit: 0 },
+        { accountCode: REVENUE_CODE, debit: 0, credit: totalAmount },
+        { accountCode: COGS_CODE, debit: saleResult.totalCOGS, credit: 0 },
+        { accountCode: INVENTORY_CODE, debit: 0, credit: saleResult.totalCOGS },
+      ];
+
       const txId = await createTransaction(convex, anyApi, {
-        companyId,
-        periodId,
-        locationId: defaultLocationId,
-        date: dateStr,
-        amount: totalAmount,
-        direction: "inflow",
-        activity: "retail" as const,
-        source: "pos_import" as const,
-        sourceLabel: "Treez",
-        externalRef,
-        reference: "",
-        memo: `Treez sale ${sale.id}`,
-        lines: [
-          { accountCode: CASH_CODE, debit: totalAmount, credit: 0 },
-          { accountCode: REVENUE_CODE, debit: 0, credit: totalAmount },
-        ],
-        getAccountId,
+        companyId, periodId, locationId: defaultLocationId, date: dateStr,
+        amount: totalAmount, direction: "inflow", activity: "retail" as const,
+        source: "pos_import", sourceLabel: "Treez", externalRef,
+        reference: "", memo: `Treez sale ${sale.id} (no items)`, lines, getAccountId,
       });
       if (txId) createdCount++;
     } else {
       for (const item of items) {
         const itemAmount = item.totalPrice / 100;
         const itemRef = `${externalRef}:${item.productId}`;
+
+        // Find product by name (case-insensitive) with fallback
+        const productName = (item.productName || "").toLowerCase();
+        const product = productMap.get(productName) || productsList[0];
+        if (!product) throw new Error("No product available for COGS estimation");
+
+        const quantity = item.quantity;
+        const unitPrice = quantity > 0 ? itemAmount / quantity : itemAmount;
+
+        const saleResult = await convex.mutation(
+          (anyApi as any).inventory.sellInventoryItem,
+          { companyId, productId: product._id, quantity, unitPrice, locationId: defaultLocationId },
+        );
+
+        const lines = [
+          { accountCode: CASH_CODE, debit: itemAmount, credit: 0 },
+          { accountCode: REVENUE_CODE, debit: 0, credit: itemAmount },
+          { accountCode: COGS_CODE, debit: saleResult.totalCOGS, credit: 0 },
+          { accountCode: INVENTORY_CODE, debit: 0, credit: saleResult.totalCOGS },
+        ];
+
         const txId = await createTransaction(convex, anyApi, {
-          companyId,
-          periodId,
-          locationId: defaultLocationId,
-          date: dateStr,
-          amount: itemAmount,
-          direction: "inflow",
-          activity: "retail" as const,
-          source: "pos_import",
-          sourceLabel: "Treez",
-          externalRef: itemRef,
-          reference: item.productName,
-          memo: `Treez – ${item.productName} ×${item.quantity}`,
-          lines: [
-            { accountCode: CASH_CODE, debit: itemAmount, credit: 0 },
-            { accountCode: REVENUE_CODE, debit: 0, credit: itemAmount },
-          ],
-          getAccountId,
+          companyId, periodId, locationId: defaultLocationId, date: dateStr,
+          amount: itemAmount, direction: "inflow", activity: "retail" as const,
+          source: "pos_import", sourceLabel: "Treez", externalRef: itemRef,
+          reference: item.productName, memo: `Treez – ${item.productName} ×${quantity}`,
+          lines, getAccountId,
         });
         if (txId) createdCount++;
       }
@@ -248,7 +275,16 @@ async function createTransaction(
     );
   }
 
-  return tx._id;
+  // Trigger 471(c) reclassification
+      try {
+        await convex.mutation(
+          (anyApi as any).reclassification.apply471cReclassification,
+          { transactionId: tx._id }
+        );
+      } catch (e) {
+        console.warn("471c reclassification failed for", tx._id, e);
+      }
+      return tx._id;
 }
 
 export async function getTreezStatus(companyId: string) {

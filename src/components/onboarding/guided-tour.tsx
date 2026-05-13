@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import Joyride, { STATUS, CallBackProps, Step } from "react-joyride";
 import { getOnboardingProgress, startOnboardingTour, completeOnboardingTour } from "@/app/api/onboarding/actions";
 
-export function GuidedTour({ tourId, steps }: { tourId: string; steps: Step[] }) {
+export interface GuidedTourProps {
+  tourId: string;
+  steps: Step[];
+}
+
+export function GuidedTour({ tourId, steps }: GuidedTourProps) {
   const [run, setRun] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);

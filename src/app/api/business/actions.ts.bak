@@ -1,0 +1,114 @@
+/**
+ * Tranquillo Green — Business API Routes
+ *
+ * Server actions that wrap Convex mutations/queries.
+ * These are the entry points for the frontend business components.
+ */
+
+import { api } from "@/lib/convex/server";
+import { convex } from "@/lib/convex/client";
+import { redirect } from "next/navigation";
+
+// ─── LEAD CAPTURE ────────────────────────────────────────────────────────────
+export async function captureLead(formData: FormData) {
+  "use server";
+
+  const data = {
+    companyName: formData.get("companyName") as string,
+    contactName: formData.get("contactName") as string,
+    email: formData.get("email") as string,
+    phone: formData.get("phone") as string | null,
+    operatorType: formData.get("operatorType") as string,
+    state: formData.get("state") as string,
+    monthlyRevenueRange: formData.get("monthlyRevenueRange") as string | null,
+    bookkeepingMethod: formData.get("bookkeepingMethod") as string | null,
+    painPoints: formData.getAll("painPoints") as string[],
+    acquisitionSource: formData.get("acquisitionSource") as string,
+    utmSource: formData.get("utm_source") as string | null,
+    utmMedium: formData.get("utm_medium") as string | null,
+    utmCampaign: formData.get("utm_campaign") as string | null,
+    referrer: formData.get("referrer") as string | null,
+  };
+
+  const convex = await getServerConvex();
+  if (!convex) throw new Error("Convex unavailable");
+
+  const result = await convex.mutate(api.business.captureLead, data);
+
+  // In production: trigger Slack/email notification here
+
+  return result;
+}
+
+// ─── PROPOSAL GENERATION ────────────────────────────────────────────────────
+export async function generateProposal(leadId: string) {
+  "use server";
+
+  const convex = await getServerConvex();
+  if (!convex) throw new Error("Convex unavailable");
+
+  return await convex.query(api.business.generateProposal, { leadId });
+}
+
+// ─── TRIAL START ─────────────────────────────────────────────────────────────
+export async function startTrial(leadId: string, tier: string, billingCycle: string) {
+  "use server";
+
+  const convex = await getServerConvex();
+  if (!convex) throw new Error("Convex unavailable");
+
+  return await convex.mutate(api.business.startTrial, {
+    leadId,
+    selectedTier: tier,
+    billingCycle,
+  });
+}
+
+// ─── ACTIVATE SUBSCRIPTION ──────────────────────────────────────────────────
+export async function activateSubscription(customerId: string, billingCycle: string) {
+  "use server";
+
+  const convex = await getServerConvex();
+  if (!convex) throw new Error("Convex unavailable");
+
+  return await convex.mutate(api.business.activateSubscription, {
+    customerId,
+    billingCycle,
+  });
+}
+
+// ─── GET CUSTOMER BY ID ──────────────────────────────────────────────────────
+export async function getCustomer(customerId: string) {
+  "use server";
+
+  const convex = await getServerConvex();
+  if (!convex) throw new Error("Convex unavailable");
+
+  return await convex.query(api.business.getCustomer, { customerId });
+}
+
+// ─── LIST ACTIVE CUSTOMERS ───────────────────────────────────────────────────
+export async function listActiveCustomers() {
+  "use server";
+
+  const convex = await getServerConvex();
+  if (!convex) throw new Error("Convex unavailable");
+
+  return await convex.query(api.business.listActiveCustomers, {});
+}
+
+// ─── GET DAILY METRICS ───────────────────────────────────────────────────────
+export async function getDailyMetrics(days: number = 30) {
+  "use server";
+
+  const convex = await getServerConvex();
+  if (!convex) throw new Error("Convex unavailable");
+
+  return await convex.query(api.business.getDailyMetrics, { days });
+}
+
+// ─── UTILITY ─────────────────────────────────────────────────────────────────
+async function getServerConvex() {
+  const client = await import("@/lib/convex/server");
+  return client.getServerConvex();
+}

@@ -176,6 +176,16 @@ async function processSquarePayments(
   const openPeriod = periods.find((p: any) => p.status === "open") || periods[0];
   const periodId = openPeriod?._id;
 
+  // Load active products for COGS calculation
+  const productsList = await convex.query((anyApi as any).products.getActiveProducts, {
+    companyId,
+  });
+  const productMap = new Map<string, any>();
+  productsList.forEach((p: any) => productMap.set(p.name, p));
+
+  const COGS_CODE = "4100";
+  const INVENTORY_CODE = "1200";
+
   let createdCount = 0;
 
   for (const payment of payments as any[]) {
@@ -224,6 +234,40 @@ async function processSquarePayments(
         }
 
         const lineRef = `${externalRef}:${item.uid}`;
+        // Reduce inventory and compute COGS
+        let cogsAmount = 0;
+        const product = productMap.get(item.name);
+        if (product) {
+          try {
+            const saleResult = await convex.mutation(
+              (anyApi as any).inventory.sellInventoryItem,
+              {
+                companyId,
+                productId: product._id,
+                locationId: defaultLocationId,
+                quantity: qty,
+                movementDate: dateStr,
+                externalRef: lineRef,
+              }
+            );
+            cogsAmount = saleResult.totalCOGS;
+          } catch (err) {
+            console.error("Inventory error for", item.name, err);
+          }
+        } else {
+          console.warn(`No product found for: ${item.name}`);
+        }
+
+        // Build transaction lines including COGS and inventory credit
+        const lines = [
+          { accountCode: CASH_CODE, debit: itemAmount, credit: 0 },
+          { accountCode: REVENUE_CODE, debit: 0, credit: itemAmount },
+        ];
+        if (cogsAmount > 0) {
+          lines.push({ accountCode: COGS_CODE, debit: cogsAmount, credit: 0 });
+          lines.push({ accountCode: INVENTORY_CODE, debit: 0, credit: cogsAmount });
+        }
+
         const txId = await createTransaction(convex, anyApi, {
           companyId,
           periodId,
@@ -237,10 +281,7 @@ async function processSquarePayments(
           externalRef: lineRef,
           reference: item.name,
           memo: `Square sale – ${item.name} ×${qty}`,
-          lines: [
-            { accountCode: CASH_CODE, debit: itemAmount, credit: 0 },
-            { accountCode: REVENUE_CODE, debit: 0, credit: itemAmount },
-          ],
+          lines,
           getAccountId,
         });
         if (txId) createdCount++;
@@ -339,7 +380,16 @@ async function createTransaction(
     );
   }
 
-  return tx._id;
+  // Trigger 471(c) reclassification if applicable
+      try {
+        await convex.mutation(
+          (anyApi as any).reclassification.apply471cReclassification,
+          { transactionId: tx._id }
+        );
+      } catch (e) {
+        console.warn("471c reclassification failed for", tx._id, e);
+      }
+      return tx._id;
 }
 
 /**

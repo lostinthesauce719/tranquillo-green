@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import { connectMetrc, syncMetrc, getMetrcStatus } from "@/app/api/metrc/actions";
 import type { MetrcSyncResult } from "@/lib/integrations/metrc-client";
+import { MetrcCSVImport } from "@/components/metrc/metrc-csv-import";
+
+const METRC_STATES = ["CA", "CO", "MI", "MA", "OR", "IL", "NV", "MD"]; // Expand as needed
 
 const METRC_STATES = ["CA", "CO", "MI", "MA", "OR", "IL", "NV", "MD"]; // Expand as needed
 
@@ -232,8 +235,10 @@ export function MetrcConnectPanel({ companyId }: { companyId: string }) {
             </button>
           </div>
 
-          {/* Last Sync Info */}
-          {syncResult && (
+          {/* CSV Import — Manual data entry via CSV file */}\n
+          <MetrcCSVImport />\n
+
+          {/* Last Sync Info */}\n          {syncResult && (
             <div className="rounded-lg border border-border bg-surface-mid p-3 space-y-2">
               <div className="flex items-center gap-2 text-xs">
                 <span className={`inline-block h-2 w-2 rounded-full ${syncResult.success ? "bg-emerald-400" : "bg-red-400"}`} />
