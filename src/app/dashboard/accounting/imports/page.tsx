@@ -2,6 +2,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/shell/app-shell";
 import { CsvImportWorkflow } from "@/components/accounting/csv-import-workflow";
 import { CsvUploadForm } from "@/components/accounting/csv-upload-form";
+import { ImportTemplates } from "@/components/accounting/import-templates";
 import { MetricCard } from "@/components/ui/metric-card";
 import { loadAccountingWorkspace } from "@/lib/data/accounting-core";
 import { loadImportWorkspace } from "@/lib/data/import-jobs";
@@ -97,6 +98,11 @@ export default async function AccountingImportsPage() {
           workspace={importWorkspace}
         />
       </div>
+
+      <div className="mt-6">
+        <ImportTemplates />
+      </div>
+
     <GuidedTour tourId="csv-import" steps={csvImportTourSteps} />
       </AppShell>
   );

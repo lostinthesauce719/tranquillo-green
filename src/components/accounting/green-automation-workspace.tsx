@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
 import type { DemoAutomationAgent } from "@/lib/demo/accounting-handoff";
 
@@ -38,6 +41,22 @@ export function GreenAutomationWorkspace({ agents }: { agents: DemoAutomationAge
   const attentionCount = agents.filter((agent) => agent.status === "attention").length;
   const watchCount = agents.filter((agent) => agent.status === "watch").length;
   const healthyCount = agents.filter((agent) => agent.status === "healthy").length;
+  const [runningAgent, setRunningAgent] = useState<string | null>(null);
+  const [runResults, setRunResults] = useState<Record<string, { status: "pass" | "flag" | "hold"; itemsReviewed: number; exceptionsFound: number }>>({});
+
+  function handleRunNow(agentId: string) {
+    setRunningAgent(agentId);
+    // Simulate a run
+    setTimeout(() => {
+      const results = {
+        status: (Math.random() > 0.6 ? "flag" : "pass") as "pass" | "flag" | "hold",
+        itemsReviewed: Math.floor(Math.random() * 50) + 10,
+        exceptionsFound: Math.floor(Math.random() * 5),
+      };
+      setRunResults((prev) => ({ ...prev, [agentId]: results }));
+      setRunningAgent(null);
+    }, 1500);
+  }
 
   return (
     <div className="space-y-4">
@@ -72,9 +91,16 @@ export function GreenAutomationWorkspace({ agents }: { agents: DemoAutomationAge
               <h2 className="mt-2 text-xl font-semibold">{agent.name}</h2>
               <p className="mt-2 text-sm text-text-muted">{agent.purpose}</p>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center">
               <AccountingStatusBadge label={agent.status} tone={agentTone(agent.status)} className="capitalize" />
               <AccountingStatusBadge label={agent.cadence} tone="slate" />
+              <button
+                onClick={() => handleRunNow(agent.id)}
+                disabled={runningAgent === agent.id}
+                className="rounded-lg bg-brand/10 px-3 py-1.5 text-xs font-medium text-brand transition hover:bg-brand/20 disabled:opacity-50"
+              >
+                {runningAgent === agent.id ? "Running…" : "▶ Run Now"}
+              </button>
             </div>
           </div>
 
@@ -97,6 +123,29 @@ export function GreenAutomationWorkspace({ agents }: { agents: DemoAutomationAge
               <div className="mt-1 text-sm font-medium text-text-primary">{agent.exceptionsFound}</div>
             </div>
           </div>
+
+          {/* Run result (shows after Run Now) */}
+          {runResults[agent.id] && (
+            <div className={`mt-3 rounded-lg border px-4 py-3 text-sm ${
+              runResults[agent.id].status === "pass"
+                ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-300"
+                : runResults[agent.id].status === "flag"
+                ? "border-amber-500/20 bg-amber-500/5 text-amber-300"
+                : "border-rose-500/20 bg-rose-500/5 text-rose-300"
+            }`}>
+              <div className="flex items-center gap-2">
+                <span className={`inline-block h-2 w-2 rounded-full ${
+                  runResults[agent.id].status === "pass" ? "bg-emerald-400" : runResults[agent.id].status === "flag" ? "bg-amber-400" : "bg-rose-400"
+                }`} />
+                <span className="font-medium">
+                  Run complete: {runResults[agent.id].status === "pass" ? "All items passed" : runResults[agent.id].status === "flag" ? "Items flagged for review" : "Run held — needs attention"}
+                </span>
+              </div>
+              <div className="mt-1 text-xs opacity-80">
+                {runResults[agent.id].itemsReviewed} items reviewed • {runResults[agent.id].exceptionsFound} exceptions found
+              </div>
+            </div>
+          )}
 
           {/* Historical outcomes row */}
           <div className="mt-3 rounded-xl border border-border bg-surface p-4">

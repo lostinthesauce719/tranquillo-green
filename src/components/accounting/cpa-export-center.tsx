@@ -176,6 +176,8 @@ export function CpaExportCenter({
   const [builderState, setBuilderState] = useState<BuilderState>(() => buildInitialState(fallbackBundle, checklist));
   const [demoHistory, setDemoHistory] = useState(history);
 
+  const [buildFeedback, setBuildFeedback] = useState<string | null>(null);
+
   const selectedBundle = bundles.find((bundle) => bundle.id === builderState.selectedBundleId) ?? fallbackBundle;
   const selectedChecklistItems = checklist.filter((item) => builderState.selectedChecklistTitles.includes(item.title));
   const selectedChecklistStatuses = new Set(selectedChecklistItems.map((item) => item.status));
@@ -382,11 +384,18 @@ export function CpaExportCenter({
                           },
                           ...current,
                         ]);
+                        setBuildFeedback(`Packet downloaded: ${selectedBundle.id}-${new Date().toISOString().slice(0, 10)}.csv`);
+                        setTimeout(() => setBuildFeedback(null), 5000);
                       }}
                       className="rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-3 text-sm text-violet-100 transition hover:bg-violet-500/20"
                     >
                       Assemble & download packet
                     </button>
+                    {buildFeedback && (
+                      <div className="mt-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-300">
+                        ✓ {buildFeedback}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
