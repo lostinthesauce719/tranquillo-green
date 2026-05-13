@@ -14,8 +14,13 @@ export default function GuideToggle() {
     async function load() {
       const map: Record<string, boolean> = {};
       for (const tour of tours) {
-        const p = await getOnboardingProgress(tour.id);
-        map[tour.id] = p?.status === 'completed';
+        try {
+          const p = await getOnboardingProgress(tour.id);
+          map[tour.id] = p?.status === 'completed';
+        } catch {
+          // Convex unavailable or auth error — treat as not completed
+          map[tour.id] = false;
+        }
       }
       setProgressMap(map);
     }
@@ -24,7 +29,11 @@ export default function GuideToggle() {
 
   const handleStart = async (tourId: string) => {
     setLoadingMap((m) => ({ ...m, [tourId]: true }));
-    await startOnboardingTour(tourId);
+    try {
+      await startOnboardingTour(tourId);
+    } catch {
+      // Demo mode — just close the menu
+    }
     setProgressMap((m) => ({ ...m, [tourId]: false }));
     setLoadingMap((m) => ({ ...m, [tourId]: false }));
     setOpen(false);
@@ -89,7 +98,7 @@ export default function GuideToggle() {
             })}
           </div>
           <div className="mt-2 border-t border-border-subtle pt-2 text-[11px] text-text-faint text-center">
-            Completed tours won’t repeat automatically
+            Completed tours won&apos;t repeat automatically
           </div>
         </div>
       )}

@@ -212,9 +212,11 @@ export function buildDemoPipelineStages(): DemoPipelineStage[] {
 }
 
 function closeAreaStatus(score: number, blocker?: string): DemoCloseAreaStatus {
-  if (blocker) return score >= 0.8 ? "watch" : "blocked";
   if (score >= 0.95) return "ready";
-  return score >= 0.7 ? "on_track" : "watch";
+  if (score >= 0.7) return "on_track";
+  if (blocker && score < 0.5) return "blocked";
+  if (blocker) return "watch";
+  return "on_track";
 }
 
 export function buildDemoCloseDashboard(): DemoCloseDashboard {
