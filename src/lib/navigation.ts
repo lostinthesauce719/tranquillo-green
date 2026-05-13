@@ -52,6 +52,18 @@ export const moduleLinks: NavLink[] = [
 
   // System
   { href: "/dashboard/settings", label: "Settings", section: "System" },
+  { href: "/dashboard/notifications", label: "Notifications", section: "System" },
+  { href: "/dashboard/billing", label: "Billing & Plans", section: "System" },
+];
+
+// Premium features — only visible for Cultivator+ tiers
+export const premiumLinks: NavLink[] = [
+  {
+    href: "/dashboard/payroll",
+    label: "Payroll & Labor",
+    section: "Operations",
+    operators: ["cultivator", "manufacturer", "vertical"],
+  },
 ];
 
 /** Filter links by operator type. */
