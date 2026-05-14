@@ -173,7 +173,7 @@ function OperationsPanel() {
   }
 
   return (
-    <section className="rounded-2xl border border-border bg-surface-mid p-5 lg:col-span-2">
+    <section className="rounded-2xl border border-border bg-surface-mid p-5 md:col-span-2">
       <div className="flex items-center justify-between">
         <div>
           <div className="text-xs uppercase tracking-[0.2em] text-accent">Operations</div>
@@ -194,7 +194,7 @@ function OperationsPanel() {
       {showAdd && (
         <div className="mt-5 rounded-xl border border-border bg-surface p-5 space-y-4">
           <div className="text-sm font-medium text-text-primary">New Operation</div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
             <div>
               <label className="mb-1 block text-xs text-text-muted">Name</label>
               <input
@@ -220,7 +220,7 @@ function OperationsPanel() {
       )}
 
       {/* Operations list */}
-      <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-5 grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         {operations.map((op) => (
           <div
             key={op.id}
@@ -377,7 +377,7 @@ export default function SettingsPage() {
         <strong>Demo mode</strong> — Showing sample data. Connect your live systems for real-time compliance tracking.
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
         {/* Company Profile */}
         <section className="rounded-2xl border border-border bg-surface-mid p-5">
           <div className="flex items-center justify-between">

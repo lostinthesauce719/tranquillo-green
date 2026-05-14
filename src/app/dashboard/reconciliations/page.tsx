@@ -22,16 +22,16 @@ export default async function ReconciliationsPage() {
       title="Reconciliations"
       description="Drawers, vault, armored clearing, and bank tie-out."
     >
-      <div className="grid gap-5 md:grid-cols-3">
+      <div className="grid gap-5 grid-cols-1 md:grid-cols-3">
         <MetricCard label="Balanced" value={String(summary.balanced)} detail={`${summary.readyToPost} staged for review`} />
         <MetricCard label="Investigations" value={String(summary.investigating + summary.exception)} detail="Variances needing follow-up" />
         <MetricCard label="Net variance" value={currencyFormatter.format(summary.netVariance)} detail="Should trend to zero" />
       </div>
 
-      <div className="mt-8 grid gap-5 xl:grid-cols-[1fr_1fr]">
+      <div className="mt-8 grid gap-5 grid-cols-1 xl:grid-cols-2">
         <section className="rounded-2xl border border-border bg-surface-mid p-6">
           <div className="text-[11px] uppercase tracking-[0.15em] text-accent/70">Cash chain</div>
-          <div className="mt-4 grid gap-3 md:grid-cols-4">
+          <div className="mt-4 grid gap-3 grid-cols-2 md:grid-cols-4">
             <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted/50">Drawer counts capture returns, payouts, and drops.</div>
             <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted/50">Vault ties sealed bags before pickup.</div>
             <div className="rounded-2xl border border-border bg-surface p-4 text-sm text-text-muted/50">Clearing catches timing differences and fees.</div>

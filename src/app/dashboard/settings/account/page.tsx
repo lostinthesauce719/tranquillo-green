@@ -115,7 +115,7 @@ function ProfileSection() {
 
   return (
     <Section title="Profile" icon={User}>
-      <dl className="grid grid-cols-2 gap-x-12 gap-y-4 sm:grid-cols-3">
+      <dl className="grid grid-cols-1 gap-x-12 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
         <Field label="Full Name" value={fullName} />
         <Field label="Email" value={primaryEmail} />
         <Field
@@ -238,7 +238,7 @@ function AccountSection() {
               Active
             </span>
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3">
+          <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Field label="Plan" value="Professional" />
             <Field label="Billing Cycle" value="Monthly" />
             <Field label="Next Billing" value="May 15, 2026" />

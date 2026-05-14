@@ -116,18 +116,20 @@ export function MetrcConnectPanel({ companyId }: { companyId: string }) {
   return (
     <div className="rounded-xl border border-border bg-surface px-4 py-3 space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="font-medium text-text-primary">Metrc</div>
           <div className="mt-1 text-xs text-text-muted">
             California seed-to-sale tracking — {connected ? (facilityName ?? "Connected") : "Accounting sync — connect your Metrc API keys"}
           </div>
         </div>
+        <div className="mt-1 sm:mt-0">
         {connected ? (
           <Badge className="bg-emerald-500/20 text-emerald-300">Connected</Badge>
         ) : (
           <Badge className="bg-neutral-500/20 text-neutral-300">Not Connected</Badge>
         )}
+        </div>
       </div>
 
       {/* Connection Form */}
@@ -212,7 +214,7 @@ export function MetrcConnectPanel({ companyId }: { companyId: string }) {
       {/* Connected State — Sync Controls */}
       {connected && (
         <div className="space-y-3">
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={handleSync}
               disabled={syncing}

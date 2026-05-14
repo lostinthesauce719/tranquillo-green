@@ -14,7 +14,7 @@ export default function FinancialReportsPage() {
       description="Income statement, balance sheet, and trial balance. Period-over-period comparison with 280E impact analysis."
     >
       {/* Quick nav */}
-      <div className="mb-6 flex gap-3">
+      <div className="mb-6 flex flex-wrap gap-3">
         <Link
           href="/dashboard/accounting/reports"
           className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white"

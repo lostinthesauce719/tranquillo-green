@@ -154,7 +154,7 @@ export default function AllocationsPage() {
       <div className="mt-6 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
         <section className="rounded-2xl border border-border bg-surface-mid p-5">
           <div className="text-xs uppercase tracking-[0.2em] text-accent">Queue rules</div>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="mt-4 grid gap-3 grid-cols-1 md:grid-cols-3">
             {profile.allocationMethods.map((method) => (
               <div key={method.id} className={`rounded-2xl border bg-surface p-4 text-sm text-text-muted ${method.default ? "border-violet-500/30" : "border-border"}`}>
                 <div className="flex items-center gap-2">

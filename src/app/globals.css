@@ -64,6 +64,61 @@
   --duration-slow: 400ms;
 }
 
+/* ─── LIGHT MODE OVERRIDES ─────────────────────────────────────────── */
+
+.light {
+  /* Surface palette — warm whites with subtle gray borders */
+  --background: #f8fafc;
+  --surface: #ffffff;
+  --surface-mid: #f1f5f9;
+  --surface-raised: #ffffff;
+  --surface-overlay: #f1f5f9;
+  --border: #e2e8f0;
+  --border-subtle: #e8edf2;
+
+  /* Text — dark slate, high contrast */
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --text-faint: #94a3b8;
+
+  /* Brand — keep consistent */
+  --brand: #22855a;
+  --brand-soft: rgba(34, 133, 90, 0.10);
+  --brand-glow: rgba(34, 133, 90, 0.18);
+
+  /* Accent — slightly deeper for light bg readability */
+  --accent: #b8741a;
+  --accent-soft: rgba(184, 116, 26, 0.10);
+
+  /* Semantic — deeper tones for light backgrounds */
+  --success: #16a34a;
+  --success-soft: rgba(22, 163, 74, 0.10);
+  --warning: #d97706;
+  --warning-soft: rgba(217, 119, 6, 0.10);
+  --danger: #dc2626;
+  --danger-soft: rgba(220, 38, 38, 0.10);
+  --info: #2563eb;
+  --info-soft: rgba(37, 99, 235, 0.10);
+
+  /* Special */
+  --violet: #7c3aed;
+  --violet-soft: rgba(124, 58, 237, 0.10);
+
+  /* Elevation — softer shadows for light mode */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.10);
+  --shadow-glow: 0 0 20px rgba(34, 133, 90, 0.06);
+}
+
+/* Light mode body background — subtle warm gradient */
+.light body {
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(34, 133, 90, 0.04), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(184, 116, 26, 0.03), transparent);
+}
+
 /* ─── BASE STYLES ──────────────────────────────────────────────────── */
 
 * {

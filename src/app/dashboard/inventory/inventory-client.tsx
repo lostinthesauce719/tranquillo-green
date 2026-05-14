@@ -302,7 +302,7 @@ export default function InventoryClient({ source, products, batches, movements, 
         </div>
       )}
       {/* Summary Metric Cards */}
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <MetricCard label="Active Products" value={String(products.filter((p) => p.active).length)} detail={`${products.filter((p) => p.category === "flower").length} flower SKUs · ${sourceLabel}`} />
         <MetricCard label="Open Batches" value={String(stats.activeBatches)} detail="Packages with available on-hand quantity" />
         <MetricCard label="Total Units On Hand" value={stats.totalUnitsOnHand.toLocaleString()} detail={`Across ${stats.activeBatches} tracked batches`} />

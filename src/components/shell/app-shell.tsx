@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
@@ -8,6 +8,7 @@ import { moduleLinks, filterLinksByOperator, type NavLink } from "@/lib/navigati
 import { useTenantMaybe } from "@/lib/auth/tenant-context";
 import { ROLE_LABELS, canAccess, type TenantRole } from "@/lib/auth/roles";
 import { OperatorTypeSwitch } from "@/components/shell/operator-switch";
+import { ThemeToggle } from "@/components/shell/theme-toggle";
 import GuideToggle from "@/components/onboarding/guide-toggle";
 
 /* ── role badge tokens ─────────────────────────────────────────────── */
@@ -102,9 +103,11 @@ function CloseIcon({ className }: { className?: string }) {
 function SidebarNav({
   sections,
   pathname,
+  onNavigate,
 }: {
   sections: { section: string; links: NavLink[] }[];
   pathname: string;
+  onNavigate?: () => void;
 }) {
   return (
     <nav className="flex-1 overflow-y-auto px-3 py-2">
@@ -120,6 +123,7 @@ function SidebarNav({
                 <Link
                   key={item.href}
                   href={item.href}
+                  onClick={onNavigate}
                   className={`group relative block rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-[var(--duration-normal)] ease-[var(--ease-out)] ${
                     active
                       ? "bg-brand-soft text-text-primary"
@@ -201,6 +205,15 @@ export function AppShell({
 
           {/* nav links */}
           <SidebarNav sections={sections} pathname={pathname} />
+
+          {/* separator */}
+          <div className="mx-5 h-px bg-border-subtle" />
+
+          {/* theme toggle */}
+          <div className="flex items-center justify-between px-5 py-3">
+            <span className="text-xs font-medium text-text-muted">Appearance</span>
+            <ThemeToggle />
+          </div>
 
           {/* separator */}
           <div className="mx-5 h-px bg-border-subtle" />
@@ -295,7 +308,15 @@ export function AppShell({
           <div className="mx-5 my-3 h-px bg-border-subtle" />
 
           {/* nav */}
-          <SidebarNav sections={sections} pathname={pathname} />
+          <SidebarNav sections={sections} pathname={pathname} onNavigate={closeMobile} />
+
+          <div className="mx-5 h-px bg-border-subtle" />
+
+          {/* theme toggle (mobile) */}
+          <div className="flex items-center justify-between px-5 py-3">
+            <span className="text-xs font-medium text-text-muted">Appearance</span>
+            <ThemeToggle />
+          </div>
 
           <div className="mx-5 h-px bg-border-subtle" />
 

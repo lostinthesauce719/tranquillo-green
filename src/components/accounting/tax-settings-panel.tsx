@@ -168,7 +168,7 @@ export function TaxSettingsPanel({ className }: TaxSettingsPanelProps) {
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* Primary Jurisdiction */}
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
           <div>
             <label className="mb-1 block text-xs text-text-muted">Primary Tax Jurisdiction</label>
             <select

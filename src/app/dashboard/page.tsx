@@ -281,10 +281,10 @@ export default async function DashboardPage() {
       />
 
       {/* Health banner */}
-      <div className="mb-6 rounded-2xl border border-brand/20 bg-brand/5 p-4 flex items-center gap-3">
+      <div className="mb-6 rounded-2xl border border-brand/20 bg-brand/5 p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
         <span className="text-lg">🌿</span>
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-sm font-medium text-text-primary">System Health</span>
             <Badge variant={automationAlerts > 0 ? "warning" : "success"} size="sm" dot>
               {automationAlerts > 0 ? `${automationAlerts} alerts` : "All clear"}
@@ -298,14 +298,14 @@ export default async function DashboardPage() {
         </div>
         <Link
           href="/dashboard/automation"
-          className="text-xs font-medium text-brand hover:text-brand/80 transition-colors"
+          className="text-xs font-medium text-brand hover:text-brand/80 transition-colors shrink-0"
         >
           View agents →
         </Link>
       </div>
 
       {/* Quick actions */}
-      <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
+      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Link
           href="/dashboard/accounting/close"
           className="group relative flex flex-col gap-1 rounded-xl border border-border bg-surface-mid p-4 transition-all duration-200 hover:border-brand/40 hover:bg-surface-raised hover:shadow-lg hover:shadow-brand/5"
@@ -365,7 +365,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Key metrics */}
-      <StaggerContainer className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <StaggerContainer className="grid gap-4 grid-cols-2 md:grid-cols-4">
         <LiveMetricCard
           label="Allocation queue"
           value={totalQueueItems}
@@ -413,8 +413,8 @@ export default async function DashboardPage() {
         </div>
 
         {/* Bar chart */}
-        <div className="mt-5">
-          <div className="flex items-end gap-3 sm:gap-5" style={{ minHeight: 200 }}>
+        <div className="mt-5 overflow-x-auto">
+          <div className="flex items-end gap-3 sm:gap-5" style={{ minHeight: 200, minWidth: 480 }}>
             {revenueCogsData.map((d, i) => {
               const revenueHeight = (d.revenue / maxRevenue) * 180;
               const cogsHeight = (d.cogs / maxRevenue) * 180;
@@ -470,7 +470,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Current month detail row */}
-        <div className="mt-5 pt-4 border-t border-border-subtle grid gap-3 sm:grid-cols-3">
+        <div className="mt-5 pt-4 border-t border-border-subtle grid gap-3 grid-cols-1 sm:grid-cols-3">
           <div>
             <div className="text-xs text-text-muted">Current month revenue</div>
             <div className="mt-0.5 text-lg font-medium text-text-primary">
@@ -514,7 +514,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* Quick access workspaces */}
-      <div className="mt-6 grid gap-4 xl:grid-cols-3">
+      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <Link
           href="/dashboard/allocations"
           className="group rounded-2xl border border-border bg-surface-mid p-5 transition hover:bg-surface/70 hover:border-brand/30"
@@ -557,8 +557,8 @@ export default async function DashboardPage() {
       </div>
 
       {/* Recent activity — derived from actual data */}
-      <section className="mt-6 rounded-2xl border border-border bg-surface-mid p-5">
-        <div className="flex items-center justify-between">
+      <section className="mt-6 rounded-2xl border border-border bg-surface-mid p-5 overflow-hidden">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="text-xs uppercase tracking-[0.2em] text-accent">Recent activity</div>
             <p className="mt-1 text-sm text-text-muted">

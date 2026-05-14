@@ -20,6 +20,21 @@ export const dynamic = "force-dynamic";
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={inter.variable}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+(function() {
+  try {
+    var t = localStorage.getItem('tranquillo-theme');
+    if (t === 'light') document.documentElement.classList.add('light');
+    else document.documentElement.classList.remove('light');
+  } catch(e) {}
+})();
+`,
+          }}
+        />
+      </head>
       <body>
         <ClerkProvider>
           {/* Skip to main content link for keyboard navigation */}

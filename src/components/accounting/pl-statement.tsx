@@ -174,7 +174,9 @@ export function PLStatement() {
 
       {/* P&L Table */}
       <div className="rounded-2xl border border-border bg-surface-mid overflow-hidden">
-        <table className="w-full text-sm">
+        <p className="block sm:hidden px-4 pt-3 text-xs text-text-muted italic">Scroll horizontally to see all columns</p>
+        <div className="overflow-x-auto w-full">
+          <table className="w-full text-sm" style={{ minWidth: 520 }}>
           <thead>
             <tr className="border-b border-border bg-surface">
               <th className="px-6 py-3 text-left text-xs uppercase tracking-wider text-text-muted">Line Item</th>
@@ -362,6 +364,7 @@ export function PLStatement() {
             </tr>
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* 280E Impact Analysis */}
@@ -371,7 +374,7 @@ export function PLStatement() {
           <p className="mt-1 text-sm text-text-muted">
             Proper COGS allocation under IRC 280E and 471(c) reduces your taxable income.
           </p>
-          <div className="mt-4 grid gap-4 sm:grid-cols-3">
+          <div className="mt-4 grid gap-4 grid-cols-1 sm:grid-cols-3">
             <div className="rounded-xl border border-border bg-surface p-4">
               <div className="text-xs text-text-muted">Without 280E Optimization</div>
               <div className="mt-1 text-xl font-bold text-danger">{formatAmount(data.netIncome280e ?? 0)}</div>
@@ -392,7 +395,7 @@ export function PLStatement() {
       )}
 
       {/* Key Metrics */}
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-4">
         <div className="rounded-xl border border-border bg-surface p-4">
           <div className="text-xs text-text-muted">Gross Margin</div>
           <div className="mt-1 text-2xl font-bold text-text-primary">
