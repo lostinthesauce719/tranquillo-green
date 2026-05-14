@@ -11,6 +11,7 @@ import { MetrcConnectPanel } from "@/components/metrc/metrc-connect-panel";
 import { TaxSettingsPanel } from "@/components/accounting/tax-settings-panel";
 import { TaxRateTable } from "@/components/accounting/tax-rate-table";
 import { TaxLiabilityDashboard } from "@/components/accounting/tax-liability-dashboard";
+import Link from "next/link";
 
 const OPERATOR_TYPES = [
   { value: "dispensary", label: "Dispensary" },
@@ -464,6 +465,26 @@ export default function SettingsPage() {
           </div>
         </section>
 
+        {/* Team Members */}
+        <section className="rounded-2xl border border-border bg-surface-mid p-5">
+          <div className="text-xs uppercase tracking-[0.2em] text-accent">Team Management</div>
+          <h2 className="mt-2 text-xl font-semibold">Team Members</h2>
+          <p className="mt-2 max-w-lg text-sm text-text-muted">
+            Invite your team, assign roles, and manage access to your organization.
+          </p>
+          <div className="mt-4 flex items-center gap-3">
+            <Link
+              href="/dashboard/settings/users"
+              className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-brand/90"
+            >
+              Manage Team
+            </Link>
+            <span className="text-xs text-text-faint">
+              Owner can invite, change roles, and remove members
+            </span>
+          </div>
+        </section>
+
         {/* Locations — managed */}
         <LocationManager />
 
@@ -481,6 +502,26 @@ export default function SettingsPage() {
 
         {/* Tax Liability Overview */}
         <TaxLiabilityDashboard className="mb-8" />
+
+        {/* Audit Log */}
+        <section className="rounded-2xl border border-border bg-surface-mid p-5">
+          <div className="text-xs uppercase tracking-[0.2em] text-accent">Audit & Compliance</div>
+          <h2 className="mt-2 text-xl font-semibold">Audit Log</h2>
+          <p className="mt-2 max-w-lg text-sm text-text-muted">
+            Complete audit trail of all actions and changes across your organization — allocation approvals, journal entries, settings changes, user management, and system events.
+          </p>
+          <div className="mt-4 flex items-center gap-3">
+            <Link
+              href="/dashboard/settings/audit-log"
+              className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-brand/90"
+            >
+              View Audit Log
+            </Link>
+            <span className="text-xs text-text-faint">
+              Immutable · 7-year retention · Cryptographically chained
+            </span>
+          </div>
+        </section>
 
         {/* Integration Status */}
         <section className="rounded-2xl border border-border bg-surface-mid p-5">

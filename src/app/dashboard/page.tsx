@@ -7,6 +7,12 @@ import { AiInsightsPanel, type InsightItem } from "@/components/ui/ai-insights-p
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
 import {
+  CalendarCheck,
+  Upload,
+  PieChart,
+  RefreshCw,
+} from "lucide-react";
+import {
   demoAllocationReviewQueue,
   demoCashReconciliations,
   getFeaturedCashReconciliationHref,
@@ -21,6 +27,50 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
   currency: "USD",
   maximumFractionDigits: 0,
 });
+
+// ── Revenue vs COGS demo data (6 months, cannabis dispensary) ──
+interface MonthlyData {
+  month: string;
+  shortMonth: string;
+  revenue: number;
+  cogs: number;
+  revenueChange: number | null; // % change vs prior month
+  cogsChange: number | null;
+}
+
+const revenueCogsData: MonthlyData[] = (() => {
+  const months = [
+    { label: "Nov 2025", short: "Nov" },
+    { label: "Dec 2025", short: "Dec" },
+    { label: "Jan 2026", short: "Jan" },
+    { label: "Feb 2026", short: "Feb" },
+    { label: "Mar 2026", short: "Mar" },
+    { label: "Apr 2026", short: "Apr" },
+  ];
+  // Base revenue: $185K in Nov, growing 5-8% MoM
+  const revenues = [185000, 196100, 207900, 220400, 235800, 252300];
+  // COGS as % of revenue: 48%, 52%, 47%, 50%, 46%, 45%
+  const cogsPct = [0.48, 0.52, 0.47, 0.50, 0.46, 0.45];
+
+  return months.map((m, i) => {
+    const revenue = revenues[i];
+    const cogs = Math.round(revenue * cogsPct[i]);
+    const revenueChange = i > 0 ? ((revenue - revenues[i - 1]) / revenues[i - 1]) * 100 : null;
+    const cogsChange = i > 0 ? ((cogs - Math.round(revenues[i - 1] * cogsPct[i - 1])) / Math.round(revenues[i - 1] * cogsPct[i - 1])) * 100 : null;
+    return { month: m.label, shortMonth: m.short, revenue, cogs, revenueChange, cogsChange };
+  });
+})();
+
+const maxRevenue = Math.max(...revenueCogsData.map((d) => d.revenue));
+
+// 280E tax savings estimate for current month (Apr 2026)
+// Under 280E, only COGS is deductible. The "savings" is the tax benefit
+// of properly allocating costs vs being forced to use a flat disallowance.
+const currentMonth = revenueCogsData[revenueCogsData.length - 1];
+const effectiveTaxRate = 0.21; // federal corporate rate
+const stateTaxRate = 0.098; // CA corporate rate
+const totalTaxRate = effectiveTaxRate + stateTaxRate;
+const taxSavings280E = Math.round(currentMonth.cogs * totalTaxRate);
 
 // Build recent activity from real data sources
 function buildRecentActivity(): ActivityItem[] {
@@ -254,6 +304,66 @@ export default async function DashboardPage() {
         </Link>
       </div>
 
+      {/* Quick actions */}
+      <div className="mb-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <Link
+          href="/dashboard/accounting/close"
+          className="group relative flex flex-col gap-1 rounded-xl border border-border bg-surface-mid p-4 transition-all duration-200 hover:border-brand/40 hover:bg-surface-raised hover:shadow-lg hover:shadow-brand/5"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand/10 text-brand transition-colors group-hover:bg-brand/20">
+              <CalendarCheck className="h-4.5 w-4.5" />
+            </span>
+            <span className="text-sm font-semibold text-text-primary group-hover:text-brand transition-colors">Start Close</span>
+          </div>
+          <p className="text-xs text-text-muted leading-relaxed pl-[46px]">
+            Month-end close workflow — lock periods, review checklists.
+          </p>
+        </Link>
+        <Link
+          href="/dashboard/accounting/imports"
+          className="group relative flex flex-col gap-1 rounded-xl border border-border bg-surface-mid p-4 transition-all duration-200 hover:border-brand/40 hover:bg-surface-raised hover:shadow-lg hover:shadow-brand/5"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-accent transition-colors group-hover:bg-accent/20">
+              <Upload className="h-4.5 w-4.5" />
+            </span>
+            <span className="text-sm font-semibold text-text-primary group-hover:text-accent transition-colors">Upload Import</span>
+          </div>
+          <p className="text-xs text-text-muted leading-relaxed pl-[46px]">
+            CSV bank feeds, receipts, and bulk transaction imports.
+          </p>
+        </Link>
+        <Link
+          href="/dashboard/allocations"
+          className="group relative flex flex-col gap-1 rounded-xl border border-border bg-surface-mid p-4 transition-all duration-200 hover:border-brand/40 hover:bg-surface-raised hover:shadow-lg hover:shadow-brand/5"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet/10 text-violet transition-colors group-hover:bg-violet/20">
+              <PieChart className="h-4.5 w-4.5" />
+            </span>
+            <span className="text-sm font-semibold text-text-primary group-hover:text-violet transition-colors">Run Allocations</span>
+          </div>
+          <p className="text-xs text-text-muted leading-relaxed pl-[46px]">
+            Review 280E splits, approve queue, and publish results.
+          </p>
+        </Link>
+        <Link
+          href="/dashboard/inventory"
+          className="group relative flex flex-col gap-1 rounded-xl border border-border bg-surface-mid p-4 transition-all duration-200 hover:border-brand/40 hover:bg-surface-raised hover:shadow-lg hover:shadow-brand/5"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-success/10 text-success transition-colors group-hover:bg-success/20">
+              <RefreshCw className="h-4.5 w-4.5" />
+            </span>
+            <span className="text-sm font-semibold text-text-primary group-hover:text-success transition-colors">Sync Metrc</span>
+          </div>
+          <p className="text-xs text-text-muted leading-relaxed pl-[46px]">
+            Pull latest packages, transfers, and harvest data.
+          </p>
+        </Link>
+      </div>
+
       {/* Key metrics */}
       <StaggerContainer className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <LiveMetricCard
@@ -280,6 +390,118 @@ export default async function DashboardPage() {
           detail="CA excise + sales tax due within 16 days"
         />
       </StaggerContainer>
+
+      {/* Revenue vs COGS Trend */}
+      <section className="mt-6 rounded-2xl border border-border bg-surface-mid p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-xs uppercase tracking-[0.2em] text-accent">Revenue vs COGS Trend</div>
+            <p className="mt-1 text-sm text-text-muted">
+              Last 6 months — monthly comparison with period-over-period change.
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-brand" />
+              <span className="text-xs text-text-muted">Revenue</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-accent" />
+              <span className="text-xs text-text-muted">COGS</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Bar chart */}
+        <div className="mt-5">
+          <div className="flex items-end gap-3 sm:gap-5" style={{ minHeight: 200 }}>
+            {revenueCogsData.map((d, i) => {
+              const revenueHeight = (d.revenue / maxRevenue) * 180;
+              const cogsHeight = (d.cogs / maxRevenue) * 180;
+              const isCurrent = i === revenueCogsData.length - 1;
+              return (
+                <div key={d.month} className="flex-1 flex flex-col items-center gap-1">
+                  {/* Change indicators */}
+                  <div className="flex items-center gap-1 text-[10px] leading-none h-4">
+                    {d.revenueChange !== null && (
+                      <span className={d.revenueChange >= 0 ? "text-success" : "text-danger"}>
+                        {d.revenueChange >= 0 ? "↑" : "↓"}{Math.abs(d.revenueChange).toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] leading-none h-3">
+                    {d.cogsChange !== null && (
+                      <span className={d.cogsChange <= 0 ? "text-success" : "text-warning"}>
+                        {d.cogsChange >= 0 ? "↑" : "↓"}{Math.abs(d.cogsChange).toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Bars */}
+                  <div className="flex items-end gap-1" style={{ height: 180 }}>
+                    <div
+                      className="w-4 sm:w-6 rounded-t-sm transition-all duration-500"
+                      style={{
+                        height: revenueHeight,
+                        backgroundColor: isCurrent ? "var(--brand)" : "rgba(34, 133, 90, 0.45)",
+                        boxShadow: isCurrent ? "0 0 12px rgba(34, 133, 90, 0.3)" : "none",
+                      }}
+                      title={`Revenue: ${currencyFormatter.format(d.revenue)}`}
+                    />
+                    <div
+                      className="w-4 sm:w-6 rounded-t-sm transition-all duration-500"
+                      style={{
+                        height: cogsHeight,
+                        backgroundColor: isCurrent ? "var(--accent)" : "rgba(212, 146, 42, 0.45)",
+                        boxShadow: isCurrent ? "0 0 12px rgba(212, 146, 42, 0.3)" : "none",
+                      }}
+                      title={`COGS: ${currencyFormatter.format(d.cogs)}`}
+                    />
+                  </div>
+
+                  {/* Month label */}
+                  <span className={`mt-2 text-[10px] sm:text-xs ${isCurrent ? "text-text-primary font-medium" : "text-text-muted"}`}>
+                    {d.shortMonth}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Current month detail row */}
+        <div className="mt-5 pt-4 border-t border-border-subtle grid gap-3 sm:grid-cols-3">
+          <div>
+            <div className="text-xs text-text-muted">Current month revenue</div>
+            <div className="mt-0.5 text-lg font-medium text-text-primary">
+              {currencyFormatter.format(currentMonth.revenue)}
+            </div>
+            {currentMonth.revenueChange !== null && (
+              <div className={`text-xs mt-0.5 ${currentMonth.revenueChange >= 0 ? "text-success" : "text-danger"}`}>
+                {currentMonth.revenueChange >= 0 ? "↑" : "↓"} {Math.abs(currentMonth.revenueChange).toFixed(1)}% vs prior month
+              </div>
+            )}
+          </div>
+          <div>
+            <div className="text-xs text-text-muted">Current month COGS</div>
+            <div className="mt-0.5 text-lg font-medium text-text-primary">
+              {currencyFormatter.format(currentMonth.cogs)}
+            </div>
+            <div className="text-xs text-text-muted mt-0.5">
+              {((currentMonth.cogs / currentMonth.revenue) * 100).toFixed(1)}% of revenue
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-text-muted">Est. 280E tax savings</div>
+            <div className="mt-0.5 text-lg font-medium text-success">
+              {currencyFormatter.format(taxSavings280E)}
+            </div>
+            <div className="text-xs text-text-muted mt-0.5">
+              Based on deductible COGS at ~{(totalTaxRate * 100).toFixed(1)}% effective rate
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Insights */}
       <div className="mt-6">
