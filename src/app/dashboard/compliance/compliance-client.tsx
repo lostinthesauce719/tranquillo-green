@@ -1,8 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useTenant } from "@/lib/auth/tenant-context";
-import { useEffect, useState, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
   AlertCircle,
   AlertTriangle,
@@ -38,6 +36,75 @@ interface ComplianceStats {
   info: number;
 }
 
+// Demo compliance alerts
+const DEMO_ALERTS: ComplianceAlert[] = [
+  {
+    _id: "demo-1",
+    companyId: "demo",
+    category: "tax" as Category,
+    severity: "critical" as Severity,
+    title: "280E allocation overdue for Q1 2026",
+    body: "Quarterly 280E COGS allocation has not been reviewed. Deadline was April 15.",
+    resolvedAt: null,
+    sourceType: "system",
+    sourceId: null,
+    dueAt: Date.now() - 7 * 24 * 60 * 60 * 1000,
+    _creationTime: Date.now() - 14 * 24 * 60 * 60 * 1000,
+  },
+  {
+    _id: "demo-2",
+    companyId: "demo",
+    category: "license" as Category,
+    severity: "warning" as Severity,
+    title: "Cultivation license renewal in 45 days",
+    body: "Annual cultivation license renewal due. Submit application at least 30 days before expiration.",
+    resolvedAt: null,
+    sourceType: "system",
+    sourceId: null,
+    dueAt: Date.now() + 45 * 24 * 60 * 60 * 1000,
+    _creationTime: Date.now() - 3 * 24 * 60 * 60 * 1000,
+  },
+  {
+    _id: "demo-3",
+    companyId: "demo",
+    category: "reconciliation" as Category,
+    severity: "warning" as Severity,
+    title: "Metrc inventory variance detected",
+    body: "Package METC-001234 shows 2.3g variance between Metrc and book inventory.",
+    resolvedAt: null,
+    sourceType: "system",
+    sourceId: null,
+    dueAt: Date.now() + 5 * 24 * 60 * 60 * 1000,
+    _creationTime: Date.now() - 1 * 24 * 60 * 60 * 1000,
+  },
+  {
+    _id: "demo-4",
+    companyId: "demo",
+    category: "allocation" as Category,
+    severity: "info" as Severity,
+    title: "471(c) election review recommended",
+    body: "Based on current revenue, your operation may benefit from a 471(c) small business inventory method election.",
+    resolvedAt: null,
+    sourceType: "system",
+    sourceId: null,
+    dueAt: null,
+    _creationTime: Date.now() - 2 * 24 * 60 * 60 * 1000,
+  },
+  {
+    _id: "demo-5",
+    companyId: "demo",
+    category: "tax" as Category,
+    severity: "info" as Severity,
+    title: "State excise tax filing due in 12 days",
+    body: "Monthly cannabis excise tax return (CDTFA-501) is due by the 15th of next month.",
+    resolvedAt: null,
+    sourceType: "system",
+    sourceId: null,
+    dueAt: Date.now() + 12 * 24 * 60 * 60 * 1000,
+    _creationTime: Date.now() - 5 * 24 * 60 * 60 * 1000,
+  },
+];
+
 const severityConfig: Record<
   Severity,
   { icon: React.ElementType; badgeClass: string; bgClass: string; borderClass: string }
@@ -69,121 +136,16 @@ const categoryLabel: Record<Category, string> = {
   allocation: "Allocation",
 };
 
-// Demo fallback alerts
-const demoAlerts: ComplianceAlert[] = [
-  {
-    _id: "demo-1",
-    companyId: "demo",
-    category: "tax",
-    severity: "critical",
-    title: "280E allocation overdue for Q1 2026",
-    body: "Quarterly 280E COGS allocation has not been reviewed. Deadline was April 15.",
-    resolvedAt: null,
-    sourceType: "system",
-    sourceId: null,
-    dueAt: Date.now() - 7 * 24 * 60 * 60 * 1000,
-    _creationTime: Date.now() - 14 * 24 * 60 * 60 * 1000,
-  },
-  {
-    _id: "demo-2",
-    companyId: "demo",
-    category: "license",
-    severity: "warning",
-    title: "Cultivation license renewal in 45 days",
-    body: "Annual cultivation license renewal due. Submit application at least 30 days before expiration.",
-    resolvedAt: null,
-    sourceType: "system",
-    sourceId: null,
-    dueAt: Date.now() + 45 * 24 * 60 * 60 * 1000,
-    _creationTime: Date.now() - 3 * 24 * 60 * 60 * 1000,
-  },
-  {
-    _id: "demo-3",
-    companyId: "demo",
-    category: "reconciliation",
-    severity: "warning",
-    title: "Metrc inventory variance detected",
-    body: "Package METC-001234 shows 2.3g variance between Metrc and book inventory.",
-    resolvedAt: null,
-    sourceType: "system",
-    sourceId: null,
-    dueAt: Date.now() + 5 * 24 * 60 * 60 * 1000,
-    _creationTime: Date.now() - 1 * 24 * 60 * 60 * 1000,
-  },
-  {
-    _id: "demo-4",
-    companyId: "demo",
-    category: "allocation",
-    severity: "info",
-    title: "471(c) election review recommended",
-    body: "Based on current revenue, your operation may benefit from a 471(c) small business inventory method election.",
-    resolvedAt: null,
-    sourceType: "system",
-    sourceId: null,
-    dueAt: null,
-    _creationTime: Date.now() - 2 * 24 * 60 * 60 * 1000,
-  },
-  {
-    _id: "demo-5",
-    companyId: "demo",
-    category: "tax",
-    severity: "info",
-    title: "State excise tax filing due in 12 days",
-    body: "Monthly cannabis excise tax return (CDTFA-501) is due by the 15th of next month.",
-    resolvedAt: null,
-    sourceType: "system",
-    sourceId: null,
-    dueAt: Date.now() + 12 * 24 * 60 * 60 * 1000,
-    _creationTime: Date.now() - 5 * 24 * 60 * 60 * 1000,
-  },
-];
-
-const demoStats: ComplianceStats = {
-  total: demoAlerts.length,
-  critical: demoAlerts.filter((a) => a.severity === "critical").length,
-  warning: demoAlerts.filter((a) => a.severity === "warning").length,
-  info: demoAlerts.filter((a) => a.severity === "info").length,
-};
-
 export default function ComplianceClient() {
-  const router = useRouter();
-  const { companyId } = useTenant();
   const [activeFilter, setActiveFilter] = useState<Severity | "all">("all");
   const [selectedCategory, setSelectedCategory] = useState<Category | "all">("all");
-  const [alerts, setAlerts] = useState<ComplianceAlert[] | null>(null);
-  const [stats, setStats] = useState<ComplianceStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      try {
-        // Try to use Convex if available
-        const { useQuery } = await import("convex/react");
-        const { api } = await import("@/../convex/_generated/api");
-
-        // If we get here, Convex is available — but we can't use hooks conditionally
-        // So fall through to demo data for now
-        if (!cancelled) {
-          setAlerts(demoAlerts);
-          setStats(demoStats);
-          setLoading(false);
-        }
-      } catch {
-        // Convex not available — use demo data
-        if (!cancelled) {
-          setAlerts(demoAlerts);
-          setStats(demoStats);
-          setLoading(false);
-        }
-      }
-    }
-
-    load();
-    return () => { cancelled = true; };
-  }, [companyId]);
+  const [alerts, setAlerts] = useState<ComplianceAlert[]>(DEMO_ALERTS);
+  const [stats, setStats] = useState<ComplianceStats>({
+    total: DEMO_ALERTS.length,
+    critical: DEMO_ALERTS.filter((a) => a.severity === "critical").length,
+    warning: DEMO_ALERTS.filter((a) => a.severity === "warning").length,
+    info: DEMO_ALERTS.filter((a) => a.severity === "info").length,
+  });
 
   const handleResolve = useCallback(
     async (alertId: string) => {
@@ -193,23 +155,6 @@ export default function ComplianceClient() {
     },
     [],
   );
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <RefreshCw className="animate-spin w-6 h-6 text-muted-foreground" />
-        <span className="ml-2 text-muted-foreground">Loading compliance alerts…</span>
-      </div>
-    );
-  }
-
-  if (!alerts || !stats) {
-    return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
-        No compliance data available.
-      </div>
-    );
-  }
 
   const filteredAlerts = alerts.filter((a) => {
     if (activeFilter !== "all" && a.severity !== activeFilter) return false;

@@ -531,7 +531,7 @@ export const demoOverrideRollup: DemoOverrideRollupEntry[] = [
 
 export const demoPeriodState: DemoPeriodState = {
   periodLabel: "April 2026",
-  closeReadiness: 73,
+  closeReadiness: 37, // Matches buildDemoCloseDashboard() computed score
   supportScheduleComplete: true,
   missingDocCount: 1,
   watchItemCount: 2,

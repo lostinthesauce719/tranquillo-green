@@ -6,6 +6,7 @@ import { ActivityFeed, type ActivityItem } from "@/components/ui/activity-feed";
 import { AiInsightsPanel, type InsightItem } from "@/components/ui/ai-insights-panel";
 import { Breadcrumbs } from "@/components/ui/breadcrumbs";
 import { Badge } from "@/components/ui/badge";
+import { RevenueCogsChart } from "@/components/dashboard/revenue-cogs-chart";
 import {
   CalendarCheck,
   Upload,
@@ -413,61 +414,7 @@ export default async function DashboardPage() {
         </div>
 
         {/* Bar chart */}
-        <div className="mt-5 overflow-x-auto">
-          <div className="flex items-end gap-3 sm:gap-5" style={{ minHeight: 200, minWidth: 480 }}>
-            {revenueCogsData.map((d, i) => {
-              const revenueHeight = (d.revenue / maxRevenue) * 180;
-              const cogsHeight = (d.cogs / maxRevenue) * 180;
-              const isCurrent = i === revenueCogsData.length - 1;
-              return (
-                <div key={d.month} className="flex-1 flex flex-col items-center gap-1">
-                  {/* Change indicators */}
-                  <div className="flex items-center gap-1 text-[10px] leading-none h-4">
-                    {d.revenueChange !== null && (
-                      <span className={d.revenueChange >= 0 ? "text-success" : "text-danger"}>
-                        {d.revenueChange >= 0 ? "↑" : "↓"}{Math.abs(d.revenueChange).toFixed(1)}%
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1 text-[10px] leading-none h-3">
-                    {d.cogsChange !== null && (
-                      <span className={d.cogsChange <= 0 ? "text-success" : "text-warning"}>
-                        {d.cogsChange >= 0 ? "↑" : "↓"}{Math.abs(d.cogsChange).toFixed(1)}%
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Bars */}
-                  <div className="flex items-end gap-1" style={{ height: 180 }}>
-                    <div
-                      className="w-4 sm:w-6 rounded-t-sm transition-all duration-500"
-                      style={{
-                        height: revenueHeight,
-                        backgroundColor: isCurrent ? "var(--brand)" : "rgba(34, 133, 90, 0.45)",
-                        boxShadow: isCurrent ? "0 0 12px rgba(34, 133, 90, 0.3)" : "none",
-                      }}
-                      title={`Revenue: ${currencyFormatter.format(d.revenue)}`}
-                    />
-                    <div
-                      className="w-4 sm:w-6 rounded-t-sm transition-all duration-500"
-                      style={{
-                        height: cogsHeight,
-                        backgroundColor: isCurrent ? "var(--accent)" : "rgba(212, 146, 42, 0.45)",
-                        boxShadow: isCurrent ? "0 0 12px rgba(212, 146, 42, 0.3)" : "none",
-                      }}
-                      title={`COGS: ${currencyFormatter.format(d.cogs)}`}
-                    />
-                  </div>
-
-                  {/* Month label */}
-                  <span className={`mt-2 text-[10px] sm:text-xs ${isCurrent ? "text-text-primary font-medium" : "text-text-muted"}`}>
-                    {d.shortMonth}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <RevenueCogsChart data={revenueCogsData} maxRevenue={maxRevenue} />
 
         {/* Current month detail row */}
         <div className="mt-5 pt-4 border-t border-border-subtle grid gap-3 grid-cols-1 sm:grid-cols-3">
