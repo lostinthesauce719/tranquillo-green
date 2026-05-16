@@ -92,7 +92,7 @@ export function RevenueTrendChart() {
     return (
       <div className="h-64 flex items-center justify-center border border-dashed border-neutral-600 rounded">
         <span className="text-neutral-400 text-sm">
-          No metrics recorded yet. Run "Compute Daily Metrics" in Convex console.
+          No metrics recorded yet. Run &quot;Compute Daily Metrics&quot; in Convex console.
         </span>
       </div>
     );

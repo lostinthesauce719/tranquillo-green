@@ -200,7 +200,7 @@ export default function HomePage() {
               <p className="mt-2 text-sm leading-relaxed text-text-muted">
                 Daily cash reconciliation built for an industry that runs on cash.
                 Bank feed integration, variance tracking, and deposit matching
-                — so your books match what's in the vault.
+                — so your books match what&apos;s in the vault.
               </p>
             </div>
 
@@ -212,7 +212,7 @@ export default function HomePage() {
               <p className="mt-2 text-sm leading-relaxed text-text-muted">
                 Consolidate multiple entities, locations, and license types.
                 Intercompany eliminations, unified reporting, and per-entity
-                P&L — built for operators who've outgrown spreadsheets.
+                P&L — built for operators who&apos;ve outgrown spreadsheets.
               </p>
             </div>
 
@@ -235,7 +235,7 @@ export default function HomePage() {
               <p className="mt-2 text-sm leading-relaxed text-text-muted">
                 Close the books in days, not weeks. Automated journal entries,
                 period lock, close checklists, and review workflows —
-                so you're always audit-ready.
+                so you&apos;re always audit-ready.
               </p>
             </div>
           </div>
@@ -257,7 +257,7 @@ export default function HomePage() {
                 that talks to your POS, your seed-to-sale system, and your CPA.
               </p>
               <p className="mt-4 text-base leading-relaxed text-text-muted">
-                Whether you're a single-location dispensary or a multi-state operator
+                Whether you&apos;re a single-location dispensary or a multi-state operator
                 with 10+ entities — the platform scales with you.
               </p>
             </div>

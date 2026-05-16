@@ -364,7 +364,7 @@ export default function AcquisitionDashboard({}: AcquisitionDashboardProps) {
                 <div>
                   <h3 className="text-lg font-semibold">Step 2: Personalized Proposal</h3>
                   <p className="mt-1 text-sm text-text-muted">
-                    Based on your profile, here's your recommended plan and investment.
+                    Based on your profile, here&apos;s your recommended plan and investment.
                   </p>
                 </div>
                 <button
