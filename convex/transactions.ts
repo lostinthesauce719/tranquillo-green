@@ -1,6 +1,7 @@
 // @ts-nocheck
 import { v } from "convex/values";
 import { authQuery, authMutation, requireCompanyAccessById } from "./lib/withAuth";
+import { apply471cReclassificationInline } from "./lib/reclassificationInline";
 
 const transactionSource = v.union(v.literal("manual"), v.literal("csv_import"), v.literal("metrc_import"), v.literal("pos_import"), v.literal("system"));
 const transactionStatus = v.union(v.literal("draft"), v.literal("posted"), v.literal("needs_review"));
@@ -121,10 +122,19 @@ export const upsert = authMutation(
 
     if (existing) {
       await ctx.db.patch(existing._id, args);
+      // Auto-trigger 471(c) reclassification if the updated transaction is posted
+      if (args.status === "posted") {
+        await apply471cReclassificationInline(ctx, existing._id);
+      }
       return existing._id;
     }
 
-    return await ctx.db.insert("transactions", args);
+    const newId = await ctx.db.insert("transactions", args);
+    // Auto-trigger 471(c) reclassification if the new transaction is posted
+    if (args.status === "posted") {
+      await apply471cReclassificationInline(ctx, newId);
+    }
+    return newId;
   },
 );
 
