@@ -12,6 +12,8 @@ import {
   Calendar,
   Clock,
   ExternalLink,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 type NotificationSeverity = "critical" | "warning" | "info" | "success";
@@ -82,7 +84,7 @@ const DEMO_NOTIFICATIONS: Notification[] = [
     createdAt: "2026-04-14T08:00:00Z",
     dueAt: "2026-05-30T23:59:59Z",
     linkHref: "/dashboard/compliance",
-    linkLabel: "View Compliance",
+    linkLabel: "View License Details",
     source: "License Monitor",
   },
   {
@@ -152,11 +154,171 @@ const categoryLabels: Record<NotificationCategory, string> = {
   system: "System",
 };
 
+/* ─── Notification Row (with inline dropdown) ─────────────────────── */
+
+function NotificationRow({
+  notification,
+  isExpanded,
+  onToggle,
+  onResolve,
+  onMarkRead,
+}: {
+  notification: Notification;
+  isExpanded: boolean;
+  onToggle: () => void;
+  onResolve: (id: string) => void;
+  onMarkRead: (id: string) => void;
+}) {
+  const config = severityConfig[notification.severity];
+  const Icon = config.icon;
+  const isOverdue = notification.dueAt && new Date(notification.dueAt) < new Date();
+  const daysSinceCreated = Math.floor((Date.now() - new Date(notification.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+
+  return (
+    <div>
+      {/* Notification row — always visible */}
+      <div
+        className={"rounded-xl border p-4 transition cursor-pointer " + (notification.status === "unread" ? config.bg + " border-l-4" : "border-border bg-surface opacity-70")}
+        style={{ borderLeftColor: notification.status === "unread" ? undefined : "transparent" }}
+        onClick={onToggle}
+      >
+        <div className="flex items-start gap-3">
+          <Icon className={"h-5 w-5 mt-0.5 flex-shrink-0 " + config.color} />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h4 className={"text-sm font-medium " + (notification.status === "unread" ? "text-text-primary" : "text-text-secondary")}>
+                {notification.title}
+              </h4>
+              {notification.status === "unread" && (
+                <span className="h-2 w-2 rounded-full bg-brand" />
+              )}
+            </div>
+            <p className="mt-1 text-xs text-text-muted">{notification.body}</p>
+            <div className="mt-2 flex items-center gap-4 text-xs text-text-faint">
+              <span className="flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                {new Date(notification.createdAt).toLocaleDateString()}
+              </span>
+              {notification.dueAt && (
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  Due: {new Date(notification.dueAt).toLocaleDateString()}
+                </span>
+              )}
+              <span>{categoryLabels[notification.category]}</span>
+              <span>via {notification.source}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="text-xs text-text-faint hidden sm:block">
+              {isExpanded ? "Close" : "Review"}
+            </span>
+            {isExpanded ? (
+              <ChevronUp className="w-4 h-4 text-text-muted" />
+            ) : (
+              <ChevronDown className="w-4 h-4 text-text-muted" />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Dropdown detail — inline below */}
+      {isExpanded && (
+        <div className="mt-2 ml-4 border-l-2 border-brand/30 pl-4 space-y-3 pb-2">
+          {/* Details */}
+          <div className="rounded-lg border border-border bg-surface-raised p-4">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-text-faint mb-2">Details</div>
+            <p className="text-sm text-text-secondary leading-relaxed">{notification.body}</p>
+          </div>
+
+          {/* Metadata */}
+          <div className="grid gap-2 sm:grid-cols-3">
+            <div className="rounded-lg border border-border bg-surface p-3">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-text-faint mb-1">Created</div>
+              <div className="flex items-center gap-1.5 text-sm text-text-secondary">
+                <Calendar className="w-3.5 h-3.5 text-text-faint" />
+                {new Date(notification.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                <span className="text-text-faint">({daysSinceCreated}d ago)</span>
+              </div>
+            </div>
+            {notification.dueAt && (
+              <div className="rounded-lg border border-border bg-surface p-3">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-text-faint mb-1">Due Date</div>
+                <div className="flex items-center gap-1.5 text-sm text-text-secondary">
+                  <Clock className="w-3.5 h-3.5 text-text-faint" />
+                  {new Date(notification.dueAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  {isOverdue && <span className="text-red-400 text-xs font-medium">OVERDUE</span>}
+                </div>
+              </div>
+            )}
+            <div className="rounded-lg border border-border bg-surface p-3">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-text-faint mb-1">Source</div>
+              <div className="text-sm text-text-secondary">{notification.source}</div>
+            </div>
+          </div>
+
+          {/* Link to problem */}
+          {notification.linkHref && (
+            <div className="rounded-lg border border-brand/20 bg-brand/5 p-4">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-brand mb-1">Go to Problem</div>
+              <p className="text-sm text-text-secondary mb-2">
+                {notification.category === "compliance" && "Open the compliance workspace to review this alert in context with your full compliance posture."}
+                {notification.category === "close" && "Open the close dashboard to see which blockers are preventing period lock."}
+                {notification.category === "allocation" && "Open the allocation workspace to review and adjust COGS allocation splits."}
+                {notification.category === "reconciliation" && "Open the reconciliation workspace to investigate and resolve the variance."}
+                {notification.category === "tax" && "Open the tax calendar to see all upcoming filing deadlines and required actions."}
+                {notification.category === "system" && "Open the relevant workspace to address this system notification."}
+              </p>
+              <Link
+                href={notification.linkHref}
+                onClick={() => onMarkRead(notification.id)}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:text-brand/80"
+              >
+                {notification.linkLabel || "Open"} <ExternalLink className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex items-center gap-3 pt-1">
+            {notification.status !== "resolved" && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onResolve(notification.id); }}
+                className="inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand/90"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                Resolve
+              </button>
+            )}
+            {notification.status === "unread" && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onMarkRead(notification.id); }}
+                className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-secondary transition hover:bg-surface-overlay"
+              >
+                Mark as Read
+              </button>
+            )}
+            <button
+              onClick={(e) => { e.stopPropagation(); onToggle(); }}
+              className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium text-text-muted transition hover:text-text-secondary hover:bg-surface-overlay"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Main Component ──────────────────────────────────────────────── */
+
 export function NotificationInbox() {
   const [notifications, setNotifications] = useState<Notification[]>(DEMO_NOTIFICATIONS);
   const [filterSeverity, setFilterSeverity] = useState<NotificationSeverity | "all">("all");
   const [filterStatus, setFilterStatus] = useState<NotificationStatus | "all">("all");
   const [showResolved, setShowResolved] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     return notifications.filter((n) => {
@@ -186,6 +348,7 @@ export function NotificationInbox() {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, status: "resolved" as const } : n))
     );
+    setExpandedId(null);
   }
 
   return (
@@ -241,11 +404,7 @@ export function NotificationInbox() {
           <button
             key={sev}
             onClick={() => setFilterSeverity(sev)}
-            className={`rounded-full border px-3 py-1 text-xs transition ${
-              filterSeverity === sev
-                ? "border-brand bg-brand/10 text-brand"
-                : "border-border text-text-muted hover:border-brand/50"
-            }`}
+            className={"rounded-full border px-3 py-1 text-xs transition " + (filterSeverity === sev ? "border-brand bg-brand/10 text-brand" : "border-border text-text-muted hover:border-brand/50")}
           >
             {sev === "all" ? "All severities" : sev.charAt(0).toUpperCase() + sev.slice(1)}
           </button>
@@ -255,11 +414,7 @@ export function NotificationInbox() {
           <button
             key={st}
             onClick={() => setFilterStatus(st)}
-            className={`rounded-full border px-3 py-1 text-xs transition ${
-              filterStatus === st
-                ? "border-brand bg-brand/10 text-brand"
-                : "border-border text-text-muted hover:border-brand/50"
-            }`}
+            className={"rounded-full border px-3 py-1 text-xs transition " + (filterStatus === st ? "border-brand bg-brand/10 text-brand" : "border-border text-text-muted hover:border-brand/50")}
           >
             {st === "all" ? "All statuses" : st.charAt(0).toUpperCase() + st.slice(1)}
           </button>
@@ -274,78 +429,16 @@ export function NotificationInbox() {
             <p className="mt-3 text-sm text-text-muted">No notifications match your filters.</p>
           </div>
         ) : (
-          filtered.map((notification) => {
-            const config = severityConfig[notification.severity];
-            const Icon = config.icon;
-            return (
-              <div
-                key={notification.id}
-                className={`rounded-xl border p-4 transition ${
-                  notification.status === "unread"
-                    ? `${config.bg} border-l-4`
-                    : "border-border bg-surface opacity-70"
-                }`}
-                style={{ borderLeftColor: notification.status === "unread" ? undefined : "transparent" }}
-              >
-                <div className="flex items-start gap-3">
-                  <Icon className={`h-5 w-5 mt-0.5 flex-shrink-0 ${config.color}`} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h4 className={`text-sm font-medium ${notification.status === "unread" ? "text-text-primary" : "text-text-secondary"}`}>
-                        {notification.title}
-                      </h4>
-                      {notification.status === "unread" && (
-                        <span className="h-2 w-2 rounded-full bg-brand" />
-                      )}
-                    </div>
-                    <p className="mt-1 text-xs text-text-muted">{notification.body}</p>
-                    <div className="mt-2 flex items-center gap-4 text-xs text-text-faint">
-                      <span className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {new Date(notification.createdAt).toLocaleDateString()}
-                      </span>
-                      {notification.dueAt && (
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          Due: {new Date(notification.dueAt).toLocaleDateString()}
-                        </span>
-                      )}
-                      <span>{categoryLabels[notification.category]}</span>
-                      <span>via {notification.source}</span>
-                    </div>
-                    <div className="mt-3 flex items-center gap-2">
-                      {notification.linkHref && (
-                        <Link
-                          href={notification.linkHref}
-                          onClick={() => markAsRead(notification.id)}
-                          className="flex items-center gap-1 rounded-lg bg-brand/10 px-3 py-1.5 text-xs font-medium text-brand transition hover:bg-brand/20"
-                        >
-                          {notification.linkLabel || "View"}
-                          <ExternalLink className="h-3 w-3" />
-                        </Link>
-                      )}
-                      {notification.status === "unread" && (
-                        <button
-                          onClick={() => markAsRead(notification.id)}
-                          className="rounded-lg border border-border px-3 py-1.5 text-xs text-text-muted transition hover:text-text-primary"
-                        >
-                          Mark read
-                        </button>
-                      )}
-                      {notification.status !== "resolved" && (
-                        <button
-                          onClick={() => resolveNotification(notification.id)}
-                          className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-1.5 text-xs text-emerald-300 transition hover:bg-emerald-500/10"
-                        >
-                          Resolve
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })
+          filtered.map((notification) => (
+            <NotificationRow
+              key={notification.id}
+              notification={notification}
+              isExpanded={expandedId === notification.id}
+              onToggle={() => setExpandedId(expandedId === notification.id ? null : notification.id)}
+              onResolve={resolveNotification}
+              onMarkRead={markAsRead}
+            />
+          ))
         )}
       </div>
     </div>

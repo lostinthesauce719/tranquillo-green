@@ -1,36 +1,9 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 
-/* ─── Proof point icons ──────────────────────────────────────── */
-
-function AllocationIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
-      <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
-function MetrcIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
-      <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" />
-      <line x1="4" y1="22" x2="4" y2="15" />
-    </svg>
-  );
-}
-
-function ExportIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14 2 14 8 20 8" />
-      <line x1="16" y1="13" x2="8" y2="13" />
-      <line x1="16" y1="17" x2="8" y2="17" />
-      <polyline points="10 9 9 9 8 9" />
-    </svg>
-  );
-}
+/* ─── Icons ─────────────────────────────────────────────────────── */
 
 function CheckIcon({ className }: { className?: string }) {
   return (
@@ -40,55 +13,154 @@ function CheckIcon({ className }: { className?: string }) {
   );
 }
 
-function CashIcon({ className }: { className?: string }) {
+function ArrowRight({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
-      <rect x="2" y="6" width="20" height="12" rx="2" />
-      <circle cx="12" cy="12" r="3" />
-      <path d="M6 6V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2" />
-      <line x1="6" y1="18" x2="6" y2="17.5" />
-      <line x1="18" y1="18" x2="18" y2="17.5" />
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className={className} aria-hidden>
+      <path d="M3 8h10M9 4l4 4-4 4" />
     </svg>
   );
 }
 
-function EntityIcon({ className }: { className?: string }) {
+function CalculatorIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
-      <rect x="3" y="3" width="7" height="7" rx="1" />
-      <rect x="14" y="3" width="7" height="7" rx="1" />
-      <rect x="3" y="14" width="7" height="7" rx="1" />
-      <rect x="14" y="14" width="7" height="7" rx="1" />
-      <path d="M10 6.5h4M6.5 10v4M17.5 10v4M10 17.5h4" />
+      <rect x="4" y="2" width="16" height="20" rx="2" />
+      <rect x="6" y="4" width="12" height="6" rx="1" />
+      <circle cx="8" cy="14" r="1" /><circle cx="12" cy="14" r="1" /><circle cx="16" cy="14" r="1" />
+      <circle cx="8" cy="18" r="1" /><circle cx="12" cy="18" r="1" />
     </svg>
   );
 }
 
-/* ─── Page ───────────────────────────────────────────────────── */
+/* ─── Inline 280E Calculator ─────────────────────────────────────── */
+
+function InlineCalculator() {
+  const [revenue, setRevenue] = useState(2000000);
+  const [cogsPct, setCogsPct] = useState(35);
+  const [rent, setRent] = useState(120000);
+  const [labor, setLabor] = useState(180000);
+
+  const currentCogs = revenue * (cogsPct / 100);
+  const optimizedCogs = currentCogs + rent * 0.45 + labor * 0.55;
+  const additionalDeductions = optimizedCogs - currentCogs;
+  const taxSavings = additionalDeductions * 0.308; // ~30.8% effective rate
+
+  const fmt = (v: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(v);
+
+  return (
+    <div className="rounded-2xl border border-brand/30 bg-gradient-to-br from-brand/5 to-surface p-6 sm:p-8">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand/10">
+          <CalculatorIcon className="h-5 w-5 text-brand" />
+        </div>
+        <div>
+          <h3 className="text-lg font-semibold text-text-primary">280E Savings Calculator</h3>
+          <p className="text-xs text-text-muted">See how much you could save — no email required</p>
+        </div>
+      </div>
+
+      <div className="space-y-5">
+        <div>
+          <div className="flex items-baseline justify-between">
+            <label className="text-sm font-medium text-text-primary">Annual Revenue</label>
+            <span className="text-sm font-semibold text-brand">{fmt(revenue)}</span>
+          </div>
+          <input type="range" min={500000} max={50000000} step={100000} value={revenue} onChange={(e) => setRevenue(Number(e.target.value))}
+            className="mt-2 w-full h-2 rounded-full appearance-none cursor-pointer" style={{ background: `linear-gradient(to right, var(--brand) ${((revenue - 500000) / 49500000) * 100}%, var(--border) ${((revenue - 500000) / 49500000) * 100}%)` }} />
+        </div>
+
+        <div>
+          <div className="flex items-baseline justify-between">
+            <label className="text-sm font-medium text-text-primary">Current COGS %</label>
+            <span className="text-sm font-semibold text-brand">{cogsPct}%</span>
+          </div>
+          <input type="range" min={15} max={60} step={1} value={cogsPct} onChange={(e) => setCogsPct(Number(e.target.value))}
+            className="mt-2 w-full h-2 rounded-full appearance-none cursor-pointer" style={{ background: `linear-gradient(to right, var(--brand) ${((cogsPct - 15) / 45) * 100}%, var(--border) ${((cogsPct - 15) / 45) * 100}%)` }} />
+        </div>
+
+        <div>
+          <div className="flex items-baseline justify-between">
+            <label className="text-sm font-medium text-text-primary">Annual Facility Rent</label>
+            <span className="text-sm font-semibold text-brand">{fmt(rent)}</span>
+          </div>
+          <input type="range" min={0} max={1000000} step={10000} value={rent} onChange={(e) => setRent(Number(e.target.value))}
+            className="mt-2 w-full h-2 rounded-full appearance-none cursor-pointer" style={{ background: `linear-gradient(to right, var(--brand) ${(rent / 1000000) * 100}%, var(--border) ${(rent / 1000000) * 100}%)` }} />
+        </div>
+
+        <div>
+          <div className="flex items-baseline justify-between">
+            <label className="text-sm font-medium text-text-primary">Inventory-Related Labor</label>
+            <span className="text-sm font-semibold text-brand">{fmt(labor)}</span>
+          </div>
+          <input type="range" min={0} max={2000000} step={10000} value={labor} onChange={(e) => setLabor(Number(e.target.value))}
+            className="mt-2 w-full h-2 rounded-full appearance-none cursor-pointer" style={{ background: `linear-gradient(to right, var(--brand) ${(labor / 2000000) * 100}%, var(--border) ${(labor / 2000000) * 100}%)` }} />
+        </div>
+      </div>
+
+      {/* Results */}
+      <div className="mt-6 rounded-xl border border-brand/20 bg-surface-raised p-5">
+        <div className="text-center">
+          <div className="text-xs font-semibold uppercase tracking-wider text-text-muted">Estimated Annual Tax Savings</div>
+          <div className="mt-2 text-4xl font-bold text-brand sm:text-5xl">{fmt(taxSavings)}</div>
+          <div className="mt-2 text-sm text-text-muted">
+            from {fmt(additionalDeductions)} in additional COGS deductions
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-3 text-center">
+          <div className="rounded-lg border border-border bg-surface p-3">
+            <div className="text-xs text-text-faint">Current COGS</div>
+            <div className="text-sm font-semibold text-text-secondary">{fmt(currentCogs)}</div>
+          </div>
+          <div className="rounded-lg border border-brand/20 bg-brand/5 p-3">
+            <div className="text-xs text-text-faint">Optimized COGS</div>
+            <div className="text-sm font-semibold text-brand">{fmt(optimizedCogs)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-6 flex flex-col gap-3">
+        <Link href="/demo"
+          className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-brand px-8 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-brand/90 hover:shadow-md">
+          Schedule a Demo <ArrowRight className="h-4 w-4" />
+        </Link>
+        <Link href="/pricing"
+          className="inline-flex h-12 items-center justify-center rounded-xl border border-border px-8 text-sm font-semibold text-text-secondary transition-all duration-200 hover:border-brand/30 hover:text-brand">
+          View Pricing
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Testimonials ──────────────────────────────────────────────── */
+
+const testimonials = [
+  {
+    quote: "We were doing 280E allocations in spreadsheets — 16 hours every month. Tranquillo cut that to under 30 minutes and found $94K in deductions we'd been missing on rent and labor allocation alone.",
+    author: "Marcus Whitfield",
+    title: "CFO, Greenleaf Dispensaries — Michigan",
+    stat: "$94K found",
+  },
+  {
+    quote: "Our cultivator client was claiming 28% COGS. After running their data through Tranquillo, we identified 41% — a $210K difference in deductible expenses.",
+    author: "Tomoko Arakawa",
+    title: "Controller, Cascade Grow Co. — Oregon",
+    stat: "$210K difference",
+  },
+  {
+    quote: "We switched from Flourish + QuickBooks to Tranquillo for our multi-state operation. The Metrc reconciliation alone saves us 10 hours a week across 4 states.",
+    author: "Derek Okafor",
+    title: "VP Finance, Standard Wellness — Ohio & Arizona",
+    stat: "10 hrs/week saved",
+  },
+];
+
+/* ─── Page ──────────────────────────────────────────────────────── */
 
 export default function HomePage() {
-  const cpaFeatures = [
-    "280E + 471(c) allocation reports for every client",
-    "471(c) eligibility testing and method election tracking",
-    "Metrc sync across all operator accounts",
-    "One-click QBO export — CPA-ready workpapers",
-    "Filing calendar with deadline tracking",
-    "Multi-entity dashboard",
-    "Audit trail on every adjustment",
-  ];
-
   return (
     <main className="relative min-h-screen overflow-hidden bg-background">
-      {/* Ambient gradients */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background: `
-            radial-gradient(ellipse 80% 60% at 20% 0%, rgba(34, 133, 90, 0.08), transparent 70%),
-            radial-gradient(ellipse 60% 50% at 80% 100%, rgba(212, 146, 42, 0.04), transparent 60%)
-          `,
-        }}
-      />
+      <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(ellipse 80% 60% at 20% 0%, rgba(34, 133, 90, 0.08), transparent 70%), radial-gradient(ellipse 60% 50% at 80% 100%, rgba(212, 146, 42, 0.04), transparent 60%)" }} />
 
       <div className="relative z-10 mx-auto max-w-5xl px-6 py-16 lg:py-24">
 
@@ -100,241 +172,120 @@ export default function HomePage() {
           </div>
 
           <h1 className="mt-8 text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl">
-            Financial operations built for{" "}
-            <span className="text-accent">cannabis.</span>
+            Stop Overpaying on{" "}
+            <span className="text-accent">280E.</span>
           </h1>
-          <p className="mt-4 text-3xl font-bold leading-tight text-brand sm:text-4xl">
-            From seed to sale to IRS audit.
+          <p className="mt-4 text-2xl font-bold leading-tight text-brand sm:text-3xl">
+            Most operators leave $75K+ on the table every year.
           </p>
-
-          <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-text-secondary">
-            Multi-entity accounting, automated 280E allocations, Metrc-integrated inventory,
-            and cash reconciliation — in one platform that keeps your CFO, your CPA,
-            and the IRS on the same page.
+          <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-text-secondary">
+            Tranquillo Green automates 280E COGS allocation, finds missed deductions, and generates audit-ready workpapers — in minutes, not hours.
           </p>
+        </section>
 
-          <div className="mt-10 flex flex-wrap justify-center gap-4">
-            <Link
-              href="/dashboard"
-              className="inline-flex h-12 items-center gap-2 rounded-xl bg-brand px-8 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-brand/90 hover:shadow-md hover:-translate-y-0.5"
-            >
-              Open Demo
-              <svg className="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-                <path d="M3 8h10M9 4l4 4-4 4" />
-              </svg>
-            </Link>
-            <Link
-              href="/sign-in"
-              className="inline-flex h-12 items-center rounded-xl border border-brand/30 bg-brand/10 px-8 text-sm font-semibold text-brand transition-all duration-200 hover:bg-brand/15"
-            >
-              Sign in
-            </Link>
+        {/* ── CALCULATOR + CTA ──────────────────────────── */}
+        <section className="mt-12 grid gap-8 lg:grid-cols-5">
+          <div className="lg:col-span-3">
+            <InlineCalculator />
+          </div>
+          <div className="lg:col-span-2 flex flex-col justify-center space-y-6">
+            <div>
+              <h2 className="text-xl font-bold text-text-primary">Why Operators Switch</h2>
+              <ul className="mt-4 space-y-3">
+                {[
+                  "Automated 280E + 471(c) COGS allocation",
+                  "Metrc-integrated inventory reconciliation",
+                  "Multi-entity consolidation",
+                  "CPA-ready audit packets",
+                  "Month-end close in days, not weeks",
+                ].map((f) => (
+                  <li key={f} className="flex items-start gap-2">
+                    <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
+                    <span className="text-sm text-text-secondary">{f}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-xl border border-accent/20 bg-accent/5 p-4">
+              <div className="text-xs font-semibold uppercase tracking-wider text-accent">CPA Firms</div>
+              <p className="mt-1 text-sm text-text-secondary">
+                Serve 3x more clients with multi-client tools, white-label exports, and 20% revenue share.
+              </p>
+              <Link href="/partner" className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-accent hover:text-accent/80">
+                Learn more <ArrowRight className="h-3 w-3" />
+              </Link>
+            </div>
           </div>
         </section>
 
         {/* ── STATS BAR ────────────────────────────────── */}
-        <section className="mt-20 rounded-2xl border border-border bg-surface/60 p-8 backdrop-blur-sm">
-          <div className="grid gap-8 sm:grid-cols-4">
+        <section className="mt-16 rounded-2xl border border-border bg-surface/60 p-6 backdrop-blur-sm">
+          <div className="grid gap-6 sm:grid-cols-4">
             <div className="text-center">
-              <div className="text-4xl font-bold text-accent">45K+</div>
-              <div className="mt-2 text-sm text-text-muted">
-                Licensed cannabis operators in the US
-              </div>
+              <div className="text-3xl font-bold text-accent">$75K+</div>
+              <div className="mt-1 text-xs text-text-muted">Average annual savings identified</div>
             </div>
             <div className="text-center">
-              <div className="text-4xl font-bold text-accent">$2.2B</div>
-              <div className="mt-2 text-sm text-text-muted">
-                In excess taxes paid by operators annually
-              </div>
+              <div className="text-3xl font-bold text-brand">16hrs → 3min</div>
+              <div className="mt-1 text-xs text-text-muted">280E allocation time</div>
             </div>
             <div className="text-center">
-              <div className="text-4xl font-bold text-brand">8-20hrs → 3min</div>
-              <div className="mt-2 text-sm text-text-muted">
-                Manual bookkeeping vs. automated close
-              </div>
+              <div className="text-3xl font-bold text-accent">45K+</div>
+              <div className="mt-1 text-xs text-text-muted">Licensed cannabis operators in the US</div>
             </div>
             <div className="text-center">
-              <div className="text-4xl font-bold text-accent">280E+471c</div>
-              <div className="mt-2 text-sm text-text-muted">
-                Tax compliance engine — included in every plan
-              </div>
+              <div className="text-3xl font-bold text-brand">30-day</div>
+              <div className="mt-1 text-xs text-text-muted">Money-back guarantee</div>
             </div>
           </div>
         </section>
 
-        {/* ── PROOF POINTS: FINANCIAL OPERATIONS PILLARS ── */}
-        <section className="mt-20">
+        {/* ── TESTIMONIALS ─────────────────────────────── */}
+        <section className="mt-16">
           <h2 className="text-center text-sm font-semibold uppercase tracking-[0.2em] text-text-muted">
-            One platform. Every financial operation.
+            What operators are saying
           </h2>
-
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="tranquillo-card rounded-2xl border border-border bg-surface/40 p-6 backdrop-blur-sm transition-all duration-200 hover:border-brand/20 hover:shadow-lg hover:shadow-brand/5">
-              <AllocationIcon className="h-8 w-8 text-brand" />
-              <h3 className="mt-4 text-lg font-semibold text-text-primary">
-                280E + 471(c) Tax Engine
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-text-muted">
-                Automated COGS allocation under IRC 280E and 471(c) with full audit trail.
-                Captures facility rent, inventory labor, and shipping into deductible COGS.
-                Keeps you compliant as the tax landscape shifts.
-              </p>
-            </div>
-
-            <div className="tranquillo-card rounded-2xl border border-border bg-surface/40 p-6 backdrop-blur-sm transition-all duration-200 hover:border-brand/20 hover:shadow-lg hover:shadow-brand/5">
-              <MetrcIcon className="h-8 w-8 text-brand" />
-              <h3 className="mt-4 text-lg font-semibold text-text-primary">
-                Metrc-Integrated Books
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-text-muted">
-                Real-time sync between Metrc inventory and your chart of accounts.
-                Variance detection catches discrepancies before auditors do.
-              </p>
-            </div>
-
-            <div className="tranquillo-card rounded-2xl border border-border bg-surface/40 p-6 backdrop-blur-sm transition-all duration-200 hover:border-brand/20 hover:shadow-lg hover:shadow-brand/5">
-              <CashIcon className="h-8 w-8 text-brand" />
-              <h3 className="mt-4 text-lg font-semibold text-text-primary">
-                Cash Reconciliation
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-text-muted">
-                Daily cash reconciliation built for an industry that runs on cash.
-                Bank feed integration, variance tracking, and deposit matching
-                — so your books match what&apos;s in the vault.
-              </p>
-            </div>
-
-            <div className="tranquillo-card rounded-2xl border border-border bg-surface/40 p-6 backdrop-blur-sm transition-all duration-200 hover:border-brand/20 hover:shadow-lg hover:shadow-brand/5">
-              <EntityIcon className="h-8 w-8 text-brand" />
-              <h3 className="mt-4 text-lg font-semibold text-text-primary">
-                Multi-Entity Management
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-text-muted">
-                Consolidate multiple entities, locations, and license types.
-                Intercompany eliminations, unified reporting, and per-entity
-                P&L — built for operators who&apos;ve outgrown spreadsheets.
-              </p>
-            </div>
-
-            <div className="tranquillo-card rounded-2xl border border-border bg-surface/40 p-6 backdrop-blur-sm transition-all duration-200 hover:border-brand/20 hover:shadow-lg hover:shadow-brand/5">
-              <ExportIcon className="h-8 w-8 text-brand" />
-              <h3 className="mt-4 text-lg font-semibold text-text-primary">
-                CPA Export Packets
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-text-muted">
-                One-click export in QBO format. Your CPA gets audit-ready workpapers,
-                not a spreadsheet mess. White-label ready for CPA firms.
-              </p>
-            </div>
-
-            <div className="tranquillo-card rounded-2xl border border-border bg-surface/40 p-6 backdrop-blur-sm transition-all duration-200 hover:border-brand/20 hover:shadow-lg hover:shadow-brand/5">
-              <CheckIcon className="h-8 w-8 text-brand" />
-              <h3 className="mt-4 text-lg font-semibold text-text-primary">
-                Month-End Close
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-text-muted">
-                Close the books in days, not weeks. Automated journal entries,
-                period lock, close checklists, and review workflows —
-                so you&apos;re always audit-ready.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* ── CFO / OPERATOR SECTION ───────────────────── */}
-        <section className="mt-20 rounded-2xl border border-border bg-surface-raised p-8 lg:p-12">
-          <div className="lg:flex lg:items-start lg:gap-12">
-            <div className="lg:flex-1">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent">
-                For Cannabis CFOs & Operators
+          <div className="mt-8 grid gap-6 sm:grid-cols-3">
+            {testimonials.map((t) => (
+              <div key={t.author} className="rounded-2xl border border-border bg-surface/40 p-5 backdrop-blur-sm">
+                <div className="mb-2 inline-block rounded-full bg-brand/10 px-2.5 py-0.5 text-xs font-semibold text-brand">{t.stat}</div>
+                <p className="text-sm leading-relaxed text-text-secondary">&ldquo;{t.quote}&rdquo;</p>
+                <div className="mt-3 border-t border-border pt-2">
+                  <div className="text-sm font-medium text-text-primary">{t.author}</div>
+                  <div className="text-xs text-text-muted">{t.title}</div>
+                </div>
               </div>
-              <h2 className="mt-4 text-3xl font-bold tracking-tight text-text-primary">
-                Your financial stack, finally unified.
-              </h2>
-              <p className="mt-4 text-base leading-relaxed text-text-muted">
-                Cannabis operators juggle 4-7 software systems. Tranquillo replaces the
-                accounting, tax compliance, and reconciliation layer with one platform
-                that talks to your POS, your seed-to-sale system, and your CPA.
-              </p>
-              <p className="mt-4 text-base leading-relaxed text-text-muted">
-                Whether you&apos;re a single-location dispensary or a multi-state operator
-                with 10+ entities — the platform scales with you.
-              </p>
-            </div>
-
-            <ul className="mt-8 space-y-3 lg:mt-0 lg:w-80">
-              {[
-                "Multi-entity consolidation & intercompany eliminations",
-                "Automated 280E + 471(c) COGS allocation",
-                "Metrc inventory ↔ books reconciliation",
-                "Daily cash reconciliation & bank feeds",
-                "CPA-ready audit packets & workpapers",
-                "Month-end close workflows & checklists",
-                "Role-based access (CFO, controller, CPA, viewer)",
-              ].map((feature) => (
-                <li key={feature} className="flex items-start gap-3">
-                  <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
-                  <span className="text-sm text-text-secondary">{feature}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </section>
-
-        {/* ── CPA SECTION ──────────────────────────────── */}
-        <section className="mt-20 rounded-2xl border border-border bg-surface-raised p-8 lg:p-12">
-          <div className="lg:flex lg:items-start lg:gap-12">
-            <div className="lg:flex-1">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent">
-                For Cannabis CPAs
-              </div>
-              <h2 className="mt-4 text-3xl font-bold tracking-tight text-text-primary">
-                Manage all your cannabis clients from one dashboard.
-              </h2>
-              <p className="mt-4 text-base leading-relaxed text-text-muted">
-                Stop rebuilding 280E and 471(c) allocations from scratch for every client.
-                Tranquillo gives you the tools to serve cannabis operators at scale —
-                with white-label exports, multi-client workflows, and audit-ready documentation.
-              </p>
-            </div>
-
-            <ul className="mt-8 space-y-3 lg:mt-0 lg:w-80">
-              {cpaFeatures.map((feature) => (
-                <li key={feature} className="flex items-start gap-3">
-                  <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
-                  <span className="text-sm text-text-secondary">{feature}</span>
-                </li>
-              ))}
-            </ul>
+            ))}
           </div>
         </section>
 
         {/* ── FINAL CTA ────────────────────────────────── */}
-        <section className="mt-20 text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-text-primary">
-            Financial clarity for cannabis operators.
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-text-muted">
-            From automated tax compliance to multi-entity consolidation —
-            see why cannabis operators and their CPAs are switching to Tranquillo Green.
+        <section className="mt-16 text-center rounded-2xl border border-brand/20 bg-gradient-to-br from-brand/5 to-surface p-8">
+          <h2 className="text-2xl font-bold text-text-primary">Find Your Missed Deductions</h2>
+          <p className="mx-auto mt-3 max-w-lg text-sm text-text-muted">
+            Use the calculator above to estimate your savings, then schedule a demo to see the full picture for your operation.
           </p>
-          <div className="mt-8">
-            <Link
-              href="/dashboard"
-              className="inline-flex h-12 items-center gap-2 rounded-xl bg-brand px-8 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-brand/90 hover:shadow-md"
-            >
-              Start Free Demo
+          <div className="mt-6 flex flex-wrap justify-center gap-4">
+            <Link href="/demo" className="inline-flex h-12 items-center gap-2 rounded-xl bg-brand px-8 text-sm font-semibold text-white shadow-sm hover:bg-brand/90 transition-all">
+              Schedule a Demo <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link href="/pricing" className="inline-flex h-12 items-center rounded-xl border border-border px-8 text-sm font-semibold text-text-secondary hover:border-brand/30 hover:text-brand transition-all">
+              View Pricing
             </Link>
           </div>
         </section>
 
         {/* ── FOOTER ───────────────────────────────────── */}
-        <section className="mt-20 text-center">
+        <footer className="mt-16">
           <div className="mx-auto h-px w-24 bg-gradient-to-r from-transparent via-brand/30 to-transparent" />
-          <p className="mt-6 text-xs text-text-faint">
-            Tranquillo Green — Cannabis Financial Operations Platform
-          </p>
-        </section>
+          <div className="mt-8 flex flex-wrap justify-center gap-8 text-xs text-text-faint">
+            <Link href="/pricing" className="hover:text-text-muted transition-colors">Pricing</Link>
+            <Link href="/partner" className="hover:text-text-muted transition-colors">CPA Partners</Link>
+            <Link href="/contact" className="hover:text-text-muted transition-colors">Contact</Link>
+            <Link href="/calculator" className="hover:text-text-muted transition-colors">280E Calculator</Link>
+          </div>
+          <p className="mt-6 text-center text-xs text-text-faint">Tranquillo Green — Cannabis Financial Operations Platform</p>
+        </footer>
       </div>
     </main>
   );
