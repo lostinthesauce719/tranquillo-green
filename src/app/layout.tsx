@@ -13,6 +13,24 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Tranquillo Green — Cannabis Financial Operations Platform",
   description: "Multi-entity accounting, automated 280E + 471(c) allocations, Metrc-integrated inventory, and cash reconciliation — built for cannabis operators and their CPAs.",
+  keywords: ["cannabis accounting software", "280E tax compliance", "cannabis COGS allocation", "Metrc reconciliation", "cannabis CPA software", "471c election", "cannabis financial software"],
+  openGraph: {
+    title: "Tranquillo Green — Cannabis Financial Operations Platform",
+    description: "Automated 280E + 471(c) allocations, Metrc-integrated inventory, multi-entity accounting — built for cannabis operators and their CPAs.",
+    type: "website",
+    siteName: "Tranquillo Green",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Tranquillo Green — Cannabis Financial Operations Platform",
+    description: "Automated 280E + 471(c) allocations, Metrc-integrated inventory, multi-entity accounting.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    "max-snippet": -1,
+    "max-image-preview": "large",
+  },
 };
 
 export const dynamic = "force-dynamic";
@@ -21,6 +39,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "Tranquillo Green",
+              url: "https://tranquillo.green",
+              description: "Cannabis financial operations platform with automated 280E + 471(c) allocations, Metrc-integrated inventory, and multi-entity accounting.",
+              sameAs: [
+                "https://twitter.com/tranquillogreen",
+                "https://linkedin.com/company/tranquillo-green",
+              ],
+            }),
+          }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `
