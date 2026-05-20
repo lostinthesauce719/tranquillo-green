@@ -124,6 +124,7 @@ function SidebarNav({
                   key={item.href}
                   href={item.href}
                   onClick={onNavigate}
+                  {...(item.tourId ? { "data-tour": item.tourId } : {})}
                   className={`group relative block rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-[var(--duration-normal)] ease-[var(--ease-out)] ${
                     active
                       ? "bg-brand-soft text-text-primary"

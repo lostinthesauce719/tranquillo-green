@@ -5,6 +5,8 @@ import { TenantShell } from "@/components/shell/tenant-shell";
 import { DashboardAiShell } from "@/components/shell/dashboard-ai-shell";
 import { getAuthenticatedConvexClient } from "@/lib/data/convex-client";
 import { SandboxBanner } from "@/components/sandbox/SandboxBanner";
+import { DemoModeBanner } from "@/components/sandbox/DemoModeBanner";
+import { DemoTour } from "@/components/onboarding/DemoTour";
 
 export const dynamic = "force-dynamic";
 
@@ -44,6 +46,8 @@ export default async function DashboardLayout({
       }
     | null = null;
 
+  let isSandbox = false;
+
   try {
     const client = await getAuthenticatedConvexClient();
     if (client) {
@@ -57,6 +61,14 @@ export default async function DashboardLayout({
           role: (tenant.user?.role ?? "viewer") as "owner" | "controller" | "accountant" | "viewer",
           operatorType: (tenant.company?.operatorType ?? "vertical") as "dispensary" | "cultivator" | "manufacturer" | "distributor" | "delivery" | "vertical",
         };
+
+        // Check if this is a sandbox/demo company
+        try {
+          const sandboxStatus = await client.query((anyApi as any).sandbox.getSandboxStatus, { companyId: tenant.company._id });
+          isSandbox = sandboxStatus?.isSandbox === true;
+        } catch {
+          // Best-effort
+        }
       }
     }
   } catch {
@@ -80,7 +92,12 @@ export default async function DashboardLayout({
         operatorType,
       }}
     >
-      <SandboxBanner companyId={companyId} />
+      {isSandbox ? (
+        <DemoModeBanner companyId={companyId} />
+      ) : (
+        <SandboxBanner companyId={companyId} />
+      )}
+      <DemoTour isSandbox={isSandbox} />
       <DashboardAiShell>{children}</DashboardAiShell>
     </TenantShell>
   );
