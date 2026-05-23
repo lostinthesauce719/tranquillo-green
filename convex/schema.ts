@@ -579,7 +579,10 @@ export default defineSchema({
       v.literal("owner"),
       v.literal("controller"),
       v.literal("accountant"),
-      v.literal("viewer")
+      v.literal("viewer"),
+      v.literal("patient"),
+      v.literal("provider"),
+      v.literal("admin")
     )),
     status: v.optional(v.union(v.literal("active"), v.literal("invited"), v.literal("deactivated"))),
     lastLoginAt: v.optional(v.number()),
