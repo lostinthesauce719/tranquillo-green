@@ -3,8 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckIcon, Download, Mail } from "lucide-react";
-import { useMutation } from "convex/react";
-import { api } from "@/../convex/_generated/api";
+
 
 const leadMagnets = [
   {
@@ -34,22 +33,20 @@ export default function LeadsPage() {
   const [email, setEmail] = useState("");
   const [downloaded, setDownloaded] = useState<string | null>(null);
 
-  const captureLeadMutation = useMutation(api.business.captureLead);
-
   const handleDownload = async (id: string) => {
     if (!email) return;
     try {
-      await captureLeadMutation({
-        companyName: "",
-        contactName: email.split("@")[0] || email,
-        email,
-        operatorType: "dispensary",
-        state: "CO",
-        painPoints: [id],
-        acquisitionSource: "lead_magnet",
-        utmSource: "website",
-        utmMedium: "lead_magnet",
-        utmCampaign: id,
+      await fetch("/api/leads/capture", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          company: "",
+          source: "website",
+          medium: "lead_magnet",
+          campaign: id,
+          magnetId: id,
+        }),
       });
     } catch (err) {
       console.error("Lead capture failed:", err);
