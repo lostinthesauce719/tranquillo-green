@@ -22,7 +22,7 @@ export const POST = withAuth(async (request, auth) => {
       return securityHeaders(
         NextResponse.json(
           { ok: false, message: "Rate limit exceeded. Try again later." },
-          { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+          { status: 429, headers: { "Retry-After": String((rl as { retryAfter: number }).retryAfter) } }
         )
       );
     }

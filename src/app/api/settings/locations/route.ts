@@ -19,7 +19,7 @@ export const GET = withAuth(async (request, auth) => {
       return securityHeaders(
         NextResponse.json(
           { ok: false, message: "Rate limit exceeded." },
-          { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+          { status: 429, headers: { "Retry-After": String((rl as { retryAfter: number }).retryAfter) } }
         )
       );
     }
@@ -63,7 +63,7 @@ export const POST = withAuth(async (request, auth) => {
       return securityHeaders(
         NextResponse.json(
           { ok: false, message: "Rate limit exceeded." },
-          { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+          { status: 429, headers: { "Retry-After": String((rl as { retryAfter: number }).retryAfter) } }
         )
       );
     }
@@ -143,7 +143,7 @@ export const DELETE = withAuth(async (request, auth) => {
       return securityHeaders(
         NextResponse.json(
           { ok: false, message: "Rate limit exceeded." },
-          { status: 429, headers: { "Retry-After": String(rl.retryAfter) } }
+          { status: 429, headers: { "Retry-After": String((rl as { retryAfter: number }).retryAfter) } }
         )
       );
     }
