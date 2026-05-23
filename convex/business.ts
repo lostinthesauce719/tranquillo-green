@@ -101,6 +101,39 @@ export const captureLead = mutationGeneric({
   },
 });
 
+// ─── CONTACT FORM SUBMISSION ────────────────────────────────────────────────
+export const submitContactForm = mutationGeneric({
+  args: {
+    name: v.string(),
+    email: v.string(),
+    company: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    message: v.string(),
+    inquiryType: v.union(v.literal("demo"), v.literal("cpa"), v.literal("general")),
+    operatorType: v.optional(v.string()),
+    state: v.optional(v.string()),
+    clientCount: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const submissionId = await ctx.db.insert("contactSubmissions", {
+      name: args.name,
+      email: args.email,
+      company: args.company,
+      phone: args.phone,
+      message: args.message,
+      inquiryType: args.inquiryType,
+      operatorType: args.operatorType,
+      state: args.state,
+      clientCount: args.clientCount,
+      status: "new",
+      createdAt: Date.now(),
+    });
+
+    console.log(`[CONTACT] New ${args.inquiryType} submission from ${args.email}`);
+    return { submissionId, success: true };
+  },
+});
+
 function calculateLeadScore(args: {
   operatorType: string;
   state: string;

@@ -39,6 +39,9 @@ export default defineSchema({
     sandboxMode: v.optional(v.boolean()),
     sandboxExpiresAt: v.optional(v.number()),
     sandboxCreatedAt: v.optional(v.number()),
+    // §471(c) election tracking
+    section471cElected: v.optional(v.boolean()),
+    section471cElectionId: v.optional(v.id("section471cElections")),
   }).index("by_slug", ["slug"]),
 
   cannabisLocations: defineTable({
@@ -345,6 +348,20 @@ export default defineSchema({
     periodLabel: v.optional(v.string()),
     generatedAt: v.number(),
   }).index("by_company", ["companyId"]),
+
+  contactSubmissions: defineTable({
+    name: v.string(),
+    email: v.string(),
+    company: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    message: v.string(),
+    inquiryType: v.string(),
+    operatorType: v.optional(v.string()),
+    state: v.optional(v.string()),
+    clientCount: v.optional(v.string()),
+    status: v.string(),
+    createdAt: v.number(),
+  }).index("by_email", ["email"]).index("by_status", ["status"]).index("by_created", ["createdAt"]),
 
   section471cElections: defineTable({
     companyId: v.id("cannabisCompanies"),

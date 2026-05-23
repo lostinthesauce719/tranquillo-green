@@ -114,6 +114,12 @@ export const recordElection = mutation({
       electedBy: args.electedBy,
     });
     
+    // Set the company-level election flag
+    await ctx.db.patch(args.companyId, {
+      section471cElected: true,
+      section471cElectionId: electionId,
+    });
+
     return { electionId, eligible, averageGrossReceipts: averageReceipts };
   },
 });

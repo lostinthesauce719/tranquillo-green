@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckIcon } from "lucide-react";
+import { useMutation } from "convex/react";
+import { api } from "@/../convex/_generated/api";
 
 type InquiryType = "demo" | "cpa" | "general";
 
@@ -18,10 +20,26 @@ function ContactForm({ type }: { type: InquiryType }) {
     clientCount: "",
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const submitContact = useMutation(api.business.submitContactForm);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In production, this would POST to a Convex mutation or API route
-    setSubmitted(true);
+    try {
+      await submitContact({
+        name: formData.name,
+        email: formData.email,
+        company: formData.company || undefined,
+        phone: formData.phone || undefined,
+        message: formData.message,
+        inquiryType: type,
+        operatorType: formData.operatorType !== "dispensary" ? formData.operatorType : undefined,
+        state: undefined,
+        clientCount: formData.clientCount || undefined,
+      });
+      setSubmitted(true);
+    } catch (err) {
+      console.error("Contact form submission failed:", err);
+    }
   };
 
   if (submitted) {

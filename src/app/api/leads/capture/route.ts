@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAuthenticatedConvexClient } from "@/lib/data/convex-client";
+import { anyApi } from "convex/server";
 
 /* ─── Lead Capture API ──────────────────────────────────────────── */
 
@@ -30,7 +32,28 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
     }
 
-    // In production: save to database, trigger email sequence
+    // Write to Convex
+    try {
+      const convex = await getAuthenticatedConvexClient();
+      if (convex) {
+        const contactName = [data.firstName, data.lastName].filter(Boolean).join(" ").trim() || data.email.split("@")[0];
+        await convex.mutation(
+          (anyApi as any).business.captureLead,
+          {
+            companyName: data.company || "",
+            contactName,
+            email: data.email,
+            operatorType: "dispensary",
+            state: "CO",
+            painPoints: data.magnetId ? [data.magnetId] : [],
+            acquisitionSource: data.source || "website",
+          }
+        );
+      }
+    } catch (convexErr) {
+      console.error("[LEAD CAPTURE] Convex write failed:", convexErr);
+    }
+
     console.log("[LEAD CAPTURE]", {
       email: data.email,
       firstName: data.firstName,
