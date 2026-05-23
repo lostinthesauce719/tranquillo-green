@@ -6,7 +6,8 @@
  * These are the actual money-making endpoints.
  */
 
-import { mutationGeneric, queryGeneric, authQuery, authMutation } from "convex/server";
+import { mutationGeneric, queryGeneric } from "convex/server";
+import { authQuery, authMutation } from "./lib/withAuth";
 import { v } from "convex/values";
 import {
   PRICING_TIERS,

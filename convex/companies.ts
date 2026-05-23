@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { v } from "convex/values";
-import { authMutation, requireCompanyAccessById } from "./lib/withAuth";
+import { authMutation, authQuery, requireCompanyAccessById } from "./lib/withAuth";
 
 export const updateCompany = authMutation({
   args: {
