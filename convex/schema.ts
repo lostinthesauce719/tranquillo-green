@@ -574,6 +574,9 @@ export default defineSchema({
     clerkId: v.optional(v.string()),
     email: v.string(),
     name: v.optional(v.string()),
+    firstName: v.optional(v.string()),
+    lastName: v.optional(v.string()),
+    phone: v.optional(v.string()),
     companyId: v.optional(v.id("cannabisCompanies")),
     role: v.optional(v.union(
       v.literal("owner"),
@@ -585,6 +588,13 @@ export default defineSchema({
       v.literal("admin")
     )),
     status: v.optional(v.union(v.literal("active"), v.literal("invited"), v.literal("deactivated"))),
+    isActive: v.optional(v.boolean()),
+    isVerified: v.optional(v.boolean()),
+    onboardingComplete: v.optional(v.boolean()),
+    dateOfBirth: v.optional(v.string()),
+    medicalHistory: v.optional(v.string()),
+    currentMedications: v.optional(v.string()),
+    allergies: v.optional(v.string()),
     lastLoginAt: v.optional(v.number()),
   }).index("by_clerk_id", ["clerkId"]).index("by_company", ["companyId"]).index("by_email", ["email"]),
 
