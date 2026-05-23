@@ -3,17 +3,23 @@ import Stripe from "stripe";
 import { getAuthenticatedConvexClient } from "@/lib/data/convex-client";
 import { anyApi } from "convex/server";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2026-04-22.dahlia",
-});
+function getStripe(): Stripe | null {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) return null;
+  return new Stripe(key, { apiVersion: "2026-04-22.dahlia" });
+}
 
 export async function POST(req: NextRequest) {
+  const stripe = getStripe();
+  if (!stripe) {
+    return NextResponse.json({ error: "Stripe is not configured" }, { status: 503 });
+  }
   const body = await req.text();
-  const signature = req.headers.get("stripe-signature")!;
+  const signature = req.headers.get("stripe-signature") ?? "";
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET!);
+    event = stripe.webhooks.constructEvent(body, signature, process.env.STRIPE_WEBHOOK_SECRET ?? "");
   } catch (error: any) {
     console.error("Webhook signature verification failed:", error.message);
     return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
