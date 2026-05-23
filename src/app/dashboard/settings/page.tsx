@@ -8,6 +8,7 @@ import { AppShell } from "@/components/shell/app-shell";
 import { californiaOperatorDemo } from "@/lib/demo/accounting";
 import { LocationManager } from "@/components/shell/location-manager";
 import { MetrcConnectPanel } from "@/components/metrc/metrc-connect-panel";
+import { POSConnectPanel } from "@/components/integrations/pos-connect-panel";
 import { TaxSettingsPanel } from "@/components/accounting/tax-settings-panel";
 import { TaxRateTable } from "@/components/accounting/tax-rate-table";
 import { TaxLiabilityDashboard } from "@/components/accounting/tax-liability-dashboard";
@@ -547,6 +548,9 @@ export default function SettingsPage() {
               </div>
             </div>
             <MetrcConnectPanel companyId={tenant.companyId} />
+            <POSConnectPanel provider="square" />
+            <POSConnectPanel provider="toast" />
+            <POSConnectPanel provider="treez" />
             <div className="rounded-xl border border-border bg-surface px-4 py-3">
               <div className="flex items-center justify-between">
                 <div>
