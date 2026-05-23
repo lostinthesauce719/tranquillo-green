@@ -595,6 +595,10 @@ export default defineSchema({
     medicalHistory: v.optional(v.string()),
     currentMedications: v.optional(v.string()),
     allergies: v.optional(v.string()),
+    bio: v.optional(v.string()),
+    npi: v.optional(v.string()),
+    licenseState: v.optional(v.string()),
+    specialty: v.optional(v.string()),
     lastLoginAt: v.optional(v.number()),
   }).index("by_clerk_id", ["clerkId"]).index("by_company", ["companyId"]).index("by_email", ["email"]),
 
