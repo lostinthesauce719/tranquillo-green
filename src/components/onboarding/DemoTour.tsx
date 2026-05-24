@@ -24,8 +24,9 @@ export function DemoTour({ isSandbox, quick = false }: DemoTourProps) {
   const [run, setRun] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mounted, setMounted] = useState(false);
+  const [isQuick, setIsQuick] = useState(quick);
 
-  const steps: Step[] = quick ? demoQuickTourSteps : demoProductTourSteps;
+  const steps: Step[] = isQuick ? demoQuickTourSteps : demoProductTourSteps;
 
   const startTour = useCallback(async () => {
     try {
@@ -62,7 +63,20 @@ export function DemoTour({ isSandbox, quick = false }: DemoTourProps) {
 
     // Delay slightly to let the dashboard render first
     const timer = setTimeout(checkProgress, 1000);
-    return () => clearTimeout(timer);
+
+    // Listen for restart events from guide toggle
+    const handleRestart = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setIsQuick(detail?.quick ?? false);
+      setRun(false);
+      setTimeout(() => setRun(true), 150);
+    };
+    window.addEventListener("__restartDemoTour", handleRestart);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("__restartDemoTour", handleRestart);
+    };
   }, [isSandbox, startTour]);
 
   const handleCallback = async (data: CallBackProps) => {
@@ -80,9 +94,16 @@ export function DemoTour({ isSandbox, quick = false }: DemoTourProps) {
   // Expose a way to restart the tour
   useEffect(() => {
     if (typeof window !== "undefined") {
-      (window as any).__restartDemoTour = startTour;
+      (window as any).__restartDemoTour = (quick?: boolean) => {
+        setRun(false);
+        // Small delay to allow state reset
+        setTimeout(() => {
+          const event = new CustomEvent("__restartDemoTour", { detail: { quick } });
+          window.dispatchEvent(event);
+        }, 100);
+      };
     }
-  }, [startTour]);
+  }, []);
 
   if (!mounted || loading || !run) return null;
 

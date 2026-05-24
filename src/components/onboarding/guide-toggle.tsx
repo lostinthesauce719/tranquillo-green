@@ -5,22 +5,41 @@ import { getOnboardingProgress } from '@/app/api/onboarding/actions';
 import { startOnboardingTour } from '@/app/api/onboarding/actions';
 import { tours } from '@/lib/onboarding/tours';
 
+const DEMO_TOUR = { id: 'demo-product-tour', name: 'Product Demo Tour' };
+const DEMO_QUICK_TOUR = { id: 'demo-quick-tour', name: 'Quick Tour' };
+
 export default function GuideToggle() {
   const [open, setOpen] = useState(false);
   const [progressMap, setProgressMap] = useState<Record<string, boolean>>({});
   const [loadingMap, setLoadingMap] = useState<Record<string, boolean>>({});
+  const [isSandbox, setIsSandbox] = useState(false);
 
   useEffect(() => {
     async function load() {
       const map: Record<string, boolean> = {};
+      // Load standard tours
       for (const tour of tours) {
         try {
           const p = await getOnboardingProgress(tour.id);
           map[tour.id] = p?.status === 'completed';
         } catch {
-          // Convex unavailable or auth error — treat as not completed
           map[tour.id] = false;
         }
+      }
+      // Load demo tours
+      try {
+        const demoProgress = await getOnboardingProgress(DEMO_TOUR.id);
+        map[DEMO_TOUR.id] = demoProgress?.status === 'completed';
+        if (!map[DEMO_TOUR.id]) setIsSandbox(true);
+      } catch {
+        map[DEMO_TOUR.id] = false;
+        setIsSandbox(true);
+      }
+      try {
+        const quickProgress = await getOnboardingProgress(DEMO_QUICK_TOUR.id);
+        map[DEMO_QUICK_TOUR.id] = quickProgress?.status === 'completed';
+      } catch {
+        map[DEMO_QUICK_TOUR.id] = false;
       }
       setProgressMap(map);
     }
@@ -58,8 +77,58 @@ export default function GuideToggle() {
       {/* popover menu */}
       {open && (
         <div className="absolute bottom-16 right-0 w-72 rounded-2xl border border-border-subtle bg-[#0b1120] p-3 shadow-2xl ring-1 ring-black/20 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          {/* Demo tours for sandbox users */}
+          {isSandbox && (
+            <>
+              <div className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-text-faint">
+                Demo Tours
+              </div>
+              <div className="space-y-1 mb-3">
+                {[DEMO_TOUR, DEMO_QUICK_TOUR].map((tour) => {
+                  const done = progressMap[tour.id];
+                  const loading = loadingMap[tour.id];
+                  return (
+                    <div
+                      key={tour.id}
+                      className="flex items-center justify-between rounded-xl px-3 py-2 hover:bg-surface-overlay/60 transition-colors"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        {done ? (
+                          <span className="flex h-5 w-5 items-center justify-center rounded bg-brand text-white">
+                            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="h-3 w-3">
+                              <polyline points="3 8 7 12 13 4" />
+                            </svg>
+                          </span>
+                        ) : (
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full border border-text-faint/30 text-[10px] text-text-faint">
+                            ?
+                          </span>
+                        )}
+                        <span className="truncate text-sm text-text-secondary">{tour.name}</span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          if (typeof window !== 'undefined' && (window as any).__restartDemoTour) {
+                            (window as any).__restartDemoTour(tour.id === 'demo-quick-tour');
+                          }
+                          setOpen(false);
+                        }}
+                        disabled={loading}
+                        className="shrink-0 rounded-lg bg-brand/10 px-2.5 py-1 text-xs font-medium text-brand hover:bg-brand/20 disabled:opacity-50 transition-colors"
+                      >
+                        {loading ? 'Starting…' : 'Start'}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="border-t border-border-subtle mb-2" />
+            </>
+          )}
+
+          {/* Standard tours */}
           <div className="mb-2 px-1 text-xs font-semibold uppercase tracking-wider text-text-faint">
-            Guided Tours
+            Feature Tours
           </div>
           <div className="space-y-1">
             {tours.map((tour) => {

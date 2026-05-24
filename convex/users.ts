@@ -44,6 +44,24 @@ export const getOrCreateUser = authMutation(
       lastLoginAt: Date.now(),
     });
 
+    // Auto-provision sandbox for new users (no existing company)
+    if (!company) {
+      try {
+        const { createSandboxTenant } = await import("./seed/sandboxSeed");
+        const result = await createSandboxTenant(ctx, {
+          userId: clerkId,
+          businessType: "dispensary",
+        });
+        // Link user to the new sandbox company
+        if (result?.companyId) {
+          await ctx.db.patch(userId, { companyId: result.companyId });
+        }
+      } catch (e) {
+        // Sandbox provisioning is best-effort; don't block login
+        console.error("Failed to auto-provision sandbox:", e);
+      }
+    }
+
     return await ctx.db.get(userId);
   },
 );
