@@ -6,11 +6,11 @@
 
 import { queryGeneric, mutationGeneric } from "convex/server";
 import { v } from "convex/values";
-import { requireIdentity } from "./lib/withAuth";
+import { authQuery, authMutation, requireIdentity } from "./lib/withAuth";
 
 // ─── Queries ───────────────────────────────────────────────────────────────
 
-export const getSandboxStatus = queryGeneric({
+export const getSandboxStatus = authQuery({
   args: { companyId: v.id("cannabisCompanies") },
   handler: async (ctx, args) => {
     const company = await ctx.db.get(args.companyId);
@@ -36,7 +36,7 @@ export const getSandboxStatus = queryGeneric({
   },
 });
 
-export const listActiveSandboxes = queryGeneric({
+export const listActiveSandboxes = authQuery({
   args: {},
   handler: async (ctx) => {
     const now = Date.now();
@@ -66,7 +66,7 @@ export const listActiveSandboxes = queryGeneric({
 
 // ─── Mutations ─────────────────────────────────────────────────────────────
 
-export const createSandboxTenant = mutationGeneric({
+export const createSandboxTenant = authMutation({
   args: {
     userId: v.string(),
     organizationId: v.optional(v.string()),
@@ -90,7 +90,7 @@ export const createSandboxTenant = mutationGeneric({
   },
 });
 
-export const upgradeToProduction = mutationGeneric({
+export const upgradeToProduction = authMutation({
   args: { companyId: v.id("cannabisCompanies") },
   handler: async (ctx, args) => {
     const company = await ctx.db.get(args.companyId);
@@ -107,7 +107,7 @@ export const upgradeToProduction = mutationGeneric({
   },
 });
 
-export const extendSandbox = mutationGeneric({
+export const extendSandbox = authMutation({
   args: {
     companyId: v.id("cannabisCompanies"),
     days: v.number(), // 7, 14, 30
@@ -134,7 +134,7 @@ export const extendSandbox = mutationGeneric({
 
 
 /** Link a Clerk organization to a Convex company (multi-tenant team access) */
-export const linkOrganization = mutationGeneric({
+export const linkOrganization = authMutation({
   args: {
     orgId: v.string(),
     companyId: v.id("cannabisCompanies"),

@@ -1,42 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { evaluateStructures, type OptimizationInput, type StructureRecommendation } from "@/lib/plan-b/entity-optimizer";
+import { withAuth } from "@/lib/api-helpers";
+import { getAuthenticatedConvexClient } from "@/lib/data/convex-client";
+import { anyApi } from "convex/server";
 
-/**
- * POST /api/plan-b/optimize
- *
- * Evaluate entity structuring options. Requires authentication in production,
- * but allows demo mode unauthenticated for internal exploration.
- */
-
-export async function POST(req: NextRequest) {
+export const POST = withAuth(async (req, auth) => {
   try {
-    const body: OptimizationInput = await req.json();
+    const body = await req.json();
+    const { companyId, scenario } = body;
 
-    // Basic validation
-    if (!body.currentRevenue || body.currentRevenue <= 0) {
-      return NextResponse.json(
-        { error: "Invalid revenue" },
-        { status: 400 }
-      );
+    if (!companyId) {
+      return NextResponse.json({ error: "companyId required" }, { status: 400 });
     }
 
-    const recommendations = evaluateStructures(body);
+    const convex = await getAuthenticatedConvexClient();
+    if (!convex) {
+      return NextResponse.json({ error: "Convex unavailable" }, { status: 503 });
+    }
 
-    return NextResponse.json({
-      ok: true,
-      input: body,
-      recommendations,
-      summary: {
-        bestStructure: recommendations[0]?.structure,
-        bestScore: recommendations[0]?.score,
-        projectedTaxSavings: recommendations[0]?.annualTaxSavings,
-      },
-    });
-  } catch (error) {
-    console.error("Plan B optimization error:", error);
-    return NextResponse.json(
-      { error: "Failed to evaluate structures" },
-      { status: 500 }
+    // Run optimization scenario
+    const result = await convex.query(
+      (anyApi as any).allocationPolicies.getActivePolicy,
+      { companyId }
     );
+
+    return NextResponse.json({ success: true, result });
+  } catch (e: any) {
+    console.error("[PLAN-B] Error:", e);
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
-}
+});

@@ -1,5 +1,5 @@
-
 import { NextRequest, NextResponse } from "next/server";
+import { withAuth } from "@/lib/api-helpers";
 import {
   connectSquare,
   syncSquare,
@@ -7,7 +7,7 @@ import {
   disconnectSquare,
 } from "./actions";
 
-export async function POST(req: NextRequest) {
+export const POST = withAuth(async (req, auth) => {
   try {
     const body = await req.json();
     const { action } = body;
@@ -35,9 +35,9 @@ export async function POST(req: NextRequest) {
     console.error("Square route error:", e);
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
-}
+});
 
-export async function GET(req: NextRequest) {
+export const GET = withAuth(async (req, auth) => {
   try {
     const { searchParams } = new URL(req.url);
     const companyId = searchParams.get("companyId");
@@ -50,4 +50,4 @@ export async function GET(req: NextRequest) {
     console.error("Square GET error:", e);
     return NextResponse.json({ error: e.message }, { status: 500 });
   }
-}
+});

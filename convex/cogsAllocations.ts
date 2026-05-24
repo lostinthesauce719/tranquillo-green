@@ -1,4 +1,5 @@
 import { mutationGeneric, queryGeneric } from "convex/server";
+import { authQuery, authMutation } from "./lib/withAuth";
 import { v } from "convex/values";
 
 const reviewStatus = v.union(
@@ -7,7 +8,7 @@ const reviewStatus = v.union(
   v.literal("approved")
 );
 
-export const listByCompany = queryGeneric({
+export const listByCompany = authQuery({
   args: {
     companyId: v.id("cannabisCompanies"),
     reviewStatusFilter: v.optional(reviewStatus),
@@ -44,7 +45,7 @@ export const listByCompany = queryGeneric({
   },
 });
 
-export const getById = queryGeneric({
+export const getById = authQuery({
   args: { allocationId: v.id("cogsAllocations") },
   handler: async (ctx, args) => {
     const allocation = await ctx.db.get(args.allocationId);
@@ -61,7 +62,7 @@ export const getById = queryGeneric({
   },
 });
 
-export const getQueueSummary = queryGeneric({
+export const getQueueSummary = authQuery({
   args: { companyId: v.id("cannabisCompanies") },
   handler: async (ctx, args) => {
     const allocations = await ctx.db
@@ -99,7 +100,7 @@ export const getQueueSummary = queryGeneric({
   },
 });
 
-export const create = mutationGeneric({
+export const create = authMutation({
   args: {
     companyId: v.id("cannabisCompanies"),
     transactionId: v.optional(v.id("transactions")),
@@ -143,7 +144,7 @@ export const create = mutationGeneric({
   },
 });
 
-export const approve = mutationGeneric({
+export const approve = authMutation({
   args: {
     allocationId: v.id("cogsAllocations"),
     overrideDeductible: v.optional(v.number()),
@@ -174,7 +175,7 @@ export const approve = mutationGeneric({
   },
 });
 
-export const markNeedsReview = mutationGeneric({
+export const markNeedsReview = authMutation({
   args: {
     allocationId: v.id("cogsAllocations"),
     reason: v.optional(v.string()),
@@ -192,7 +193,7 @@ export const markNeedsReview = mutationGeneric({
   },
 });
 
-export const bulkCreate = mutationGeneric({
+export const bulkCreate = authMutation({
   args: {
     companyId: v.id("cannabisCompanies"),
     allocations: v.array(

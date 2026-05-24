@@ -21,7 +21,7 @@ import { emailNotifications } from "./middleware/emailNotifications";
  * Capture a sales lead from the website form.
  * In production: triggers Slack alert to sales team, enriches with Clearbit/Hunter.
  */
-export const captureLead = mutationGeneric({
+export const captureLead = authMutation({
   args: {
     companyName: v.string(),
     contactName: v.string(),
@@ -102,7 +102,7 @@ export const captureLead = mutationGeneric({
 });
 
 // ─── CONTACT FORM SUBMISSION ────────────────────────────────────────────────
-export const submitContactForm = mutationGeneric({
+export const submitContactForm = authMutation({
   args: {
     name: v.string(),
     email: v.string(),
@@ -237,7 +237,7 @@ export const generateProposal = queryGeneric({
  * Convert a lead to a trial customer.
  * Provisions sandbox environment, seeds demo data, sends welcome email.
  */
-export const startTrial = mutationGeneric({
+export const startTrial = authMutation({
   args: {
     leadId: v.id("leads"),
     selectedTier: v.union(
@@ -349,7 +349,7 @@ export const startTrial = mutationGeneric({
  * Convert trial to paid subscription.
  * Generates first invoice, sets up recurring billing.
  */
-export const activateSubscription = mutationGeneric({
+export const activateSubscription = authMutation({
   args: {
     customerId: v.id("customers"),
     paymentMethodId: v.string(), // Stripe payment method ID
@@ -514,7 +514,7 @@ export const listLeads = authQuery({
  * Fetch historical daily metrics for dashboard charts.
  * Returns last N days of MRR, customer counts, and growth metrics.
  */
-export const getDailyMetrics = queryGeneric({
+export const getDailyMetrics = authQuery({
   args: {
     days: v.optional(v.number()), // default 30
   },
@@ -540,7 +540,7 @@ export const getDailyMetrics = queryGeneric({
  * Aggregate active customer MRR by pricing tier.
  * Used for donut/bar breakdown chart.
  */
-export const getMrrByTier = queryGeneric({
+export const getMrrByTier = authQuery({
   args: {},
   handler: async (ctx) => {
     const activeCustomers = await ctx.db
@@ -569,7 +569,7 @@ export const getMrrByTier = queryGeneric({
  * Aggregate active customer MRR by primary state.
  * Returns top N states for geographic breakdown.
  */
-export const getMrrByState = queryGeneric({
+export const getMrrByState = authQuery({
   args: {
     limit: v.optional(v.number()), // default top 10
   },
@@ -603,7 +603,7 @@ export const getMrrByState = queryGeneric({
  * Daily new vs churned customers over time.
  * Used in area chart for acquisition velocity.
  */
-export const getCustomerGrowth = queryGeneric({
+export const getCustomerGrowth = authQuery({
   args: {
     days: v.optional(v.number()), // default 30
   },
@@ -645,7 +645,7 @@ export const getCustomerGrowth = queryGeneric({
 });
 
 // ─── STRIPE: MARK SUBSCRIPTION ACTIVE ──────────────────────────────────────
-export const markSubscriptionActive = mutationGeneric({
+export const markSubscriptionActive = authMutation({
   args: {
     customerId: v.id("customers"),
     stripeSubscriptionId: v.string(),
@@ -688,7 +688,7 @@ export const markSubscriptionActive = mutationGeneric({
 });
 
 // ─── STRIPE: RECORD PAYMENT ────────────────────────────────────────────────
-export const recordPayment = mutationGeneric({
+export const recordPayment = authMutation({
   args: {
     stripeSubscriptionId: v.string(),
     amount: v.number(),
@@ -723,7 +723,7 @@ export const recordPayment = mutationGeneric({
 });
 
 // ─── STRIPE: MARK CUSTOMER CHURNED ────────────────────────────────────────
-export const markCustomerChurned = mutationGeneric({
+export const markCustomerChurned = authMutation({
   args: { stripeSubscriptionId: v.string() },
   handler: async (ctx, args) => {
     const customers = await ctx.db

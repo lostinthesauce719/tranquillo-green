@@ -2,6 +2,30 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedConvexClient } from "@/lib/data/convex-client";
 import { anyApi } from "convex/server";
 
+function sanitizeString(value: unknown, maxLen: number = 256): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > maxLen) return undefined;
+  return trimmed;
+}
+
+function sanitizeEmail(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return undefined;
+  return trimmed;
+}
+
+function sanitizeNumber(value: unknown): number | undefined {
+  if (typeof value === "number" && !isNaN(value) && isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = parseFloat(value);
+    if (!isNaN(parsed) && isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();

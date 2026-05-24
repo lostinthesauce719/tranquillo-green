@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-/* ─── Email Sequence Trigger API ────────────────────────────────── */
+import { withAuth } from "@/lib/api-helpers";
 
 interface SequenceData {
   email: string;
@@ -38,7 +37,7 @@ const EMAIL_SEQUENCES = {
   },
 };
 
-export async function POST(req: NextRequest) {
+export const POST = withAuth(async (req, auth) => {
   try {
     const data: SequenceData = await req.json();
 
@@ -51,13 +50,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid sequence" }, { status: 400 });
     }
 
-    // In production: queue emails via Resend/SendGrid
     console.log("[EMAIL SEQUENCE]", {
       email: data.email,
       sequence: sequence.name,
       emails: sequence.emails.length,
-      firstName: data.firstName,
-      company: data.company,
+      triggeredBy: auth.userId,
       timestamp: new Date().toISOString(),
     });
 
@@ -70,11 +67,9 @@ export async function POST(req: NextRequest) {
     console.error("[EMAIL SEQUENCE ERROR]", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
-}
+});
 
-/* ─── Get Available Sequences ───────────────────────────────────── */
-
-export async function GET() {
+export const GET = withAuth(async (req, auth) => {
   return NextResponse.json({
     sequences: Object.entries(EMAIL_SEQUENCES).map(([key, seq]) => ({
       id: key,
@@ -83,4 +78,4 @@ export async function GET() {
       emails: seq.emails.map((e) => ({ day: e.day, subject: e.subject })),
     })),
   });
-}
+});

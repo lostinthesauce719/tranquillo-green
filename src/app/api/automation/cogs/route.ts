@@ -2,6 +2,30 @@ import { NextResponse } from "next/server";
 import { anyApi } from "convex/server";
 import { getAuthenticatedConvexClient } from "@/lib/data/convex-client";
 
+function sanitizeString(value: unknown, maxLen: number = 256): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > maxLen) return undefined;
+  return trimmed;
+}
+
+function sanitizeEmail(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) return undefined;
+  return trimmed;
+}
+
+function sanitizeNumber(value: unknown): number | undefined {
+  if (typeof value === "number" && !isNaN(value) && isFinite(value)) return value;
+  if (typeof value === "string") {
+    const parsed = parseFloat(value);
+    if (!isNaN(parsed) && isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
+
 const DEMO_COMPANY_ID = "demo";
 
 // POST /api/automation/cogs — Run COGS automation

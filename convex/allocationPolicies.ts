@@ -1,4 +1,5 @@
 import { mutationGeneric, queryGeneric } from "convex/server";
+import { authQuery, authMutation } from "./lib/withAuth";
 import { v } from "convex/values";
 
 const policyMethod = v.union(
@@ -9,7 +10,7 @@ const policyMethod = v.union(
 
 const policyStatus = v.union(v.literal("active"), v.literal("inactive"));
 
-export const listByCompany = queryGeneric({
+export const listByCompany = authQuery({
   args: {
     companyId: v.id("cannabisCompanies"),
     status: v.optional(policyStatus),
@@ -31,14 +32,14 @@ export const listByCompany = queryGeneric({
   },
 });
 
-export const getById = queryGeneric({
+export const getById = authQuery({
   args: { policyId: v.id("allocationPolicies") },
   handler: async (ctx, args) => {
     return await ctx.db.get(args.policyId);
   },
 });
 
-export const getActivePolicy = queryGeneric({
+export const getActivePolicy = authQuery({
   args: { companyId: v.id("cannabisCompanies") },
   handler: async (ctx, args) => {
     const policies = await ctx.db
@@ -58,7 +59,7 @@ export const getActivePolicy = queryGeneric({
   },
 });
 
-export const create = mutationGeneric({
+export const create = authMutation({
   args: {
     companyId: v.id("cannabisCompanies"),
     name: v.string(),
@@ -89,7 +90,7 @@ export const create = mutationGeneric({
   },
 });
 
-export const update = mutationGeneric({
+export const update = authMutation({
   args: {
     policyId: v.id("allocationPolicies"),
     name: v.optional(v.string()),
@@ -126,7 +127,7 @@ export const update = mutationGeneric({
   },
 });
 
-export const remove = mutationGeneric({
+export const remove = authMutation({
   args: { policyId: v.id("allocationPolicies") },
   handler: async (ctx, args) => {
     const policy = await ctx.db.get(args.policyId);
