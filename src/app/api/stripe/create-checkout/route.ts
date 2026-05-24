@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 
-function getStripe(): any {
+async function getStripe(): Promise<any> {
   const key = process.env.STRIPE_SECRET_KEY;
   if (!key) return null;
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const Stripe = require("stripe");
+  const { default: Stripe } = await import("stripe");
   return new Stripe(key, { apiVersion: "2026-04-22.dahlia" });
 }
 
@@ -16,7 +15,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const stripe = getStripe();
+    const stripe = await getStripe();
     if (!stripe) {
       return NextResponse.json({ error: "Stripe is not configured" }, { status: 503 });
     }
