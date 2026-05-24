@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(_req: NextRequest) {
+export async function POST(req: NextRequest) {
+  // Restrict seed endpoint in production
+  if (process.env.NODE_ENV === "production") {
+    const secret = req.headers.get("x-admin-secret");
+    if (secret !== process.env.ADMIN_SECRET) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
   try {
     const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
     if (!convexUrl) {

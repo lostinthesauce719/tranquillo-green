@@ -166,7 +166,7 @@ function calculateLeadScore(args: {
  * Generate a personalized proposal for a lead.
  * Returns pricing, tier recommendation, and ROI estimate.
  */
-export const generateProposal = queryGeneric({
+export const generateProposal = authQuery({
   args: {
     leadId: v.id("leads"),
   },
