@@ -24,7 +24,12 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await currentUser();
+  let user: Awaited<ReturnType<typeof currentUser>> = null;
+  try {
+    user = await currentUser();
+  } catch {
+    // Clerk middleware not available — fall through to demo mode
+  }
 
   // If no user, use demo mode instead of redirecting
   if (!user) {
