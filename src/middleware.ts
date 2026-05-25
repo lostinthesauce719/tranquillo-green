@@ -1,21 +1,12 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-// Dashboard is NOT protected here — the layout handles demo mode fallback.
-// Only protect API routes that require auth.
-const isProtectedRoute = createRouteMatcher([
-  "/api/accounting(.*)",
-  "/api/audit-trail(.*)",
-  "/api/settings(.*)",
-  // /api/onboarding is public — used during sign-up flow
-  "/api/integrations(.*)",
-  // /api/automation handles its own auth + demo fallback
-]);
-
-export default clerkMiddleware(async (auth, req) => {
-  if (isProtectedRoute(req)) {
-    await auth().protect();
-  }
-});
+// Simple pass-through middleware.
+// Auth is handled client-side via ClerkProvider in the layout
+// and server-side with withAuth() wrappers on API routes.
+export default function middleware(req: NextRequest) {
+  return NextResponse.next();
+}
 
 export const config = {
   matcher: [
