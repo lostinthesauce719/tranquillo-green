@@ -70,7 +70,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <ClerkProvider>
+        <ClerkProvider afterSignInUrl="/dashboard" afterSignUpUrl="/dashboard">
           {/* Skip to main content link for keyboard navigation */}
           <a
             href="#main-content"
