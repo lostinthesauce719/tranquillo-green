@@ -22,3 +22,4 @@ skills-lock.json
 # Test scratch files
 convex/test_hello.ts
 .vercel
+.env*.local

@@ -11,9 +11,9 @@ const isProtectedRoute = createRouteMatcher([
   // /api/automation handles its own auth + demo fallback
 ]);
 
-export default clerkMiddleware((auth, req) => {
+export default clerkMiddleware(async (auth, req) => {
   if (isProtectedRoute(req)) {
-    auth().protect();
+    await auth().protect();
   }
 });
 
