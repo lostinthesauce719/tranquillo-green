@@ -1,29 +1,11 @@
-import { Metadata } from "next";
+"use client";
+
 import Link from "next/link";
-import { ArrowRight, Users, DollarSign, FileCheck, Headphones } from "lucide-react";
-
-export const metadata: Metadata = {
-  title: "CPA Partner Program | Tranquillo Green for Cannabis Accounting Firms",
-  description: "Grow your cannabis accounting practice without hiring. Multi-client portal, automated 280E allocations, white-label exports, and 20% revenue share. Apply today.",
-  openGraph: {
-    title: "CPA Partner Program | Tranquillo Green",
-    description: "Serve 3x more cannabis clients with the same headcount. White-label 280E reports, automated allocations, 20% revenue share.",
-    type: "website",
-  },
-};
-
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  name: "Tranquillo Green CPA Partner Program",
-  description: "Partner program for cannabis accounting firms offering multi-client tools, automated 280E allocations, and white-label exports",
-  url: "https://tranquillo.green/cpa-partners",
-};
+import { ArrowRight, Users, FileCheck, DollarSign, Headphones } from "lucide-react";
 
 export default function CPAPartnersPage() {
   return (
     <>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <main className="min-h-screen bg-surface-mid">
         <section className="max-w-4xl mx-auto px-6 pt-20 pb-16 text-center">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-sm font-medium mb-6">

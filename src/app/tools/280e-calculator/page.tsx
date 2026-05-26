@@ -1,38 +1,11 @@
-import { Metadata } from "next";
+"use client";
+
 import Link from "next/link";
-import { ArrowRight, Calculator, CheckCircle2, FileText, Shield } from "lucide-react";
-
-export const metadata: Metadata = {
-  title: "280E Tax Savings Calculator | Tranquillo Green",
-  description: "Calculate your potential 280E tax savings in 60 seconds. See how much you're overpaying on federal taxes with our free cannabis tax calculator. Get your personalized savings estimate.",
-  openGraph: {
-    title: "280E Tax Savings Calculator | Tranquillo Green",
-    description: "Calculate your potential 280E tax savings in 60 seconds. Free tool for cannabis operators.",
-    type: "website",
-  },
-};
-
-const jsonLd = {
-  "@context": "https://schema.org",
-  "@type": "WebApplication",
-  name: "280E Tax Savings Calculator",
-  description: "Free calculator to estimate federal tax savings for cannabis operators under IRC 280E",
-  applicationCategory: "BusinessApplication",
-  operatingSystem: "Web",
-  offers: {
-    "@type": "Offer",
-    price: "0",
-    priceCurrency: "USD",
-  },
-};
+import { ArrowRight, Calculator } from "lucide-react";
 
 export default function CalculatorPage() {
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
       <main className="min-h-screen bg-surface-mid">
         {/* Hero */}
         <section className="max-w-4xl mx-auto px-6 pt-20 pb-16 text-center">

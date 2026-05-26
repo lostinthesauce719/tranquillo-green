@@ -181,6 +181,15 @@ export default function HomePage() {
           <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-text-secondary">
             Tranquillo Green automates 280E COGS allocation, finds missed deductions, and generates audit-ready workpapers — in minutes, not hours.
           </p>
+
+          <div className="mt-8 flex flex-wrap justify-center gap-4">
+            <Link href="/auth" className="inline-flex h-12 items-center gap-2 rounded-xl bg-brand px-8 text-sm font-semibold text-ink shadow-sm hover:bg-brand/90 transition-all">
+              Get Started <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link href="/auth" className="inline-flex h-12 items-center rounded-xl border border-border px-8 text-sm font-semibold text-text-secondary hover:border-brand/30 hover:text-brand transition-all">
+              Sign In
+            </Link>
+          </div>
         </section>
 
         {/* ── CALCULATOR + CTA ──────────────────────────── */}
