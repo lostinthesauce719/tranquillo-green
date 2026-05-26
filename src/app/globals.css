@@ -87,9 +87,8 @@ html, body {
   font-family: 'DM Sans', sans-serif;
   background: var(--ink);
   color: var(--tx);
-  overflow: hidden;
 }
-body { display: flex; }
+body.dashboard-layout { overflow: hidden; display: flex; }
 
 ::selection { background: var(--teald); color: var(--ice); }
 

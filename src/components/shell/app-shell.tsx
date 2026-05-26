@@ -131,7 +131,7 @@ export function AppShell({
   const tenant = useTenantMaybe();
 
   return (
-    <div className="flex min-h-screen w-full">
+    <div className="flex min-h-screen w-full dashboard-layout">
       <Sidebar currentPath={pathname} />
 
       <div className="main flex flex-col flex-1 overflow-hidden">
@@ -154,7 +154,7 @@ export function AppShell({
           <div className="sb-dot" />
           <span className="sb-txt">All agents healthy</span>
           <span className="sb-detail">— no blockers detected</span>
-          <span className="sb-link">View agents →</span>
+          <Link href="/dashboard/automation" className="sb-link">View agents →</Link>
         </div>
 
         {/* Content */}

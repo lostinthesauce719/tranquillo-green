@@ -14,7 +14,6 @@ export const moduleLinks: NavLink[] = [
   // Core — everyone sees these
   { href: "/dashboard", label: "Overview", section: "Core", tourId: "nav-dashboard" },
   { href: "/dashboard/accounting", label: "Accounting", section: "Core", tourId: "nav-accounting" },
-  { href: "/pricing", label: "Pricing", section: "Core" },
   { href: "/dashboard/accounting/close", label: "Month-End Close", section: "Core", tourId: "nav-periods" },
   { href: "/dashboard/accounting/periods", label: "Reporting Periods", section: "Core" },
 
