@@ -1,528 +1,261 @@
+"use client";
+
+import { useState } from "react";
 import Link from "next/link";
 import { AppShell } from "@/components/shell/app-shell";
-import { LiveMetricCard } from "@/components/ui/live-metric-card";
-import { StaggerContainer } from "@/components/ui/stagger-container";
-import { ActivityFeed, type ActivityItem } from "@/components/ui/activity-feed";
-import { AiInsightsPanel, type InsightItem } from "@/components/ui/ai-insights-panel";
-import { Breadcrumbs } from "@/components/ui/breadcrumbs";
-import { Badge } from "@/components/ui/badge";
-import { RevenueCogsChart } from "@/components/dashboard/revenue-cogs-chart";
-import {
-  CalendarCheck,
-  Upload,
-  PieChart,
-  RefreshCw,
-} from "lucide-react";
-import {
-  demoAllocationReviewQueue,
-  demoCashReconciliations,
-  getFeaturedCashReconciliationHref,
-  summarizeAllocationQueue,
-  summarizeCashReconciliations,
-} from "@/lib/demo/accounting-operations";
-import { demoTransactions } from "@/lib/demo/accounting";
-import { loadAutomationWorkspace } from "@/lib/data/automation";
 
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
-});
+const currency = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
 
-// ── Revenue vs COGS demo data (6 months, cannabis dispensary) ──
-interface MonthlyData {
-  month: string;
-  shortMonth: string;
-  revenue: number;
-  cogs: number;
-  revenueChange: number | null; // % change vs prior month
-  cogsChange: number | null;
-}
+/* ─── Stat data ─── */
+const stats = [
+  {
+    label: "Ledger Accounts",
+    value: "18",
+    sub: "17 active · 1 dormant",
+    pct: 94,
+    color: "var(--teal)",
+    glow: "var(--teal)",
+  },
+  {
+    label: "Periods in Motion",
+    value: "3",
+    sub: "1 closed · 2 open · 0 blocked",
+    pct: 60,
+    color: "var(--gold)",
+    glow: "var(--gold)",
+  },
+  {
+    label: "Current Period",
+    value: "March 2026",
+    sub: "REVIEW · Golden State Greens, LLC",
+    pct: 66,
+    color: "var(--lav)",
+    glow: "var(--lav)",
+    small: true,
+  },
+];
 
-const revenueCogsData: MonthlyData[] = (() => {
-  const months = [
-    { label: "Nov 2025", short: "Nov" },
-    { label: "Dec 2025", short: "Dec" },
-    { label: "Jan 2026", short: "Jan" },
-    { label: "Feb 2026", short: "Feb" },
-    { label: "Mar 2026", short: "Mar" },
-    { label: "Apr 2026", short: "Apr" },
-  ];
-  // Base revenue: $185K in Nov, growing 5-8% MoM
-  const revenues = [185000, 196100, 207900, 220400, 235800, 252300];
-  // COGS as % of revenue: 48%, 52%, 47%, 50%, 46%, 45%
-  const cogsPct = [0.48, 0.52, 0.47, 0.50, 0.46, 0.45];
+/* ─── Revenue waterfall data ─── */
+const waterfall = [
+  { label: "Gross Sales", amount: 1252000, color: "var(--teal)", ded: true },
+  { label: "COGS Deduct.", amount: 204000, color: "var(--lav)", ded: true },
+  { label: "Gross Profit", amount: 1048000, color: "#0bbf90", ded: true },
+  { label: "Non-Ded OpEx", amount: 176000, color: "var(--blush)", ded: false },
+  { label: "Net Operating", amount: 872000, color: "var(--gold)", ded: false },
+  { label: "280E Savings", amount: 35000, color: "var(--sky)", ded: true },
+];
 
-  return months.map((m, i) => {
-    const revenue = revenues[i];
-    const cogs = Math.round(revenue * cogsPct[i]);
-    const revenueChange = i > 0 ? ((revenue - revenues[i - 1]) / revenues[i - 1]) * 100 : null;
-    const cogsChange = i > 0 ? ((cogs - Math.round(revenues[i - 1] * cogsPct[i - 1])) / Math.round(revenues[i - 1] * cogsPct[i - 1])) * 100 : null;
-    return { month: m.label, shortMonth: m.short, revenue, cogs, revenueChange, cogsChange };
-  });
-})();
+const maxAmount = Math.max(...waterfall.map((w) => w.amount));
+const chartH = 260;
 
-const maxRevenue = Math.max(...revenueCogsData.map((d) => d.revenue));
-
-// 280E tax savings estimate for current month (Apr 2026)
-// Under 280E, only COGS is deductible. The "savings" is the tax benefit
-// of properly allocating costs vs being forced to use a flat disallowance.
-const currentMonth = revenueCogsData[revenueCogsData.length - 1];
-const effectiveTaxRate = 0.21; // federal corporate rate
-const stateTaxRate = 0.098; // CA corporate rate
-const totalTaxRate = effectiveTaxRate + stateTaxRate;
-const taxSavings280E = Math.round(currentMonth.cogs * totalTaxRate);
-
-// Build recent activity from real data sources
-function buildRecentActivity(): ActivityItem[] {
-  const items: ActivityItem[] = [];
-
-  // From allocation queue
-  const pendingController = demoAllocationReviewQueue.filter((a) => a.reviewStatus === "pending_controller");
-  if (pendingController.length > 0) {
-    items.push({
-      id: items.length + 1,
-      time: "2 min ago",
-      actor: "Allocation Engine",
-      action: `${pendingController.length} allocation${pendingController.length > 1 ? "s" : ""} escalated to controller review — ${pendingController[0].accountName} flagged for unusual cost patterns`,
-      color: "var(--warning)",
-    });
-  }
-
-  const approved = demoAllocationReviewQueue.filter((a) => a.reviewStatus === "approved");
-  if (approved.length > 0) {
-    items.push({
-      id: items.length + 1,
-      time: "12 min ago",
-      actor: "Controller",
-      action: `approved ${approved.length} high-confidence allocation split${approved.length > 1 ? "s" : ""} (${approved[0].accountName})`,
-      color: "var(--success)",
-    });
-  }
-
-  // From cash reconciliations
-  const investigating = demoCashReconciliations.filter((r) => r.status === "investigating");
-  if (investigating.length > 0) {
-    items.push({
-      id: items.length + 1,
-      time: "25 min ago",
-      actor: "System",
-      action: `flagged ${investigating.length} cash workspace${investigating.length > 1 ? "s" : ""} for variance investigation (${investigating[0].accountName})`,
-      color: "var(--warning)",
-    });
-  }
-
-  const balanced = demoCashReconciliations.filter((r) => r.status === "balanced");
-  if (balanced.length > 0) {
-    items.push({
-      id: items.length + 1,
-      time: "1 hr ago",
-      actor: "Reviewer",
-      action: `signed off on ${balanced.length} balanced reconciliation${balanced.length > 1 ? "s" : ""}`,
-      color: "var(--brand)",
-    });
-  }
-
-  // From transactions
-  const inReview = demoTransactions.filter((t) => t.status === "in_review" || t.status === "ready_to_post");
-  if (inReview.length > 0) {
-    items.push({
-      id: items.length + 1,
-      time: "3 hrs ago",
-      actor: "Import Pipeline",
-      action: `${inReview.length} transaction${inReview.length > 1 ? "s" : ""} pending review — bank feed imported`,
-      color: "var(--info)",
-    });
-  }
-
-  items.push({
-    id: items.length + 1,
-    time: "5 hrs ago",
-    actor: "Controller",
-    action: "locked reporting period for March 2026",
-    color: "var(--violet)",
-  });
-
-  return items;
-}
-
-// Generate contextual AI insights for the overview
-function buildDashboardInsights(): InsightItem[] {
-  const insights: InsightItem[] = [];
-  const allocationSummary = summarizeAllocationQueue(demoAllocationReviewQueue);
-  const reconciliationSummary = summarizeCashReconciliations(demoCashReconciliations);
-
-  // Allocation queue insight
-  if (allocationSummary.pendingController > 0) {
-    insights.push({
-      id: "insight-alloc-escalated",
-      type: "alert",
-      title: "Escalated allocations need attention",
-      body: `${allocationSummary.pendingController} allocation${allocationSummary.pendingController > 1 ? "s" : ""} escalated to controller review. The allocation engine detected unusual cost patterns that don't match standard 280E categories — these require manual judgment on deductibility classification.`,
-      confidence: 42,
-      evidence: [
-        "Cost basis variance exceeds 15% threshold for category",
-        "No matching policy rule for the expense type",
-        "Similar items were overridden in prior periods",
-      ],
-      relatedEntities: [
-        { type: "queue", label: "Allocation Queue", href: "/dashboard/allocations" },
-        { type: "history", label: "Override History", href: "/dashboard/allocations/history" },
-      ],
-      suggestedAction: {
-        label: "Review escalated allocations",
-      },
-    });
-  }
-
-  // High-confidence auto-approval insight
-  if (allocationSummary.ready > 0) {
-    insights.push({
-      id: "insight-alloc-ready",
-      type: "recommendation",
-      title: `${allocationSummary.ready} allocations ready for auto-approval`,
-      body: "These allocations have 90%+ confidence and match established 280E policy rules. Batch approval is safe per your allocation policy — all items have matching precedent from prior closed periods.",
-      confidence: 91,
-      evidence: [
-        "All items match POL-280E-01 through POL-280E-04",
-        "Cost basis within 5% of historical average",
-        "No prior overrides on similar items",
-      ],
-      relatedEntities: [
-        { type: "queue", label: "Review Queue", href: "/dashboard/allocations" },
-      ],
-      suggestedAction: {
-        label: "Approve all high-confidence items",
-      },
-    });
-  }
-
-  // Cash variance insight
-  if (reconciliationSummary.investigating > 0) {
-    insights.push({
-      id: "insight-cash-variance",
-      type: "explanation",
-      title: "Cash variance investigation",
-      body: `${reconciliationSummary.investigating} workspace${reconciliationSummary.investigating > 1 ? "s" : ""} with open variance investigations. The primary driver is a $1,200 deposit timing difference — posted on the 31st per the books but showing the 1st at the bank. This is standard period-end timing and will reconcile next period.`,
-      confidence: 87,
-      evidence: [
-        "SVB clearing account: $1,200 deposit date mismatch",
-        "Oakland drawer: $47.20 over (likely unrecorded tips)",
-        "All variances within operator tolerance thresholds",
-      ],
-      relatedEntities: [
-        { type: "reconciliation", label: "Cash Reconciliations", href: "/dashboard/reconciliations" },
-      ],
-    });
-  }
-
-  // Close readiness insight
-  insights.push({
-    id: "insight-close-readiness",
-    type: "context",
-    title: "Month-end close status",
-    body: "February 2026 is locked. March 2026 is in review — 4 of 6 close areas complete. Remaining: inventory reconciliation (pending Metrc sync) and allocation override review. Estimated 2 hours to close once escalated items are resolved.",
-    confidence: 95,
-    relatedEntities: [
-      { type: "close", label: "Close Dashboard", href: "/dashboard/accounting/close" },
-      { type: "periods", label: "Reporting Periods", href: "/dashboard/accounting/periods" },
+/* ─── Account data ─── */
+const accountSections = [
+  {
+    name: "Revenue",
+    color: "var(--teal)",
+    accounts: [
+      { name: "Gross Sales", code: "4010", val: "$1252k", ded: true, color: "var(--teal)" },
     ],
-  });
-
-  // Filing deadline insight
-  insights.push({
-    id: "insight-filings",
-    type: "alert",
-    title: "Upcoming CA filing deadlines",
-    body: "California Excise Tax return due in 9 days (estimated $12,400). CA Sales Tax return due in 16 days. CDTFA account is in good standing. Excise return worksheet can be drafted from the compliance page.",
-    confidence: 98,
-    relatedEntities: [
-      { type: "compliance", label: "Compliance", href: "/dashboard/compliance" },
-      { type: "exports", label: "CPA Export", href: "/dashboard/exports" },
+    total: "$1252k",
+    totalColor: "var(--teal)",
+  },
+  {
+    name: "Assets",
+    color: "#09a47c",
+    accounts: [
+      { name: "Checking — Chase", code: "1010", val: "$312k", ded: true, color: "var(--teal)" },
+      { name: "Petty Cash / Vault", code: "1050", val: "$19k", ded: true, color: "#0bbf90" },
+      { name: "AR — Dispensary", code: "1200", val: "$87k", ded: true, color: "#09a47c" },
+      { name: "Inventory — Raw", code: "1500", val: "$204k", ded: true, color: "#078a68" },
+      { name: "Inventory — WIP", code: "1510", val: "$97k", ded: true, color: "#057054" },
     ],
-    suggestedAction: {
-      label: "Draft excise return worksheet",
-    },
-  });
+    total: "$719k",
+    totalColor: "var(--teal)",
+  },
+  {
+    name: "Liabilities",
+    color: "var(--gold)",
+    accounts: [
+      { name: "AP — Trade", code: "2010", val: "$63k", ded: true, color: "var(--gold)" },
+      { name: "Sales Tax Payable", code: "2020", val: "$12k", ded: true, color: "#d49420" },
+      { name: "Accrued Expenses", code: "2030", val: "$28k", ded: true, color: "#bf8018" },
+    ],
+    total: "$103k",
+    totalColor: "var(--gold)",
+  },
+];
 
-  return insights;
-}
+/* ─── Workspace cards ─── */
+const workspaces = [
+  { icon: "⊗", title: "280E Allocations", desc: "Review splits, overrides, and policy trail. 1 escalated.", href: "/dashboard/allocations" },
+  { icon: "⊜", title: "Cash Reconciliation", desc: "Source breakdown, variance drivers, and investigation notes.", href: "/dashboard/reconciliations" },
+  { icon: "↗", title: "CPA Handoff", desc: "Build close packets, 280E support schedules, and handoff checklists.", href: "/dashboard/exports" },
+];
 
-export default async function DashboardPage() {
-  const allocationSummary = summarizeAllocationQueue(demoAllocationReviewQueue);
-  const reconciliationSummary = summarizeCashReconciliations(demoCashReconciliations);
-  const featuredReconciliationHref = getFeaturedCashReconciliationHref(demoCashReconciliations);
-  const recentActivity = buildRecentActivity();
-  const dashboardInsights = buildDashboardInsights();
-
-  // Load automation status
-  let automationAlerts = 0;
-  try {
-    const automation = await loadAutomationWorkspace("demo-dispensary");
-    automationAlerts = automation.alertSummary.totalUnresolvedAlerts;
-  } catch {
-    // Fallback — demo mode
-    automationAlerts = 2;
-  }
-
-  const totalQueueItems =
-    allocationSummary.ready +
-    allocationSummary.needsSupport +
-    allocationSummary.pendingController;
+export default function DashboardPage() {
+  const [selectedAccount, setSelectedAccount] = useState<string | null>(null);
 
   return (
     <AppShell
-      title="Overview"
-      description="Your accounting command center — allocation queue, cash health, close status, and upcoming deadlines."
+      title="Accounting"
+      description="Chart of Accounts · Golden State Greens, LLC"
     >
-      {/* Breadcrumbs */}
-      <Breadcrumbs
-        items={[{ label: "Dashboard", href: "/dashboard" }, { label: "Overview" }]}
-        className="mb-4"
-      />
-
-      {/* Health banner */}
-      <div className="mb-6 rounded-2xl border border-brand/20 bg-brand/5 p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
-        <span className="text-lg">🌿</span>
-        <div className="flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm font-medium text-text-primary">System Health</span>
-            <Badge variant={automationAlerts > 0 ? "warning" : "success"} size="sm" dot>
-              {automationAlerts > 0 ? `${automationAlerts} alerts` : "All clear"}
-            </Badge>
+      {/* Stats Row */}
+      <div className="stats">
+        {stats.map((s) => (
+          <div key={s.label} className="stat">
+            <div className="stat-glow" style={{ background: s.glow }} />
+            <div className="stat-lbl">{s.label}</div>
+            <div className={`stat-num ${s.small ? "v" : s.color === "var(--gold)" ? "g" : "t"}`}>{s.value}</div>
+            <div className="stat-sub">{s.sub}</div>
+            <div className="stat-bar">
+              <div className="stat-fill" style={{ width: `${s.pct}%`, background: s.color }} />
+            </div>
           </div>
-          <p className="text-xs text-text-muted mt-0.5">
-            {automationAlerts > 0
-              ? `${automationAlerts} unresolved automation alert${automationAlerts > 1 ? "s" : ""} — allocation monitors and reconciliation follow-ups active`
-              : "All automation agents healthy. No blockers detected."}
-          </p>
-        </div>
-        <Link
-          href="/dashboard/automation"
-          className="text-xs font-medium text-brand hover:text-brand/80 transition-colors shrink-0"
-        >
-          View agents →
-        </Link>
+        ))}
       </div>
 
-      {/* Quick actions */}
-      <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Link
-          href="/dashboard/accounting/close"
-          className="group relative flex flex-col gap-1 rounded-xl border border-border bg-surface-mid p-4 transition-all duration-200 hover:border-brand/40 hover:bg-surface-raised hover:shadow-lg hover:shadow-brand/5"
-        >
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand/10 text-brand transition-colors group-hover:bg-brand/20">
-              <CalendarCheck className="h-4.5 w-4.5" />
-            </span>
-            <span className="text-sm font-semibold text-text-primary group-hover:text-brand transition-colors">Start Close</span>
+      {/* Viz Card */}
+      <div className="viz-card">
+        <div className="viz-head">
+          <div className="vh-left">
+            <div className="vh-eyebrow">Chart of Accounts</div>
+            <div className="vh-title">Ledger Visualizer</div>
+            <div className="vh-sub">Real-time financial flow · 280E admissibility · March 2026</div>
           </div>
-          <p className="text-xs text-text-muted leading-relaxed pl-[46px]">
-            Month-end close workflow — lock periods, review checklists.
-          </p>
-        </Link>
-        <Link
-          href="/dashboard/accounting/imports"
-          className="group relative flex flex-col gap-1 rounded-xl border border-border bg-surface-mid p-4 transition-all duration-200 hover:border-brand/40 hover:bg-surface-raised hover:shadow-lg hover:shadow-brand/5"
-        >
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent/10 text-accent transition-colors group-hover:bg-accent/20">
-              <Upload className="h-4.5 w-4.5" />
-            </span>
-            <span className="text-sm font-semibold text-text-primary group-hover:text-accent transition-colors">Upload Import</span>
-          </div>
-          <p className="text-xs text-text-muted leading-relaxed pl-[46px]">
-            CSV bank feeds, receipts, and bulk transaction imports.
-          </p>
-        </Link>
-        <Link
-          href="/dashboard/allocations"
-          className="group relative flex flex-col gap-1 rounded-xl border border-border bg-surface-mid p-4 transition-all duration-200 hover:border-brand/40 hover:bg-surface-raised hover:shadow-lg hover:shadow-brand/5"
-        >
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet/10 text-violet transition-colors group-hover:bg-violet/20">
-              <PieChart className="h-4.5 w-4.5" />
-            </span>
-            <span className="text-sm font-semibold text-text-primary group-hover:text-violet transition-colors">Run Allocations</span>
-          </div>
-          <p className="text-xs text-text-muted leading-relaxed pl-[46px]">
-            Review 280E splits, approve queue, and publish results.
-          </p>
-        </Link>
-        <Link
-          href="/dashboard/inventory"
-          className="group relative flex flex-col gap-1 rounded-xl border border-border bg-surface-mid p-4 transition-all duration-200 hover:border-brand/40 hover:bg-surface-raised hover:shadow-lg hover:shadow-brand/5"
-        >
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-success/10 text-success transition-colors group-hover:bg-success/20">
-              <RefreshCw className="h-4.5 w-4.5" />
-            </span>
-            <span className="text-sm font-semibold text-text-primary group-hover:text-success transition-colors">Sync Metrc</span>
-          </div>
-          <p className="text-xs text-text-muted leading-relaxed pl-[46px]">
-            Pull latest packages, transfers, and harvest data.
-          </p>
-        </Link>
-      </div>
-
-      {/* Key metrics */}
-      <StaggerContainer className="grid gap-4 grid-cols-2 md:grid-cols-4">
-        <LiveMetricCard
-          label="Allocation queue"
-          value={totalQueueItems}
-          detail={`${allocationSummary.approved} approved · ${allocationSummary.pendingController} escalated`}
-        />
-        <LiveMetricCard
-          label="Unreconciled cash"
-          value={reconciliationSummary.absoluteVariance}
-          detail={`${reconciliationSummary.investigating + reconciliationSummary.exception} workspaces need follow-up`}
-          prefix="$"
-        />
-        <LiveMetricCard
-          label="Inventory drift"
-          value={3.1}
-          detail="Book vs package-level mismatch — within tolerance"
-          suffix="%"
-          decimals={1}
-        />
-        <LiveMetricCard
-          label="Upcoming filings"
-          value={2}
-          detail="CA excise + sales tax due within 16 days"
-        />
-      </StaggerContainer>
-
-      {/* Revenue vs COGS Trend */}
-      <section className="mt-6 rounded-2xl border border-border bg-surface-mid p-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">Revenue vs COGS Trend</div>
-            <p className="mt-1 text-sm text-text-muted">
-              Last 6 months — monthly comparison with period-over-period change.
-            </p>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1.5">
-              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-brand" />
-              <span className="text-xs text-text-muted">Revenue</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="inline-block h-2.5 w-2.5 rounded-sm bg-accent" />
-              <span className="text-xs text-text-muted">COGS</span>
-            </div>
+          <div className="vh-right">
+            <span className="vtag">VERTICAL · ACCRUAL</span>
+            <span className="vpill on">Flow</span>
+            <span className="vpill">Waterfall</span>
+            <span className="vpill">Donut</span>
           </div>
         </div>
+        <div className="viz-body">
+          <div className="vz-left">
+            {/* SVG Waterfall Chart */}
+            <svg viewBox="0 0 846 280" xmlns="http://www.w3.org/2000/svg" style={{ width: "100%", height: "auto" }}>
+              <defs>
+                {waterfall.map((w, i) => (
+                  <g key={i}>
+                    <linearGradient id={`g${i}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={w.color} stopOpacity=".95" />
+                      <stop offset="100%" stopColor={w.color} stopOpacity=".08" />
+                    </linearGradient>
+                    <filter id={`gw${i}`} x="-50%" y="-50%" width="200%" height="200%">
+                      <feGaussianBlur stdDeviation="5" result="b" />
+                      <feMerge><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+                    </filter>
+                  </g>
+                ))}
+              </defs>
+              {/* Bars */}
+              {waterfall.map((w, i) => {
+                const barH = (w.amount / maxAmount) * (chartH - 60);
+                const y = chartH - 40 - barH;
+                const x = 52 + i * 140;
+                return (
+                  <g key={i}>
+                    <rect x={x} y={y - 2} width="62" height={barH + 4} rx="9" fill={`${w.color}10`} filter={`url(#gw${i})`} />
+                    <rect x={x + 2} y={y} width="58" height={barH} rx="7" fill={`url(#g${i})`} />
+                    <text x={x + 31} y={y - 11} textAnchor="middle" fontFamily="'DM Mono',monospace" fontSize="10.5" fontWeight="500" fill={w.color}>
+                      {currency.format(w.amount)}
+                    </text>
+                    <text x={x + 31} y={chartH - 18} textAnchor="middle" fontFamily="'DM Sans',sans-serif" fontSize="8.5" fontWeight="600" fill="#7a829e" transform={`rotate(-20,${x + 31},${chartH - 18})`}>
+                      {w.label}
+                    </text>
+                  </g>
+                );
+              })}
+              {/* Total Revenue */}
+              <text x="83" y="30" textAnchor="middle" fontFamily="'Syne',sans-serif" fontSize="20" fontWeight="800" fill="var(--teal)">
+                {currency.format(1252000)}
+              </text>
+              <text x="83" y="46" textAnchor="middle" fontFamily="'DM Sans',sans-serif" fontSize="8" fontWeight="600" fill="#7a829e" letterSpacing="1.2">
+                TOTAL REVENUE
+              </text>
+              {/* Baseline */}
+              <line x1="32" y1={chartH - 38} x2="824" y2={chartH - 38} stroke="rgba(255,255,255,.04)" strokeWidth="1" />
+            </svg>
 
-        {/* Bar chart */}
-        <RevenueCogsChart data={revenueCogsData} maxRevenue={maxRevenue} />
-
-        {/* Current month detail row */}
-        <div className="mt-5 pt-4 border-t border-border-subtle grid gap-3 grid-cols-1 sm:grid-cols-3">
-          <div>
-            <div className="text-xs text-text-muted">Current month revenue</div>
-            <div className="mt-0.5 text-lg font-medium text-text-primary">
-              {currencyFormatter.format(currentMonth.revenue)}
+            {/* KPI Chips */}
+            <div className="kpi-row">
+              <div className="kpi-chip" style={{ background: `${waterfall[0].color}10`, borderColor: `${waterfall[0].color}35` }}>
+                <span className="kc-l" style={{ color: waterfall[0].color }}>Gross Margin</span>
+                <span className="kc-v" style={{ color: waterfall[0].color }}>83.4%</span>
+              </div>
+              <div className="kpi-chip" style={{ background: `${waterfall[5].color}10`, borderColor: `${waterfall[5].color}35` }}>
+                <span className="kc-l" style={{ color: waterfall[5].color }}>280E Savings</span>
+                <span className="kc-v" style={{ color: waterfall[5].color }}>$34,969</span>
+              </div>
+              <div className="kpi-chip" style={{ background: `${waterfall[1].color}10`, borderColor: `${waterfall[1].color}35` }}>
+                <span className="kc-l" style={{ color: waterfall[1].color }}>COGS Ratio</span>
+                <span className="kc-v" style={{ color: waterfall[1].color }}>16.3%</span>
+              </div>
+              <div className="kpi-chip" style={{ background: `${waterfall[3].color}10`, borderColor: `${waterfall[3].color}35` }}>
+                <span className="kc-l" style={{ color: waterfall[3].color }}>Non-Deductible</span>
+                <span className="kc-v" style={{ color: waterfall[3].color }}>$175.6k</span>
+              </div>
             </div>
-            {currentMonth.revenueChange !== null && (
-              <div className={`text-xs mt-0.5 ${currentMonth.revenueChange >= 0 ? "text-success" : "text-danger"}`}>
-                {currentMonth.revenueChange >= 0 ? "↑" : "↓"} {Math.abs(currentMonth.revenueChange).toFixed(1)}% vs prior month
+          </div>
+
+          {/* Right Panel — Account List */}
+          <div className="vz-right">
+            {accountSections.map((section) => (
+              <div key={section.name}>
+                <div className="ac-section" style={{ color: section.color }}>{section.name}</div>
+                {section.accounts.map((acct) => (
+                  <div
+                    key={acct.code}
+                    className={`ac-row ${selectedAccount === acct.code ? "on" : ""}`}
+                    onClick={() => setSelectedAccount(selectedAccount === acct.code ? null : acct.code)}
+                  >
+                    <div className="ac-led" style={{ background: acct.color, boxShadow: `0 0 5px ${acct.color}88` }} />
+                    <span className="ac-name">{acct.name}</span>
+                    <span className="ac-code">{acct.code}</span>
+                    <span className="ac-val" style={{ color: acct.color }}>{acct.val}</span>
+                    <span className={`ac-tag ${acct.ded ? "d" : "n"}`}>{acct.ded ? "DED" : "NON-DED"}</span>
+                  </div>
+                ))}
+                <div className="ac-sub">
+                  <span>Total</span>
+                  <span style={{ color: section.totalColor }}>{section.total}</span>
+                </div>
+              </div>
+            ))}
+
+            {/* Selected Account Detail */}
+            {selectedAccount && (
+              <div className="sel-box">
+                <div className="sel-title">
+                  <span className="w-2 h-2 rounded-full" style={{ background: "var(--teal)", display: "inline-block" }} />
+                  Account {selectedAccount}
+                </div>
+                <div className="sel-sub">Gross Sales · 4010</div>
+                <div className="kv"><span className="kv-k">Period Balance</span><span className="kv-v" style={{ color: "var(--teal)" }}>$1,252,000</span></div>
+                <div className="kv"><span className="kv-k">Budget</span><span className="kv-v">$1,180,000</span></div>
+                <div className="kv"><span className="kv-k">Variance</span><span className="kv-v" style={{ color: "var(--gold)" }}>+$72,000 (6.1%)</span></div>
+                <div className="kv"><span className="kv-k">280E Status</span><span className="ac-tag d" style={{ fontSize: 10 }}>DEDUCTIBLE</span></div>
+                <div className="kv-bar"><div className="kv-fill" style={{ width: "106%", background: "var(--teal)" }} /></div>
               </div>
             )}
           </div>
-          <div>
-            <div className="text-xs text-text-muted">Current month COGS</div>
-            <div className="mt-0.5 text-lg font-medium text-text-primary">
-              {currencyFormatter.format(currentMonth.cogs)}
-            </div>
-            <div className="text-xs text-text-muted mt-0.5">
-              {((currentMonth.cogs / currentMonth.revenue) * 100).toFixed(1)}% of revenue
-            </div>
-          </div>
-          <div>
-            <div className="text-xs text-text-muted">Est. 280E tax savings</div>
-            <div className="mt-0.5 text-lg font-medium text-success">
-              {currencyFormatter.format(taxSavings280E)}
-            </div>
-            <div className="text-xs text-text-muted mt-0.5">
-              Based on deductible COGS at ~{(totalTaxRate * 100).toFixed(1)}% effective rate
-            </div>
-          </div>
         </div>
-      </section>
-
-      {/* Insights */}
-      <div className="mt-6">
-        <AiInsightsPanel
-          title="Insights"
-          subtitle="Based on current data"
-          insights={dashboardInsights}
-          maxVisible={4}
-        />
       </div>
 
-      {/* Quick access workspaces */}
-      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <Link
-          href="/dashboard/allocations"
-          className="group rounded-2xl border border-border bg-surface-mid p-5 transition hover:bg-surface/70 hover:border-brand/30"
-        >
-          <div className="flex items-center justify-between">
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">280E Allocations</div>
-            <span className="text-xs text-text-faint group-hover:text-brand transition-colors">→</span>
-          </div>
-          <div className="mt-2 font-medium">{totalQueueItems} items in queue</div>
-          <div className="mt-1 text-sm text-text-muted">
-            Review splits, overrides, and policy trail. {allocationSummary.pendingController} escalated.
-          </div>
-        </Link>
-        <Link
-          href={featuredReconciliationHref}
-          className="group rounded-2xl border border-border bg-surface-mid p-5 transition hover:bg-surface/70 hover:border-brand/30"
-        >
-          <div className="flex items-center justify-between">
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">Cash Reconciliation</div>
-            <span className="text-xs text-text-faint group-hover:text-brand transition-colors">→</span>
-          </div>
-          <div className="mt-2 font-medium">Variance: ${reconciliationSummary.absoluteVariance}</div>
-          <div className="mt-1 text-sm text-text-muted">
-            Source breakdown, variance drivers, and investigation notes.
-          </div>
-        </Link>
-        <Link
-          href="/dashboard/exports"
-          className="group rounded-2xl border border-violet-500/20 bg-violet-500/10 p-5 transition hover:bg-violet-500/20"
-        >
-          <div className="flex items-center justify-between">
-            <div className="text-xs uppercase tracking-[0.2em] text-violet-200">CPA Handoff</div>
-            <span className="text-xs text-violet-200/50 group-hover:text-violet-200 transition-colors">→</span>
-          </div>
-          <div className="mt-2 font-medium text-violet-100">Export center</div>
-          <div className="mt-1 text-sm text-violet-100/80">
-            Build close packets, 280E support schedules, and handoff checklists.
-          </div>
-        </Link>
+      {/* Workspaces */}
+      <div>
+        <div className="ws-label">Quick Access</div>
+        <div className="ws-grid">
+          {workspaces.map((ws) => (
+            <Link key={ws.href} href={ws.href} className="ws-card no-underline block">
+              <div className="ws-ico">{ws.icon}</div>
+              <div className="ws-title">{ws.title}</div>
+              <div className="ws-desc">{ws.desc}</div>
+              <div className="ws-arrow">→</div>
+            </Link>
+          ))}
+        </div>
       </div>
-
-      {/* Recent activity — derived from actual data */}
-      <section className="mt-6 rounded-2xl border border-border bg-surface-mid p-5 overflow-hidden">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-xs uppercase tracking-[0.2em] text-accent">Recent activity</div>
-            <p className="mt-1 text-sm text-text-muted">
-              Latest events across your accounting workspace.
-            </p>
-          </div>
-          <Link
-            href="/dashboard/exports"
-            className="text-xs font-medium text-text-faint hover:text-text-secondary transition-colors"
-          >
-            Full audit trail →
-          </Link>
-        </div>
-        <div className="mt-4">
-          <ActivityFeed items={recentActivity} maxItems={5} />
-        </div>
-      </section>
     </AppShell>
   );
 }

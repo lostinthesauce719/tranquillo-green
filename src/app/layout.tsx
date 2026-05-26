@@ -1,13 +1,19 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { DM_Sans, DM_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import TranquilloGuideToggle from "../components/TranquilloGuideToggle";
 import "./globals.css";
 
-const inter = Inter({
+const dmSans = DM_Sans({
   subsets: ["latin"],
   display: "swap",
-  variable: "--font-inter",
+  variable: "--font-dm-sans",
+});
+const dmMono = DM_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-dm-mono",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -37,7 +43,7 @@ export const dynamic = "force-dynamic";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
+    <html lang="en" className={`${dmSans.variable} ${dmMono.variable}`} suppressHydrationWarning>
       <head>
         <script
           type="application/ld+json"
