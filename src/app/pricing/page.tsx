@@ -61,9 +61,17 @@ const COMPARISON = [
 ];
 
 function CheckCell({ value }: { value: boolean | string }) {
-  if (value === true) return <Check className="h-4 w-4 text-brand mx-auto" />;
-  if (value === false) return <span className="text-text-faint mx-auto block text-center">—</span>;
-  return <span className="text-xs text-text-muted mx-auto block text-center">{value}</span>;
+  if (value === true)
+    return <Check className="h-4 w-4 text-brand mx-auto" />;
+  if (value === false)
+    return (
+      <span className="text-text-faint mx-auto block text-center">—</span>
+    );
+  return (
+    <span className="text-xs text-text-muted mx-auto block text-center">
+      {value}
+    </span>
+  );
 }
 
 function btnClass(active: boolean) {
@@ -78,7 +86,6 @@ export default function PricingPage() {
 
   return (
     <main className="min-h-screen bg-background">
-      {/* Header */}
       <div className="border-b border-border bg-surface">
         <div className="mx-auto max-w-7xl px-4 py-16 text-center sm:px-6 lg:px-8">
           <h1 className="text-4xl font-bold text-text-primary">
@@ -89,14 +96,26 @@ export default function PricingPage() {
             No hidden fees. No per-transaction charges.
           </p>
 
-          {/* Annual Toggle */}
           <div className="mt-8 inline-flex items-center gap-3 rounded-full border border-border bg-surface-raised px-1.5 py-1.5">
-            <button onClick={() => setAnnual(false)} className={btnClass(!annual)}>
+            <button
+              onClick={() => setAnnual(false)}
+              className={btnClass(!annual)}
+            >
               Monthly
             </button>
-            <button onClick={() => setAnnual(true)} className={btnClass(annual)}>
+            <button
+              onClick={() => setAnnual(true)}
+              className={btnClass(annual)}
+            >
               Annual
-              <span className={"text-[10px] font-bold px-1.5 py-0.5 rounded-full " + (annual ? "bg-white/20 text-white" : "bg-brand/10 text-brand")}>
+              <span
+                className={
+                  "text-[10px] font-bold px-1.5 py-0.5 rounded-full " +
+                  (annual
+                    ? "bg-white/20 text-white"
+                    : "bg-brand/10 text-brand")
+                }
+              >
                 -25%
               </span>
             </button>
@@ -105,8 +124,6 @@ export default function PricingPage() {
       </div>
 
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
-
-        {/* Pricing Cards */}
         <div className="grid gap-8 lg:grid-cols-2 max-w-4xl mx-auto">
           {TIERS.map((tier) => {
             const price = annual ? tier.annualPrice : tier.monthlyPrice;
@@ -125,12 +142,18 @@ export default function PricingPage() {
                 )}
 
                 <div className="mb-6">
-                  <h3 className="text-2xl font-bold text-text-primary">{tier.name}</h3>
-                  <p className="mt-2 text-sm text-text-muted">{tier.description}</p>
+                  <h3 className="text-2xl font-bold text-text-primary">
+                    {tier.name}
+                  </h3>
+                  <p className="mt-2 text-sm text-text-muted">
+                    {tier.description}
+                  </p>
                 </div>
 
                 <div className="mb-8">
-                  <span className="text-5xl font-bold text-text-primary">${price}</span>
+                  <span className="text-5xl font-bold text-text-primary">
+                    ${price}
+                  </span>
                   <span className="text-text-muted">/mo</span>
                   {annual && (
                     <div className="mt-1 text-xs text-brand font-medium">
@@ -141,14 +164,20 @@ export default function PricingPage() {
 
                 <ul className="mb-8 space-y-3">
                   {tier.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2">
+                    <li
+                      key={f}
+                      className="flex items-start gap-2"
+                    >
                       <Check className="h-5 w-5 flex-shrink-0 text-brand" />
                       <span className="text-sm text-text-secondary">{f}</span>
                     </li>
                   ))}
                 </ul>
 
-                <a href={"/onboarding?plan=" + tier.name.toLowerCase()} className={ctaClass}>
+                <a
+                  href={"/onboarding?plan=" + tier.name.toLowerCase()}
+                  className={ctaClass}
+                >
                   {tier.cta}
                 </a>
               </div>
@@ -156,15 +185,17 @@ export default function PricingPage() {
           })}
         </div>
 
-        {/* 30-day guarantee */}
         <div className="mt-8 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border border-brand/20 bg-brand/5 px-4 py-2 text-sm text-brand">
             <Check className="h-4 w-4" />
-            30-day money-back guarantee — no questions asked
+            30-day money-back guarantee
           </div>
+          <p className="mt-2 text-xs text-text-muted">
+            If Tranquillo Green doesn&apos;t identify meaningful tax savings or
+            operational value within 30 days, we&apos;ll refund you in full.
+          </p>
         </div>
 
-        {/* Comparison Table */}
         <section className="mt-20">
           <h2 className="text-center text-2xl font-bold text-text-primary mb-8">
             Compare Plans
@@ -173,17 +204,35 @@ export default function PricingPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-surface-raised">
-                  <th className="text-left px-4 py-3 font-semibold text-text-primary">Feature</th>
-                  <th className="text-center px-4 py-3 font-semibold text-text-primary">Essential</th>
-                  <th className="text-center px-4 py-3 font-semibold text-brand">Premium</th>
+                  <th className="text-left px-4 py-3 font-semibold text-text-primary">
+                    Feature
+                  </th>
+                  <th className="text-center px-4 py-3 font-semibold text-text-primary">
+                    Essential
+                  </th>
+                  <th className="text-center px-4 py-3 font-semibold text-brand">
+                    Premium
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {COMPARISON.map((row, i) => (
-                  <tr key={row.feature} className={"border-b border-border-subtle " + (i % 2 === 0 ? "bg-surface/30" : "bg-surface/10")}>
-                    <td className="px-4 py-3 text-text-secondary">{row.feature}</td>
-                    <td className="px-4 py-3"><CheckCell value={row.essential} /></td>
-                    <td className="px-4 py-3 bg-brand/5"><CheckCell value={row.premium} /></td>
+                  <tr
+                    key={row.feature}
+                    className={
+                      "border-b border-border-subtle " +
+                      (i % 2 === 0 ? "bg-surface/30" : "bg-surface/10")
+                    }
+                  >
+                    <td className="px-4 py-3 text-text-secondary">
+                      {row.feature}
+                    </td>
+                    <td className="px-4 py-3">
+                      <CheckCell value={row.essential} />
+                    </td>
+                    <td className="px-4 py-3 bg-brand/5">
+                      <CheckCell value={row.premium} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -191,65 +240,67 @@ export default function PricingPage() {
           </div>
         </section>
 
-        {/* FAQ */}
         <section className="mx-auto mt-16 max-w-3xl">
           <h2 className="mb-8 text-center text-2xl font-bold text-text-primary">
             Frequently Asked Questions
           </h2>
           <div className="space-y-6">
             <div>
-              <h3 className="font-semibold text-text-primary">Can I switch plans later?</h3>
+              <h3 className="font-semibold text-text-primary">
+                Is this only useful if 280E stays in place?
+              </h3>
               <p className="mt-2 text-text-muted">
-                Yes — upgrade or downgrade anytime. When you upgrade mid-cycle, you&apos;re prorated for the remainder. Downgrades take effect at the next billing date.
+                Repealed or not, cannabis businesses still need clean books, COGS discipline, and Metrc reconciliation. Tranquillo gives you that whether or not 280E changes.
               </p>
             </div>
             <div>
-              <h3 className="font-semibold text-text-primary">What&apos;s the 30-day money-back guarantee?</h3>
+              <h3 className="font-semibold text-text-primary">
+                Why not just use QuickBooks and a specialist CPA?
+              </h3>
               <p className="mt-2 text-text-muted">
-                If Tranquillo Green doesn&apos;t identify meaningful tax savings or operational value within 30 days of your paid subscription, we&apos;ll refund you in full. No hoops, no hassle.
+                QuickBooks was not built for 280E or seed-to-sale reconciliation. A specialist CPA helps, but most firms still rebuild the same cost study manually every month. Tranquillo automates that workpaper and gives your CPA an export-ready packet.
               </p>
             </div>
             <div>
-              <h3 className="font-semibold text-text-primary">Is there a free trial?</h3>
+              <h3 className="font-semibold text-text-primary">
+                Is my Metrc data secure?
+              </h3>
               <p className="mt-2 text-text-muted">
-                We offer a guided demo with a product specialist after verifying your company information. This ensures we show you the right setup for your operation. Schedule a demo to get started.
+                Yes. We integrate with Metrc using encrypted connections. Your data stays tied to your company context and authenticated users only. We do not share or resell operator data.
               </p>
             </div>
             <div>
-              <h3 className="font-semibold text-text-primary">What counts as an &quot;entity&quot;?</h3>
+              <h3 className="font-semibold text-text-primary">
+                What counts as an &quot;entity&quot;?
+              </h3>
               <p className="mt-2 text-text-muted">
                 An entity is a distinct legal business with its own license. If you operate a dispensary and a cultivation facility under the same LLC, that&apos;s one entity. If they&apos;re separate LLCs, that&apos;s two.
               </p>
             </div>
             <div>
-              <h3 className="font-semibold text-text-primary">Do you support my state?</h3>
+              <h3 className="font-semibold text-text-primary">
+                What happens after 30 days if it is not a fit?
+              </h3>
               <p className="mt-2 text-text-muted">
-                We support all state-legal cannabis markets. Metrc integration is available in CA, CO, MI, OR, NY, and 10+ other states. Non-Metrc states use CSV import.
-              </p>
-            </div>
-            <div>
-              <h3 className="font-semibold text-text-primary">Is my data secure?</h3>
-              <p className="mt-2 text-text-muted">
-                All data is encrypted at rest (AES-256) and in transit (TLS 1.3). We use Clerk for authentication and Convex for backend infrastructure. We never sell or share your financial data.
+                If Tranquillo Green does not identify meaningful tax savings or operational value within 30 days of your paid subscription, we will refund you in full.
               </p>
             </div>
           </div>
         </section>
 
-        {/* CTA */}
         <section className="mt-16 text-center rounded-2xl border border-brand/20 bg-gradient-to-br from-brand/5 to-surface p-8">
           <h2 className="text-2xl font-bold text-text-primary">
-            Ready to stop overpaying on 280E?
+            See your missed deductions before you pay
           </h2>
           <p className="mx-auto mt-3 max-w-lg text-sm text-text-muted">
-            Schedule a demo to see exactly how much you could save. Most operators cover their annual subscription cost in identified tax savings within the first month.
+            Use the calculator, then book a demo. If we do not find real savings or audit-ready output in the first 30 days, you do not pay.
           </p>
           <div className="mt-6 flex flex-wrap justify-center gap-4">
             <a
               href="/demo"
               className="inline-flex h-11 items-center gap-2 rounded-xl bg-brand px-8 text-sm font-semibold text-white shadow-sm hover:bg-brand/90 transition-all"
             >
-              Schedule a Demo
+              Book a Demo
               <ArrowRight className="h-4 w-4" />
             </a>
             <a

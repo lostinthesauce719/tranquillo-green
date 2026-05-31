@@ -1,4 +1,11 @@
-import "server-only";
+// Warn if accidentally imported from the browser. In immutable script runtimes typeof
+// window will not be defined at module init, but in Vite/Next client bundles it will.
+/* eslint-disable no-restricted-globals */
+if (typeof window !== "undefined") {
+  throw new Error(
+    "env.ts can only be imported from server-side code and does not support browser/bundle contexts."
+  );
+}
 
 /**
  * Environment variable validation module.

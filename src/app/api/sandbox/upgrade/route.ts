@@ -17,11 +17,23 @@ export async function POST(
     return NextResponse.json({ error: "Convex not available" }, { status: 503 });
   }
 
+  const companyId = params.companyId;
+
+  const tenant = await client.query((anyApi as any).users.getCurrentTenant, {});
+  if (!tenant) {
+    return NextResponse.json({ error: "Membership not found" }, { status: 404 });
+  }
+  if (tenant.company?._id !== companyId) {
+    return NextResponse.json({ error: "Unrelated company" }, { status: 403 });
+  }
+  if (tenant.user?.role !== "owner" && tenant.user?.role !== "controller") {
+    return NextResponse.json({ error: "Insufficient permissions" }, { status: 403 });
+  }
+
   const result = await client.mutation(
     (anyApi as any).sandbox.upgradeToProduction,
-    { companyId: params.companyId }
+    { companyId }
   );
 
   return NextResponse.json(result);
 }
-

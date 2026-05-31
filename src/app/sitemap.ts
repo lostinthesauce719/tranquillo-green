@@ -1,6 +1,6 @@
 import { MetadataRoute } from "next";
 
-const BASE_URL = "https://tranquillo.green";
+const BASE_URL = "https://tranquillo-green.vercel.app";
 
 const staticPaths = [
   "",
@@ -34,7 +34,17 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return staticPaths.map((path) => ({
     url: `${BASE_URL}${path}`,
     lastModified: now,
-    changeFrequency: path === "" ? "weekly" : path.startsWith("/blog/") ? "weekly" : "monthly",
-    priority: path === "" ? 1.0 : path.startsWith("/tools/") ? 0.9 : path.startsWith("/compare/") ? 0.8 : path.startsWith("/blog/") ? 0.7 : 0.6,
+    changeFrequency:
+      path === "" ? "weekly" : path.startsWith("/blog/") ? "weekly" : "monthly",
+    priority:
+      path === ""
+        ? 1.0
+        : path.startsWith("/tools/")
+        ? 0.9
+        : path.startsWith("/compare/")
+        ? 0.8
+        : path.startsWith("/blog/")
+        ? 0.7
+        : 0.6,
   }));
 }
