@@ -1,4 +1,11 @@
-import { mutation, query } from "./_generated/server";
+// SECURITY / COMPLIANCE: these functions were declared with the raw `query` and
+// `mutation` builders, making them callable with NO authentication at all.
+// `recordElection` writes an IRC 471(c) election — a binding tax position that
+// must be made on a timely filed original return and applied consistently.
+// Recording it anonymously is both an access-control hole and an audit-trail
+// gap. authQuery/authMutation require a signed-in identity and enforce that the
+// caller belongs to the companyId being written.
+import { authMutation, authQuery } from "./lib/withAuth";
 import { v } from "convex/values";
 
 /**
@@ -14,7 +21,7 @@ import { v } from "convex/values";
 /**
  * Get the current 471(c) election for a company.
  */
-export const getElection = query({
+export const getElection = authQuery({
   args: { companyId: v.id("cannabisCompanies") },
   handler: async (ctx, args) => {
     const election = await ctx.db
@@ -31,7 +38,7 @@ export const getElection = query({
  * Test 471(c) eligibility based on prior 3 years of gross receipts.
  * Returns eligibility status without saving.
  */
-export const testEligibility = query({
+export const testEligibility = authQuery({
   args: {
     companyId: v.id("cannabisCompanies"),
     priorYear1: v.number(),
@@ -64,7 +71,7 @@ export const testEligibility = query({
 /**
  * Record a new 471(c) election.
  */
-export const recordElection = mutation({
+export const recordElection = authMutation({
   args: {
     companyId: v.id("cannabisCompanies"),
     taxYear: v.number(),
@@ -127,7 +134,7 @@ export const recordElection = mutation({
 /**
  * Update election notes (e.g., to record CPA review or audit notes).
  */
-export const updateElectionNotes = mutation({
+export const updateElectionNotes = authMutation({
   args: {
     electionId: v.id("section471cElections"),
     notes: v.string(),

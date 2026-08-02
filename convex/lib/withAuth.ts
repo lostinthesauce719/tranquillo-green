@@ -113,30 +113,106 @@ export async function createEnrichedContext(baseCtx: AuthenticatedContext): Prom
 /* ─── AUTH HELPERS ────────────────────────────────────────────────────────── */
 
 /**
- * Wraps a mutation to enforce authentication.
- * Handler signature: (ctx, args) => result
- * The wrapper will ensure the user is authenticated before calling the handler.
+ * The codebase calls authQuery/authMutation with THREE different shapes:
+ *
+ *   A) authQuery({ args: {...}, handler })          — single spec object
+ *   B) authQuery({ args: {...} }, handler)          — positional, args nested
+ *   C) authQuery({ ...bareValidators }, handler)    — positional, args bare
+ *
+ * The previous implementation only supported (A). Shapes (B) and (C) silently
+ * produced `spec.handler === undefined`, so every one of those functions threw
+ * `TypeError: spec.handler is not a function` at call time — and because
+ * `spec.args` was also wrong, Convex applied NO argument validation to them.
+ *
+ * normalizeSpec accepts all three and yields a single canonical { args, handler }.
  */
-export function authMutation(spec: { args: any; handler: (ctx: AuthenticatedContext, args: any) => Promise<any> }) {
+type AuthHandler = (
+  ctx: AuthenticatedContext,
+  args: any,
+  identity: Identity
+) => Promise<any>;
+
+function normalizeSpec(
+  a: any,
+  b?: AuthHandler
+): { args: any; handler: AuthHandler } {
+  // Shapes (B) and (C): handler passed positionally.
+  if (typeof b === "function") {
+    const args =
+      a && typeof a === "object" && "args" in a && typeof a.args === "object"
+        ? a.args // (B)
+        : a; // (C)
+    return { args: args ?? {}, handler: b };
+  }
+
+  // Shape (A): single spec object.
+  if (a && typeof a.handler === "function") {
+    return { args: a.args ?? {}, handler: a.handler };
+  }
+
+  throw new Error(
+    "authQuery/authMutation: could not resolve a handler function. " +
+      "Expected ({args, handler}) or (args, handler)."
+  );
+}
+
+/**
+ * Defence in depth: enforce tenant scope in the wrapper itself.
+ *
+ * Previously, tenant isolation relied on each handler remembering to call
+ * requireCompanyAccessById/BySlug. Auditing showed 79 authenticated functions
+ * that accept a companyId/slug and never called a guard — any signed-in user
+ * could read or write another operator's books by passing a different id.
+ *
+ * Enforcing here means a handler cannot forget. Individual handlers may still
+ * call the guards explicitly; doing so is now redundant but harmless.
+ */
+async function enforceTenantScope(
+  ctx: AuthenticatedContext,
+  args: any,
+  identity: Identity
+) {
+  if (!args || typeof args !== "object") return;
+
+  if (typeof args.companyId === "string" && args.companyId) {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+    return;
+  }
+
+  const slug = typeof args.slug === "string" ? args.slug : args.companySlug;
+  if (typeof slug === "string" && slug) {
+    await requireCompanyAccessBySlug(ctx, identity, slug);
+  }
+}
+
+/**
+ * Wraps a mutation to enforce authentication AND tenant authorization.
+ * Handler signature: (ctx, args, identity) => result
+ */
+export function authMutation(a: any, b?: AuthHandler) {
+  const { args, handler } = normalizeSpec(a, b);
   return mutationGeneric({
-    args: spec.args,
-    handler: async (ctx: AuthenticatedContext, args: any) => {
-      await requireIdentity(ctx);
-      return await spec.handler(ctx, args);
+    args,
+    handler: async (ctx: AuthenticatedContext, callArgs: any) => {
+      const identity = await requireIdentity(ctx);
+      await enforceTenantScope(ctx, callArgs, identity);
+      return await handler(ctx, callArgs, identity);
     },
   });
 }
 
 /**
- * Wraps a query to enforce authentication.
- * Handler signature: (ctx, args) => result
+ * Wraps a query to enforce authentication AND tenant authorization.
+ * Handler signature: (ctx, args, identity) => result
  */
-export function authQuery(spec: { args: any; handler: (ctx: AuthenticatedContext, args: any) => Promise<any> }) {
+export function authQuery(a: any, b?: AuthHandler) {
+  const { args, handler } = normalizeSpec(a, b);
   return queryGeneric({
-    args: spec.args,
-    handler: async (ctx: AuthenticatedContext, args: any) => {
-      await requireIdentity(ctx);
-      return await spec.handler(ctx, args);
+    args,
+    handler: async (ctx: AuthenticatedContext, callArgs: any) => {
+      const identity = await requireIdentity(ctx);
+      await enforceTenantScope(ctx, callArgs, identity);
+      return await handler(ctx, callArgs, identity);
     },
   });
 }
@@ -153,6 +229,14 @@ export async function requireCompanyAccessById(
   if (!user || user.companyId !== companyId) {
     throw new Error("Unauthorized: Not a member of this company.");
   }
+  // Callers destructure `{ company }` (e.g. companies.ts::updateCompany), so the
+  // record must be returned — previously this returned undefined and those call
+  // sites threw "Cannot destructure property 'company' of undefined".
+  const company = await ctx.db.get(companyId);
+  if (!company) {
+    throw new Error("Company not found.");
+  }
+  return { company, user };
 }
 
 /**
@@ -171,6 +255,9 @@ export async function requireCompanyAccessBySlug(
     throw new Error("Company not found.");
   }
   await requireCompanyAccessById(ctx, identity, company._id);
+  // Callers assign the result directly and read `company._id`
+  // (accountingCore.ts::getWorkspaceBySlug, importJobs.ts). Must return it.
+  return company;
 }
 
 /**

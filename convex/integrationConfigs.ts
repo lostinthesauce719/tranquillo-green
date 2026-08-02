@@ -1,4 +1,5 @@
 import { authMutation, authQuery } from "./lib/withAuth";
+import { internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 import { AuthenticatedContext, CustomCtx, createEnrichedContext, requireIdentity, requireCurrentUserRecord, resolveRoleFromIdentityClaims } from "./lib/withAuth";
 
@@ -112,17 +113,18 @@ export const disconnectQBO = authMutation({
   },
 });
 
-// Add a new internal action to get tokens, only callable from the server
-export const getQBOTokensInternal = authMutation({
+// SECURITY: this returns long-lived QuickBooks OAuth access + refresh tokens.
+// It was previously declared with `authMutation`, which produces a PUBLIC,
+// client-callable Convex function despite the "Internal" name — any signed-in
+// user could retrieve their company's QBO refresh token from the browser, and
+// any XSS would exfiltrate a credential valid outside this application.
+//
+// It has zero callers, so it is now a true internalQuery: reachable only from
+// server-side Convex actions, never from a client. The tenant check is retained
+// as defence in depth for future internal callers.
+export const getQBOTokensInternal = internalQuery({
   args: { companyId: v.id("cannabisCompanies") },
-  handler: async (baseCtx: AuthenticatedContext, args) => {
-    const ctx = await createEnrichedContext(baseCtx);
-
-    if (ctx.session.companyId !== (args.companyId as unknown as string)) {
-      throw new Error("Unauthorized: Internal QBO token access for another company.");
-    }
-    // Add more granular role check if needed, e.g., if (ctx.session.role !== "system")
-
+  handler: async (ctx: any, args) => {
     const configs = await ctx.db
       .query("integrationConfigs")
       .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))
