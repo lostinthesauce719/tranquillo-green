@@ -24,6 +24,7 @@
 
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
+import { v } from "convex/values";
 
 import {
   authQuery,
@@ -32,6 +33,35 @@ import {
   requireCompanyAccessBySlug,
   requireIdentity,
 } from "../lib/withAuth";
+
+/**
+ * Convex's queryGeneric/mutationGeneric return a *registered function*, not the
+ * spec object. The original handler is exposed as `_handler`, and the argument
+ * validators via `exportArgs()`.
+ *
+ * Note: the pre-existing tax tests in this directory call `.handler(...)`
+ * directly, which does not exist on a registered function — one of several
+ * reasons that suite has never run.
+ */
+function invoke(fn: any) {
+  const h = fn._handler ?? fn.handler;
+  assert.equal(
+    typeof h,
+    "function",
+    "registered function exposes no callable handler"
+  );
+  return h as (ctx: any, args: any) => Promise<any>;
+}
+
+/** Names of the declared argument validators, via Convex's own serialisation. */
+function argNames(fn: any): string[] {
+  if (typeof fn.exportArgs !== "function") return [];
+  try {
+    return Object.keys(JSON.parse(fn.exportArgs()).value ?? {});
+  } catch {
+    return [];
+  }
+}
 
 /* ─── Minimal Convex ctx double ──────────────────────────────────────────── */
 
@@ -115,20 +145,20 @@ async function rejects(fn: () => Promise<unknown>, match: RegExp) {
 describe("withAuth — call shape compatibility", () => {
   // Shape A: authQuery({ args, handler })  — 108 call sites
   const shapeA = authQuery({
-    args: { companyId: "v.id" },
+    args: { companyId: v.string() },
     handler: async (_ctx: any, _args: any, identity: any) =>
       `ran:${identity.subject}`,
   });
 
   // Shape B: authQuery({ args: {...} }, handler)  — 25 call sites
-  const shapeB = authQuery({ args: { companyId: "v.id" } }, async (
+  const shapeB = authQuery({ args: { companyId: v.string() } }, async (
     _ctx: any,
     _args: any,
     identity: any
   ) => `ran:${identity.subject}`);
 
   // Shape C: authQuery({ ...validators }, handler)  — 37 call sites
-  const shapeC = authQuery({ companyId: "v.id" }, async (
+  const shapeC = authQuery({ companyId: v.string() }, async (
     _ctx: any,
     _args: any,
     identity: any
@@ -142,20 +172,21 @@ describe("withAuth — call shape compatibility", () => {
 
   for (const [label, fn] of shapes) {
     it(`shape ${label} executes instead of throwing TypeError`, async () => {
-      const result = await fn.handler(asAcme(), { companyId: ACME._id });
+      const result = await invoke(fn)(asAcme(), { companyId: ACME._id });
       assert.equal(result, "ran:clerk_acme_owner");
     });
 
     it(`shape ${label} preserves its argument validators`, async () => {
       // Regression: shapes B and C previously produced args === undefined,
-      // which silently disabled Convex argument validation.
-      assert.deepEqual(fn.args, { companyId: "v.id" });
+      // which silently disabled Convex argument validation. Read them back
+      // through Convex's own serialisation rather than a private field.
+      assert.deepEqual(argNames(fn), ["companyId"]);
     });
 
     it(`shape ${label} passes identity to the handler`, async () => {
       // Regression: shape A never received identity, so no handler using it
       // could call a tenant guard.
-      const result = await fn.handler(asAcme(), { companyId: ACME._id });
+      const result = await invoke(fn)(asAcme(), { companyId: ACME._id });
       assert.ok(
         String(result).includes("clerk_acme_owner"),
         "handler did not receive a usable identity"
@@ -167,61 +198,61 @@ describe("withAuth — call shape compatibility", () => {
 /* ─── Tenant isolation ───────────────────────────────────────────────────── */
 
 describe("withAuth — tenant isolation by companyId", () => {
-  const readCompany = authQuery({ companyId: "v.id" }, async () => "leaked");
+  const readCompany = authQuery({ companyId: v.string() }, async () => "leaked");
 
   it("allows a member to access their own company", async () => {
-    const result = await readCompany.handler(asAcme(), { companyId: ACME._id });
+    const result = await invoke(readCompany)(asAcme(), { companyId: ACME._id });
     assert.equal(result, "leaked");
   });
 
   it("blocks a member of another company", async () => {
     await rejects(
-      () => readCompany.handler(asRival(), { companyId: ACME._id }),
+      () => invoke(readCompany)(asRival(), { companyId: ACME._id }),
       /Unauthorized: Not a member of this company/
     );
   });
 
   it("blocks a user with no company mapping", async () => {
     await rejects(
-      () => readCompany.handler(ctxFor("clerk_orphan"), { companyId: ACME._id }),
+      () => invoke(readCompany)(ctxFor("clerk_orphan"), { companyId: ACME._id }),
       /Unauthorized: Not a member of this company/
     );
   });
 
   it("blocks an unauthenticated caller", async () => {
     await rejects(
-      () => readCompany.handler(anonymous(), { companyId: ACME._id }),
+      () => invoke(readCompany)(anonymous(), { companyId: ACME._id }),
       /Unauthenticated/
     );
   });
 
   it("blocks writes cross-tenant, not just reads", async () => {
-    const write = authMutation({ companyId: "v.id" }, async () => "written");
+    const write = authMutation({ companyId: v.string() }, async () => "written");
     await rejects(
-      () => write.handler(asRival(), { companyId: ACME._id }),
+      () => invoke(write)(asRival(), { companyId: ACME._id }),
       /Unauthorized: Not a member of this company/
     );
   });
 });
 
 describe("withAuth — tenant isolation by slug", () => {
-  const readBySlug = authQuery({ slug: "v.string" }, async () => "leaked");
+  const readBySlug = authQuery({ slug: v.string() }, async () => "leaked");
 
   it("allows a member to access their own company by slug", async () => {
-    const result = await readBySlug.handler(asAcme(), { slug: ACME.slug });
+    const result = await invoke(readBySlug)(asAcme(), { slug: ACME.slug });
     assert.equal(result, "leaked");
   });
 
   it("blocks slug access to another company", async () => {
     await rejects(
-      () => readBySlug.handler(asRival(), { slug: ACME.slug }),
+      () => invoke(readBySlug)(asRival(), { slug: ACME.slug }),
       /Unauthorized: Not a member of this company/
     );
   });
 
   it("blocks an unauthenticated caller by slug", async () => {
     await rejects(
-      () => readBySlug.handler(anonymous(), { slug: ACME.slug }),
+      () => invoke(readBySlug)(anonymous(), { slug: ACME.slug }),
       /Unauthenticated/
     );
   });
@@ -278,22 +309,22 @@ describe("withAuth — enforcement does not depend on the handler", () => {
   it("blocks cross-tenant access even when the handler calls no guard", async () => {
     // This is the core property. 79 functions shipped without a guard call.
     // Enforcement lives in the wrapper so a handler cannot forget it.
-    const forgetful = authQuery({ companyId: "v.id" }, async (ctx: any, args: any) => {
+    const forgetful = authQuery({ companyId: v.string() }, async (ctx: any, args: any) => {
       return await ctx.db.get(args.companyId);
     });
 
     await rejects(
-      () => forgetful.handler(asRival(), { companyId: ACME._id }),
+      () => invoke(forgetful)(asRival(), { companyId: ACME._id }),
       /Unauthorized: Not a member of this company/
     );
   });
 
   it("still returns data to the legitimate owner", async () => {
-    const forgetful = authQuery({ companyId: "v.id" }, async (ctx: any, args: any) => {
+    const forgetful = authQuery({ companyId: v.string() }, async (ctx: any, args: any) => {
       return await ctx.db.get(args.companyId);
     });
 
-    const result: any = await forgetful.handler(asAcme(), {
+    const result: any = await invoke(forgetful)(asAcme(), {
       companyId: ACME._id,
     });
     assert.equal(result.name, "Acme Cannabis");
