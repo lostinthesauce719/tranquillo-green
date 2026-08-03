@@ -14,7 +14,7 @@ const auditSchema = {
   entityId: v.string(), // ID of the affected record
   userId: v.id("users"), // who performed the action
   companyId: v.id("cannabisCompanies"), // company context
-  timestamp: v.number({ required: true }), // epoch ms
+  timestamp: v.number(), // epoch ms — v.number() takes no options argument
   changes: v.array(
     v.object({
       field: v.string(),
@@ -36,24 +36,20 @@ const auditSchema = {
  *
  * @param args - Audit record details
  */
-export const logAuditEvent = authMutation({
-  args: {
-    action: v.string(),
-    entity: v.string(),
-    entityId: v.string(),
-    changes: v.array(
-      v.object({
-        field: v.string(),
-        oldValue: v.any(),
-        newValue: v.any(),
-      })
-    ),
-    metadata: v.record(v.string(), v.any()),
-    ipAddress: v.optional(v.string()),
-    userAgent: v.optional(v.string()),
-    clientUrl: v.optional(v.string()),
-  },
-  handler: async (ctx, {
+/**
+ * Plain helper holding the actual audit-write logic.
+ *
+ * Two call sites in this file previously did `await logAuditEvent(ctx, {...})`,
+ * calling the registered Convex mutation as if it were a function. Registered
+ * functions are not callable that way — those paths could never have run, which
+ * is part of why audit logging has never worked.
+ *
+ * Shared logic belongs in a plain function that both the exported mutation and
+ * internal callers use.
+ */
+async function writeAuditEvent(
+  ctx: any,
+  {
     action,
     entity,
     entityId,
@@ -62,7 +58,18 @@ export const logAuditEvent = authMutation({
     ipAddress,
     userAgent,
     clientUrl,
-  }) => {
+  }: {
+    action: string;
+    entity: string;
+    entityId: string;
+    changes: Array<{ field: string; oldValue: any; newValue: any }>;
+    metadata: Record<string, any>;
+    ipAddress?: string;
+    userAgent?: string;
+    clientUrl?: string;
+  }
+) {
+  {
     const identity = await ctx.auth.getUserIdentity();
     const user = await ctx.db
       .query("users")
@@ -92,7 +99,28 @@ export const logAuditEvent = authMutation({
     });
 
     return await ctx.db.get(auditId);
+  }
+}
+
+/** Public mutation wrapper around writeAuditEvent. */
+export const logAuditEvent = authMutation({
+  args: {
+    action: v.string(),
+    entity: v.string(),
+    entityId: v.string(),
+    changes: v.array(
+      v.object({
+        field: v.string(),
+        oldValue: v.any(),
+        newValue: v.any(),
+      })
+    ),
+    metadata: v.record(v.string(), v.any()),
+    ipAddress: v.optional(v.string()),
+    userAgent: v.optional(v.string()),
+    clientUrl: v.optional(v.string()),
   },
+  handler: async (ctx: any, args: any) => writeAuditEvent(ctx, args),
 });
 
 /**
@@ -123,7 +151,7 @@ export const logDataChange = authMutation({
       changes.push({ field: "data", oldValue: null, newValue: newValues });
     }
 
-    return await logAuditEvent(
+    return await writeAuditEvent(
       ctx,
       {
         action: `${entity}.${action}`,
@@ -260,7 +288,7 @@ export const auditFromMutation = async (
     changes.push({ field: "data", oldValue: null, newValue: newRecord });
   }
 
-  return await logAuditEvent(ctx, {
+  return await writeAuditEvent(ctx, {
     action,
     entity,
     entityId,
