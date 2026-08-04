@@ -29,6 +29,7 @@
 import {
   resolveBasis,
   NEVER_INVENTORIABLE_CODES,
+  SECTION_471C_POSITION_EXPLAINER,
   type CompanyMeasurements,
   type MeasuredBasis,
 } from "./reclassificationBasis";
@@ -200,6 +201,17 @@ export async function apply471cReclassificationInline(ctx: any, transactionId: s
     amount: totalReclass,
     direction: "outflow",
     activity: "admin",
+    // A 471(c) reclassification IS the contested position — the IRS rejected
+    // this reading in CCA 201504011. Carry the warning on the transaction so
+    // the handoff gate surfaces it alongside allocation warnings, rather than
+    // it being the one contestable position that ships unannounced.
+    warnings: [
+      {
+        code: SECTION_471C_POSITION_EXPLAINER.code,
+        message: SECTION_471C_POSITION_EXPLAINER.headline,
+      },
+    ],
+    requiresAcknowledgement: true,
   });
 
   // Credit each reclassifiable expense account

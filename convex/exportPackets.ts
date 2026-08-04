@@ -82,7 +82,20 @@ export const createRun = authMutation(
       .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))
       .collect();
 
-    const blocking = gatherBlockingWarnings(allocations);
+    // 471(c) reclassification transactions carry the contested-position warning
+    // too. Without this the one position the IRS has explicitly rejected would
+    // be the only one shipping without confirmation.
+    const reclassTxns = await ctx.db
+      .query("transactions")
+      .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))
+      .collect();
+
+    const blocking = [
+      ...gatherBlockingWarnings(allocations),
+      ...gatherBlockingWarnings(
+        reclassTxns.filter((t: any) => t.sourceLabel === "471c_reclassification")
+      ),
+    ];
 
     // Throws AcknowledgementRequiredError, carrying the warnings and the
     // required phrase, when the operator has not typed it.

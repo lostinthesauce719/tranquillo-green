@@ -47,6 +47,11 @@ export type ExportPacketMutation = {
   includeDeliveryNotes: boolean;
   detail: string;
   blockers: string[];
+  /**
+   * Typed confirmation ("understand") for contestable tax positions. Omitted on
+   * the first attempt; supplied after the operator has read the gate.
+   */
+  acknowledgement?: string;
 };
 
 

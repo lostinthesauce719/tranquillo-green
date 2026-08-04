@@ -386,9 +386,18 @@ function buildExportHistoryItem(args: {
   };
 }
 
+/** Raised when the packet asserts positions the operator has not yet affirmed. */
+export interface AcknowledgementNeeded {
+  ok: false;
+  mode: "needs_acknowledgement";
+  message: string;
+  warnings: Array<{ code: string; message: string; sourceId?: string }>;
+  requiredPhrase: string;
+}
+
 export async function persistExportPacketRun(
   payload: ExportPacketMutation,
-): Promise<WriteResult<DemoGenerationHistoryItem>> {
+): Promise<WriteResult<DemoGenerationHistoryItem> | AcknowledgementNeeded> {
   const fallbackItem = buildExportHistoryItem({
     actor: payload.owner,
     action: payload.status === "held" ? "Held export packet" : "Generated bundle",
@@ -426,6 +435,11 @@ export async function persistExportPacketRun(
         generatedBy: payload.owner,
         detail: payload.detail,
         blockers: payload.blockers,
+        // Typed confirmation for contestable tax positions. The mutation throws
+        // AcknowledgementRequiredError when the packet asserts positions that
+        // have not been affirmed; the caller catches it below and renders the
+        // gate rather than treating it as a failure.
+        acknowledgement: payload.acknowledgement,
       }),
     );
 
@@ -441,13 +455,55 @@ export async function persistExportPacketRun(
       }),
     };
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+
+    // The acknowledgement gate must NOT be swallowed. This catch previously
+    // converted every failure into `ok: true, mode: "demo"` — so a refusal to
+    // export an unaffirmed tax position would have been reported to the user as
+    // success, and the packet would silently not exist. Any Convex failure had
+    // the same fate, which is part of why the missing tables went unnoticed.
+    if (/AcknowledgementRequired/i.test(message) || /type "understand"/i.test(message)) {
+      const warnings = extractWarnings(error);
+      return {
+        ok: false,
+        mode: "needs_acknowledgement",
+        message,
+        warnings,
+        requiredPhrase: "understand",
+      };
+    }
+
     return {
       ok: true,
       mode: "demo",
-      message: error instanceof Error
-        ? `Persisted export packet history was unavailable (${error.message}). Local demo history was updated instead.`
-        : "Persisted export packet history was unavailable. Local demo history was updated instead.",
+      message: `Persisted export packet history was unavailable (${message}). Local demo history was updated instead.`,
       item: fallbackItem,
     };
   }
+}
+
+/**
+ * Pull the structured warnings off an AcknowledgementRequiredError. Convex
+ * serialises thrown errors, so the shape may arrive as a property or embedded
+ * in the message; fall back to a single generic entry rather than losing it.
+ */
+function extractWarnings(
+  error: unknown,
+): Array<{ code: string; message: string; sourceId?: string }> {
+  const raw = (error as any)?.data?.warnings ?? (error as any)?.warnings;
+  if (Array.isArray(raw) && raw.length > 0) {
+    return raw.map((w: any) => ({
+      code: String(w.code ?? "unknown"),
+      message: String(w.message ?? ""),
+      sourceId: w.sourceId ? String(w.sourceId) : undefined,
+    }));
+  }
+  return [
+    {
+      code: "unknown",
+      message:
+        "This packet asserts a tax position that has not been confirmed. " +
+        "Review the flagged allocations before continuing.",
+    },
+  ];
 }

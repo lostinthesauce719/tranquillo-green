@@ -157,6 +157,12 @@ export default defineSchema({
   }).index("by_company", ["companyId"]).index("by_company_label", ["companyId", "label"]),
 
   transactions: defineTable({
+    /** Contestable positions carried to the handoff gate (e.g. 471(c) reclass). */
+    warnings: v.optional(v.array(v.object({ code: v.string(), message: v.string() }))),
+    requiresAcknowledgement: v.optional(v.boolean()),
+    acknowledgedAt: v.optional(v.number()),
+    acknowledgedBy: v.optional(v.string()),
+
     companyId: v.id("cannabisCompanies"),
     periodId: v.optional(v.id("reportingPeriods")),
     locationId: v.optional(v.id("cannabisLocations")),
