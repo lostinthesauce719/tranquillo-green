@@ -3,6 +3,11 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { AccountingStatusBadge } from "@/components/accounting/accounting-status-badge";
+import {
+  AcknowledgementGate,
+  Section471cExplainer,
+  type GateWarning,
+} from "@/components/accounting/acknowledgement-gate";
 import type {
   DemoAutomationAgent,
   DemoExportBundle,
@@ -165,18 +170,113 @@ export function CpaExportCenter({
   history,
   agents,
   featuredReconciliationHref,
+  companySlug,
+  periodLabel,
 }: {
   bundles: DemoExportBundle[];
   checklist: DemoPacketChecklistItem[];
   history: DemoGenerationHistoryItem[];
   agents: DemoAutomationAgent[];
   featuredReconciliationHref: string;
+  companySlug: string;
+  periodLabel: string;
 }) {
   const fallbackBundle = bundles[0];
   const [builderState, setBuilderState] = useState<BuilderState>(() => buildInitialState(fallbackBundle, checklist));
   const [demoHistory, setDemoHistory] = useState(history);
 
   const [buildFeedback, setBuildFeedback] = useState<string | null>(null);
+  // Contestable tax positions returned by the server. When present the packet
+  // was refused and the operator must read them and type "understand".
+  const [gateWarnings, setGateWarnings] = useState<GateWarning[] | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  /**
+   * Persist the packet run, then download.
+   *
+   * This previously only built a CSV in the browser and appended to local demo
+   * history — /api/accounting/export-packets was never called, so no packet run
+   * was ever recorded and the acknowledgement gate could never fire. Handoff
+   * now goes through the server, which refuses to record a packet asserting
+   * unconfirmed tax positions.
+   */
+  async function submitPacket(acknowledgement?: string) {
+    setSubmitting(true);
+    setBuildFeedback(null);
+    try {
+      const res = await fetch("/api/accounting/export-packets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          companySlug,
+          bundleId: selectedBundle.id,
+          bundleName: selectedBundle.name,
+          periodLabel,
+          recipient: selectedBundle.recipient ?? "CPA",
+          owner: "Packet builder",
+          status: "generated",
+          selectedFormats: builderState.selectedFormats,
+          selectedSchedules: builderState.selectedSchedules,
+          selectedChecklistTitles: builderState.selectedChecklistTitles,
+          coverMemoMode: builderState.coverMemoMode,
+          includeDeliveryNotes: builderState.includeDeliveryNotes,
+          detail: `Prepared ${builderState.selectedSchedules.length} sections in ${builderState.selectedFormats.length} output formats.`,
+          blockers: checklist.filter((c) => c.status === "missing").map((c) => c.title),
+          ...(acknowledgement ? { acknowledgement } : {}),
+        }),
+      });
+      const result = await res.json();
+
+      if (result?.mode === "needs_acknowledgement") {
+        setGateWarnings(result.warnings ?? []);
+        setSubmitting(false);
+        return;
+      }
+
+      // Recorded (or fell back to demo mode) — produce the file.
+      setGateWarnings(null);
+      const packetContent = generatePacketExport({
+        bundle: selectedBundle,
+        formats: builderState.selectedFormats,
+        schedules: builderState.selectedSchedules,
+        coverMemoMode: builderState.coverMemoMode,
+        checklist: checklist.filter((c) => builderState.selectedChecklistTitles.includes(c.title)),
+        includeDeliveryNotes: builderState.includeDeliveryNotes,
+      });
+      const blob = new Blob([packetContent], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${selectedBundle.id}-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setBuilderState((current) => ({ ...current, buildCount: current.buildCount + 1 }));
+      setDemoHistory((current) => [
+        {
+          timestampLabel: new Date().toLocaleString(),
+          actor: "Packet builder",
+          action: `Assembled ${selectedBundle.name}`,
+          detail: result?.message ?? "Packet generated.",
+        },
+        ...current,
+      ]);
+      setBuildFeedback(
+        acknowledgement
+          ? "Packet generated. Your confirmation of the flagged positions was recorded."
+          : result?.message ?? "Packet generated."
+      );
+      setTimeout(() => setBuildFeedback(null), 6000);
+    } catch (err) {
+      setBuildFeedback(
+        err instanceof Error ? `Could not generate packet: ${err.message}` : "Could not generate packet."
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   const selectedBundle = bundles.find((bundle) => bundle.id === builderState.selectedBundleId) ?? fallbackBundle;
   const selectedChecklistItems = checklist.filter((item) => builderState.selectedChecklistTitles.includes(item.title));
@@ -233,7 +333,21 @@ export function CpaExportCenter({
                       }}
                       className={`w-full rounded-2xl border px-4 py-4 text-left transition ${active ? "border-accent bg-accent/10" : "border-border bg-background hover:bg-surface"}`}
                     >
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      {gateWarnings && gateWarnings.length > 0 && (
+                    <div className="mb-4 space-y-4">
+                      <AcknowledgementGate
+                        warnings={gateWarnings}
+                        busy={submitting}
+                        actionLabel="Confirm and generate packet"
+                        onConfirm={(phrase) => void submitPacket(phrase)}
+                        onCancel={() => setGateWarnings(null)}
+                      />
+                      {gateWarnings.some((w) => w.code === "section_471c_position") && (
+                        <Section471cExplainer />
+                      )}
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div>
                           <div className="text-xs uppercase tracking-[0.2em] text-text-muted">{bundle.periodLabel}</div>
                           <div className="mt-2 font-medium text-text-primary">{bundle.name}</div>
@@ -347,49 +461,11 @@ export function CpaExportCenter({
                     </label>
                     <button
                       type="button"
-                      onClick={() => {
-                        const eventTime = `Demo build #${builderState.buildCount + 1}`;
-                        setBuilderState((current) => ({
-                          ...current,
-                          buildCount: current.buildCount + 1,
-                        }));
-
-                        // Generate downloadable packet content
-                        const packetContent = generatePacketExport({
-                          bundle: selectedBundle,
-                          formats: builderState.selectedFormats,
-                          schedules: builderState.selectedSchedules,
-                          coverMemoMode: builderState.coverMemoMode,
-                          checklist: checklist.filter((c) => builderState.selectedChecklistTitles.includes(c.title)),
-                          includeDeliveryNotes: builderState.includeDeliveryNotes,
-                        });
-
-                        // Trigger download
-                        const blob = new Blob([packetContent], { type: "text/csv" });
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement("a");
-                        a.href = url;
-                        a.download = `${selectedBundle.id}-${new Date().toISOString().slice(0, 10)}.csv`;
-                        document.body.appendChild(a);
-                        a.click();
-                        document.body.removeChild(a);
-                        URL.revokeObjectURL(url);
-
-                        setDemoHistory((current) => [
-                          {
-                            timestampLabel: eventTime,
-                            actor: "Packet builder",
-                            action: `Assembled ${selectedBundle.name}`,
-                            detail: `Prepared ${builderState.selectedSchedules.length} sections in ${builderState.selectedFormats.length} output formats with ${builderState.coverMemoMode.replaceAll("_", " ")} framing. File downloaded.`,
-                          },
-                          ...current,
-                        ]);
-                        setBuildFeedback(`Packet downloaded: ${selectedBundle.id}-${new Date().toISOString().slice(0, 10)}.csv`);
-                        setTimeout(() => setBuildFeedback(null), 5000);
-                      }}
+                      onClick={() => void submitPacket()}
+                      disabled={submitting}
                       className="rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-3 text-sm text-violet-100 transition hover:bg-violet-500/20"
                     >
-                      Assemble & download packet
+                      {submitting ? "Checking positions…" : "Assemble & download packet"}
                     </button>
                     {buildFeedback && (
                       <div className="mt-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-2 text-xs text-emerald-300">

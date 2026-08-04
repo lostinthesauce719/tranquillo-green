@@ -18,6 +18,15 @@ const ExportPacketMutationSchema = z.object({
   includeDeliveryNotes: z.boolean(),
   detail: z.string().min(1, "detail is required"),
   blockers: z.array(z.string()),
+  /**
+   * Typed confirmation for contestable tax positions. Absent on the first
+   * attempt; the mutation refuses and returns the warnings, the operator reads
+   * them and types "understand", and the request is retried with this set.
+   *
+   * Must be declared here or zod strips it before it reaches the mutation and
+   * the gate can never be satisfied.
+   */
+  acknowledgement: z.string().optional(),
 });
 
 export async function POST(request: Request) {

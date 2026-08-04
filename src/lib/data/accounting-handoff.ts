@@ -26,6 +26,8 @@ import { getAuthenticatedConvexClient, withTimeout } from "@/lib/data/convex-cli
 
 export type ExportCenterData = {
   source: "demo" | "convex";
+  /** Company the packet belongs to. Needed to persist a packet run. */
+  companySlug: string;
   sourceSummary: string;
   bundles: DemoExportBundle[];
   checklist: DemoPacketChecklistItem[];
@@ -69,6 +71,7 @@ function toAuditHistoryItem(event: any): DemoGenerationHistoryItem {
 function buildDemoExportCenterData(): ExportCenterData {
   return {
     source: "demo",
+    companySlug: DEMO_COMPANY_SLUG,
     sourceSummary: "Export center is running on the demo-safe fallback path because persisted Convex packet history is unavailable in this runtime.",
     bundles: demoExportBundles,
     checklist: demoPacketChecklist,
@@ -102,6 +105,7 @@ export async function loadExportCenterData(slug = DEMO_COMPANY_SLUG): Promise<Ex
 
     return {
       source: "convex",
+      companySlug: slug,
       sourceSummary:
         runs.length > 0
           ? "Export center is showing persisted packet generation history and accounting audit activity from Convex, while bundle templates and checklist scaffolding remain demo-backed."

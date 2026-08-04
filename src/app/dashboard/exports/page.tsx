@@ -57,6 +57,8 @@ export default async function ExportsPage() {
         history={exportCenter.history}
         agents={exportCenter.agents}
         featuredReconciliationHref={featuredReconciliationHref}
+        companySlug={exportCenter.companySlug}
+        periodLabel={exportCenter.periodState.periodLabel}
       />
       </div>
     </AppShell>

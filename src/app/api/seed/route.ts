@@ -1,43 +1,54 @@
 import { NextRequest, NextResponse } from "next/server";
+import { withAuth, securityHeaders } from "@/lib/api-helpers";
+import { auth } from "@clerk/nextjs/server";
 
-export async function POST(req: NextRequest) {
-  // Restrict seed endpoint in production
-  if (process.env.NODE_ENV === "production") {
-    const secret = req.headers.get("x-admin-secret");
-    if (secret !== process.env.ADMIN_SECRET) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
+export const POST = withAuth(async (req) => {
   try {
+    const body = (await req.json().catch(() => ({}))) as {
+      slug?: string;
+    };
+    const slug = typeof body.slug === "string" ? body.slug.trim() : "";
+
+    if (!slug) {
+      return securityHeaders(
+        NextResponse.json({ ok: false, error: "slug is required" }, { status: 400 }),
+      );
+    }
+
     const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
     if (!convexUrl) {
-      return NextResponse.json({ error: "Convex URL not configured" }, { status: 500 });
+      return securityHeaders(
+        NextResponse.json({ error: "Convex URL not configured" }, { status: 500 }),
+      );
     }
 
-    // Call Convex seed mutation
     const response = await fetch(`${convexUrl}/api/mutation`, {
       method: "POST",
-      headers: { "Content-type": "application/json" },
+      headers: {
+        "Content-type": "application/json",
+        Authorization: `Bearer ${(await auth().getToken()) ?? ""}`,
+      },
       body: JSON.stringify({
         path: "seed:seedCaliforniaOperator",
-        args: { slug: "golden-state-greens" },
+        args: { slug },
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      return NextResponse.json(
-        { error: `Convex error: ${response.status} - ${errorText}` },
-        { status: 502 }
+      return securityHeaders(
+        NextResponse.json(
+          { error: `Convex error: ${response.status} - ${errorText}` },
+          { status: 502 },
+        ),
       );
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+    return securityHeaders(NextResponse.json(data));
   } catch (err) {
-    return NextResponse.json(
-      { error: String(err) },
-      { status: 500 }
+    return securityHeaders(
+      NextResponse.json({ error: String(err) }, { status: 500 }),
     );
   }
-}
+});
