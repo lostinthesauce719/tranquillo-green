@@ -142,10 +142,32 @@ export function AppShell({
             <span className="tb-sep">/</span>
             <span className="tb-sub">{tenant?.companyName ?? "Demo Dispensary, LLC"}</span>
           </div>
+          {/*
+            These three were <button> elements with no handler — rendered on
+            every dashboard page and doing nothing on click. Every other button
+            in the shell is wired; these were the only dead ones.
+
+            They navigate, so they are links, not buttons. That also fixes the
+            accessibility problem: a <button> with no handler is focusable and
+            announced as a button to a screen reader, then does nothing. As
+            links they support keyboard, middle-click, right-click and
+            prefetching for free.
+
+            "Start Close" navigates to the close workspace rather than firing an
+            action, because no close mutation exists yet. Opening the page the
+            operator works from is honest; a button that claims to start a close
+            and silently doesn't is not.
+          */}
           <div className="tb-actions">
-            <button className="xbtn ghost">↓ Export</button>
-            <button className="xbtn ghost">+ New</button>
-            <button className="xbtn cta">▶ Start Close</button>
+            <Link href="/dashboard/exports" className="xbtn ghost">
+              ↓ Export
+            </Link>
+            <Link href="/dashboard/accounting/transactions" className="xbtn ghost">
+              + New
+            </Link>
+            <Link href="/dashboard/accounting/close" className="xbtn cta">
+              ▶ Start Close
+            </Link>
           </div>
         </div>
 
