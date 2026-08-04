@@ -9,6 +9,7 @@
 // Please do not reinstate @ts-nocheck here. This is tax code.
 import { authMutation, authQuery, requireCompanyAccessById } from "./lib/withAuth";
 import { v } from "convex/values";
+import { applyRate, sumCents, fromCents, type Cents } from "./lib/money";
 
 /**
  * Tax Engine — Convex Mutations & Queries
@@ -139,7 +140,7 @@ export const calculateTax = authMutation({
 
     // For each tax type, fetch active rate for this jurisdiction at this date
     const taxBreakdown: Array<{ taxTypeCode: string; taxTypeName: string; jurisdiction: string; amount: number }> = [];
-    let totalTax = 0;
+    let totalTaxCents: Cents = 0;
 
     for (const typeId of typesToCalculate) {
       const taxType = await ctx.db.get(typeId);
@@ -175,9 +176,14 @@ export const calculateTax = authMutation({
       const periodEnd = new Date(txDate.getFullYear(), txDate.getMonth() + 1, 0).getTime();
 
       const taxableAmt = transactionAmount;
-      const taxAmt = rateRecord.rateType === "percentage"
-        ? taxableAmt * rateRecord.rate
-        : rateRecord.rate;
+      // Round to whole cents HERE — this is the amount actually charged to the
+      // customer at the register. Previously this was an unrounded float,
+      // stored unrounded and accumulated with +=, so a period total drifted and
+      // could not tie back to the POS.
+      const taxAmtCents: Cents = rateRecord.rateType === "percentage"
+        ? applyRate(taxableAmt, rateRecord.rate)
+        : applyRate(rateRecord.rate, 1);
+      const taxAmt = fromCents(taxAmtCents);
 
       // Persist audit record
       const calcId = await ctx.db.insert("taxCalculations", {
@@ -187,6 +193,10 @@ export const calculateTax = authMutation({
         jurisdictionId: targetJurisdiction,
         taxTypeId: typeId,
         taxableAmount: taxableAmt,
+        // Canonical amount, in integer cents.
+        taxAmountCents: taxAmtCents,
+        // Retained as a decimal for existing readers; taxAmountCents is
+        // authoritative and this is derived from it, never the reverse.
         taxAmount: taxAmt,
         calculationMethod: "manual_rate",
         calculatedAt: now,
@@ -196,7 +206,7 @@ export const calculateTax = authMutation({
         postedAt: null,
       });
 
-      totalTax += taxAmt;
+      totalTaxCents += taxAmtCents;
       taxBreakdown.push({
         taxTypeCode: taxType.code,
         taxTypeName: taxType.name,
@@ -205,7 +215,7 @@ export const calculateTax = authMutation({
       });
     }
 
-    return { taxBreakdown, totalTax };
+    return { taxBreakdown, totalTax: fromCents(totalTaxCents), totalTaxCents };
   },
 });
 
@@ -239,7 +249,7 @@ export const getTaxLiability = authQuery({
       .collect();
 
     // Group by jurisdiction
-    const byJurisdiction: Record<string, { jurisdictionId: string; name: string; byTaxType: Array<{ code: string; name: string; amount: number }>; total: number }> = {};
+    const byJurisdiction: Record<string, { jurisdictionId: string; name: string; byTaxType: Array<{ code: string; name: string; amount: number; amountCents: number }>; total: number; totalCents: number }> = {};
 
     for (const calc of calculations) {
       const jurisdiction = await ctx.db.get(calc.jurisdictionId);
@@ -252,21 +262,41 @@ export const getTaxLiability = authQuery({
           jurisdictionId: jurisdiction._id,
           name: jurisdiction.jurisdictionName,
           byTaxType: [],
+          totalCents: 0,
           total: 0,
         };
       }
+      // Sum the amounts that were actually charged, in cents. Exact integer
+      // addition — no re-derivation from gross receipts, which would not tie
+      // back to the register.
+      const calcCents: Cents =
+        typeof calc.taxAmountCents === "number"
+          ? calc.taxAmountCents
+          : Math.round((calc.taxAmount ?? 0) * 100);
+
       const existing = byJurisdiction[key].byTaxType.find(t => t.code === taxType.code);
       if (existing) {
-        existing.amount += calc.taxAmount;
+        existing.amountCents += calcCents;
+        existing.amount = fromCents(existing.amountCents);
       } else {
-        byJurisdiction[key].byTaxType.push({ code: taxType.code, name: taxType.name, amount: calc.taxAmount });
+        byJurisdiction[key].byTaxType.push({
+          code: taxType.code,
+          name: taxType.name,
+          amountCents: calcCents,
+          amount: fromCents(calcCents),
+        });
       }
-      byJurisdiction[key].total += calc.taxAmount;
+      byJurisdiction[key].totalCents += calcCents;
+      byJurisdiction[key].total = fromCents(byJurisdiction[key].totalCents);
     }
 
+    const grandTotalCents = sumCents(
+      Object.values(byJurisdiction).map((j: any) => j.totalCents)
+    );
     return {
       byJurisdiction: Object.values(byJurisdiction),
-      grandTotal: Object.values(byJurisdiction).reduce((sum, j) => sum + j.total, 0),
+      grandTotalCents,
+      grandTotal: fromCents(grandTotalCents),
     };
   },
 });

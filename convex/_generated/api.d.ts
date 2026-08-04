@@ -33,6 +33,7 @@ import type * as inventory from "../inventory.js";
 import type * as inventoryImport from "../inventoryImport.js";
 import type * as laborAndCogs from "../laborAndCogs.js";
 import type * as lib_acknowledgement from "../lib/acknowledgement.js";
+import type * as lib_money from "../lib/money.js";
 import type * as lib_reclassificationBasis from "../lib/reclassificationBasis.js";
 import type * as lib_reclassificationInline from "../lib/reclassificationInline.js";
 import type * as lib_taxConstants from "../lib/taxConstants.js";
@@ -87,6 +88,7 @@ declare const fullApi: ApiFromModules<{
   inventoryImport: typeof inventoryImport;
   laborAndCogs: typeof laborAndCogs;
   "lib/acknowledgement": typeof lib_acknowledgement;
+  "lib/money": typeof lib_money;
   "lib/reclassificationBasis": typeof lib_reclassificationBasis;
   "lib/reclassificationInline": typeof lib_reclassificationInline;
   "lib/taxConstants": typeof lib_taxConstants;

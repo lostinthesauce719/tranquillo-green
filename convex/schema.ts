@@ -379,6 +379,14 @@ export default defineSchema({
   }).index("by_jurisdiction", ["jurisdictionId"]).index("by_tax_type", ["taxTypeId"]).index("by_effective_dates", ["effectiveFrom", "effectiveTo"]),
 
   taxCalculations: defineTable({
+    /**
+     * Canonical tax amount, in integer cents, rounded half-up at the point of
+     * calculation — which is the amount actually charged at the register.
+     * taxAmount below is the decimal form, derived from this and never the
+     * reverse. See convex/lib/money.ts.
+     */
+    taxAmountCents: v.optional(v.number()),
+
     companyId: v.id("cannabisCompanies"),
     transactionId: v.optional(v.id("transactions")),
     journalEntryId: v.optional(v.id("transactions")),

@@ -403,29 +403,48 @@ describe("getTaxLiability", () => {
 /* ─── Money precision ────────────────────────────────────────────────────── */
 
 describe("calculateTax — money precision", () => {
-  it("DEFECT: tax amounts are stored unrounded floating point", async () => {
-    // 0.1 + 0.2 territory. tax.ts computes `taxableAmt * rate` and neither
-    // rounds nor uses integer cents, then accumulates with `totalTax +=`.
-    // Filings require cent precision, and errors compound across a period.
-    //
-    // Pinned as current behaviour rather than "fixed", because the rounding
-    // convention on a tax return (half-up vs banker's, per-line vs per-return)
-    // is a tax decision, not a coding preference.
+  it("stores tax as integer cents, rounded half-up at calculation", async () => {
+    // Previously `taxableAmt * rate` was stored unrounded and accumulated with
+    // +=, so a period total drifted and could not tie back to the register.
+    // 1999.99 * 0.029 = 57.99971 -> 5800 cents ($58.00).
     const r = await call(calculateTax, ctx, {
       companyId: ACME,
       transactionAmount: 1999.99,
       productCategory: "flower",
-      taxTypeCodes: [SALES], // 2.9%
+      taxTypeCodes: [SALES],
       transactionDate: JAN_15,
     });
-    const raw = r.taxBreakdown[0].amount;
-    const stored = db.rows("taxCalculations")[0].taxAmount;
-
-    assert.equal(raw, stored, "breakdown and stored value should agree");
-    assert.notEqual(
-      raw,
-      cents(raw),
-      "current behaviour: value is not rounded to cents before storage"
+    const stored = db.rows("taxCalculations")[0];
+    assert.equal(stored.taxAmountCents, 5800);
+    assert.ok(
+      Number.isInteger(stored.taxAmountCents),
+      "the canonical amount must be integer cents"
     );
+    assert.equal(stored.taxAmount, 58, "the decimal form is derived from cents");
+    assert.equal(r.totalTaxCents, 5800);
+  });
+
+  it("a period total is the exact sum of charged amounts, with no drift", async () => {
+    // The property that makes a filing tie to the POS: integer addition of the
+    // amounts actually charged, never a re-derivation from gross receipts.
+    for (const amount of [19.99, 45.5, 132.75, 8.25]) {
+      await call(calculateTax, ctx, {
+        companyId: ACME,
+        transactionAmount: amount,
+        productCategory: "flower",
+        taxTypeCodes: [SALES],
+        transactionDate: JAN_15,
+      });
+    }
+    const charged = db.rows("taxCalculations").map((c: any) => c.taxAmountCents);
+    const expected = charged.reduce((a: number, b: number) => a + b, 0);
+
+    const liability = await call(getTaxLiability, ctx, {
+      companyId: ACME,
+      periodStart: JAN_START,
+      periodEnd: JAN_END,
+    });
+    assert.equal(liability.grandTotalCents, expected);
+    assert.ok(Number.isInteger(liability.grandTotalCents));
   });
 });
