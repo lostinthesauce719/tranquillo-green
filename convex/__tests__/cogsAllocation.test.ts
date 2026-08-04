@@ -450,3 +450,132 @@ describe("IRC 471 classification", () => {
     assert.equal(a.requiresAcknowledgement, true);
   });
 });
+
+/* ─── Balanced journals ──────────────────────────────────────────────────── */
+
+describe("classifyTransactionLines — balanced journals", () => {
+  it("does not count the funding side of a journal as a second cost", async () => {
+    // Found by the operator walkthrough, not by unit tests: the fixtures here
+    // used a single line, so nobody noticed that a real balanced journal —
+    // debit Rent 18,500 / credit Cash 18,500 — was summed as 37,000 of
+    // allocatable cost. Every allocation in the system was double.
+    const cash = await db.insert("chartOfAccounts", {
+      companyId: DISPENSARY,
+      code: "1000",
+      name: "Cash",
+      category: "asset",
+      taxTreatment: "deductible",
+      isActive: true,
+    });
+    const rent = await db.insert("chartOfAccounts", {
+      companyId: DISPENSARY,
+      code: "4210",
+      name: "Rent Expense",
+      category: "opex",
+      taxTreatment: "nondeductible",
+      isActive: true,
+    });
+    const txn = await db.insert("transactions", {
+      companyId: DISPENSARY,
+      status: "posted",
+      transactionDate: Date.now(),
+    });
+    await db.insert("transactionLines", { transactionId: txn, accountId: rent, debit: 18_500, credit: 0 });
+    await db.insert("transactionLines", { transactionId: txn, accountId: cash, debit: 0, credit: 18_500 });
+
+    await call(allocateTransaction, ctx, {
+      companyId: DISPENSARY,
+      transactionId: txn,
+      policyId: POLICY_SQFT,
+      basisDetails: { productionSqFt: 6500, totalSqFt: 10000 },
+    });
+
+    const a = db.rows("cogsAllocations").find((x: any) => x.transactionId === txn);
+    assert.equal(
+      cents(a.deductibleAmount + a.nondeductibleAmount),
+      18_500,
+      "total allocated must equal the expense, not the expense plus its funding"
+    );
+  });
+
+  it("treats a credit to an expense account as a reversal, not a cost", async () => {
+    const rent = await db.insert("chartOfAccounts", {
+      companyId: DISPENSARY,
+      code: "4211",
+      name: "Rent Expense",
+      category: "opex",
+      taxTreatment: "nondeductible",
+      isActive: true,
+    });
+    const cash = await db.insert("chartOfAccounts", {
+      companyId: DISPENSARY,
+      code: "1001",
+      name: "Cash",
+      category: "asset",
+      taxTreatment: "deductible",
+      isActive: true,
+    });
+    const txn = await db.insert("transactions", {
+      companyId: DISPENSARY,
+      status: "posted",
+      transactionDate: Date.now(),
+    });
+    // Rent of 10,000 with a 2,000 credit note against it — net cost 8,000.
+    await db.insert("transactionLines", { transactionId: txn, accountId: rent, debit: 10_000, credit: 0 });
+    await db.insert("transactionLines", { transactionId: txn, accountId: rent, debit: 0, credit: 2_000 });
+    await db.insert("transactionLines", { transactionId: txn, accountId: cash, debit: 0, credit: 8_000 });
+
+    await call(allocateTransaction, ctx, {
+      companyId: DISPENSARY,
+      transactionId: txn,
+      policyId: POLICY_SQFT,
+      basisDetails: { productionSqFt: 5000, totalSqFt: 10000 },
+    });
+
+    const a = db.rows("cogsAllocations").find((x: any) => x.transactionId === txn);
+    assert.equal(
+      cents(a.deductibleAmount + a.nondeductibleAmount),
+      8_000,
+      "Math.abs() would have made this 12,000 by treating the credit as a cost"
+    );
+  });
+
+  it("ignores balance-sheet accounts entirely", async () => {
+    const inventory = await db.insert("chartOfAccounts", {
+      companyId: DISPENSARY,
+      code: "1200",
+      name: "Inventory",
+      category: "asset",
+      taxTreatment: "cogs",
+      isActive: true,
+    });
+    const payable = await db.insert("chartOfAccounts", {
+      companyId: DISPENSARY,
+      code: "2000",
+      name: "Accounts Payable",
+      category: "liability",
+      taxTreatment: "deductible",
+      isActive: true,
+    });
+    const txn = await db.insert("transactions", {
+      companyId: DISPENSARY,
+      status: "posted",
+      transactionDate: Date.now(),
+    });
+    // Purchasing inventory on credit moves value between balance-sheet accounts.
+    // It is not a period cost and nothing should be allocatable.
+    await db.insert("transactionLines", { transactionId: txn, accountId: inventory, debit: 5_000, credit: 0 });
+    await db.insert("transactionLines", { transactionId: txn, accountId: payable, debit: 0, credit: 5_000 });
+
+    await rejects(
+      () =>
+        call(allocateTransaction, ctx, {
+          companyId: DISPENSARY,
+          transactionId: txn,
+          policyId: POLICY_SQFT,
+          basisDetails: { productionSqFt: 5000, totalSqFt: 10000 },
+        }),
+      /zero cost/
+    );
+  });
+});

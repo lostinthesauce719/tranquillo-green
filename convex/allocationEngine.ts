@@ -261,7 +261,22 @@ async function classifyTransactionLines(
     const account = await ctx.db.get(line.accountId);
     if (!account) continue;
 
-    const amount = Math.abs((line.debit ?? 0) - (line.credit ?? 0));
+    // Only income-statement cost accounts represent a cost. A balanced journal
+    // debits an expense and credits cash or payables; the funding side is not a
+    // second cost.
+    //
+    // This previously summed EVERY line with Math.abs(debit - credit), so a
+    // $18,500 rent journal produced $37,000 of allocatable cost — every
+    // allocation in the system was double the real amount. The unit tests
+    // missed it because their fixture had a single line rather than a balanced
+    // pair; it only surfaced when a full journal was posted end to end.
+    const category = account.category as string;
+    if (category !== "cogs" && category !== "opex") continue;
+
+    // Signed, not absolute: a credit to an expense account is a reversal and
+    // must reduce the cost rather than add to it.
+    const amount = (line.debit ?? 0) - (line.credit ?? 0);
+    if (amount === 0) continue;
     const taxTreatment = account.taxTreatment as string;
 
     if (taxTreatment === "cogs") {

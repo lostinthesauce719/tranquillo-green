@@ -11,7 +11,8 @@
     "env:check": "npx tsx scripts/env-check.ts",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test \"convex/__tests__/**/*.test.ts\"",
-    "test:isolation": "node --import tsx --test convex/__tests__/tenantIsolation.test.ts"
+    "test:isolation": "node --import tsx --test convex/__tests__/tenantIsolation.test.ts",
+    "walkthrough": "node --import tsx tests/walkthrough/operator-month.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^5.7.6",

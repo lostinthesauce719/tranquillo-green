@@ -264,3 +264,68 @@ export const createManualJournal = authMutation(
     return await ctx.db.get(transactionId);
   },
 );
+
+/**
+ * Post a draft journal.
+ *
+ * FOUND BY THE OPERATOR WALKTHROUGH: createManualJournal writes
+ * status "draft" / workflowStatus "unposted", and nothing existed to move a
+ * journal to posted. Reclassification was only triggered from `upsert`, so an
+ * operator using the manual journal path created drafts that could never post
+ * and never received 471(c) treatment. The close workflow had no post step.
+ *
+ * Refuses to post a journal whose debits and credits do not agree. An unbalanced
+ * journal is a bug, not a position, so there is no override — the same rule the
+ * allocation engine applies to arithmetic that does not reconcile.
+ */
+export const postTransaction = authMutation(
+  {
+    companyId: v.id("cannabisCompanies"),
+    transactionId: v.id("transactions"),
+    postedDate: v.optional(v.string()),
+  },
+  async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+
+    const txn = await ctx.db.get(args.transactionId);
+    if (!txn || txn.companyId !== args.companyId) {
+      throw new Error("Transaction not found or does not belong to this company.");
+    }
+    if (txn.status === "posted") {
+      return { alreadyPosted: true, transactionId: args.transactionId };
+    }
+
+    const lines = await ctx.db
+      .query("transactionLines")
+      .withIndex("by_transaction", (q: any) => q.eq("transactionId", args.transactionId))
+      .collect();
+
+    if (lines.length === 0) {
+      throw new Error("Cannot post a journal with no lines.");
+    }
+
+    const debits = lines.reduce((s: number, l: any) => s + (l.debit ?? 0), 0);
+    const credits = lines.reduce((s: number, l: any) => s + (l.credit ?? 0), 0);
+    if (Math.abs(debits - credits) > 0.01) {
+      throw new Error(
+        `Journal does not balance: debits ${debits.toFixed(2)} vs credits ` +
+          `${credits.toFixed(2)} (off by ${Math.abs(debits - credits).toFixed(2)}). ` +
+          "Refusing to post."
+      );
+    }
+
+    await ctx.db.patch(args.transactionId, {
+      status: "posted",
+      workflowStatus: "posted",
+      reviewState: "posted",
+      postedDate: args.postedDate ?? txn.transactionDate,
+    });
+
+    // 471(c) treatment applies to posted transactions. Returning the outcome
+    // rather than discarding it, so the caller can surface which accounts were
+    // reclassified and which were skipped for want of a measurement.
+    const reclass = await apply471cReclassificationInline(ctx, args.transactionId);
+
+    return { posted: true, transactionId: args.transactionId, reclass };
+  },
+);
