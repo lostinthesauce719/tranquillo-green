@@ -1,4 +1,12 @@
-// @ts-nocheck
+// @ts-nocheck was removed on 2026-08-03. It had been suppressing a fatal defect:
+// nine call sites used a bare `db` identifier that is declared nowhere in this
+// file and imported from nowhere — `await db.query(...)` instead of
+// `await ctx.db.query(...)`. Every one throws ReferenceError at runtime, across
+// getCompanyTaxProfile, listJurisdictions, calculateTax, getTaxLiability,
+// getUpcomingDeadlines and updateCompanyTaxProfile — six of this file's ten
+// exported functions, including the entire tax calculation path.
+//
+// Please do not reinstate @ts-nocheck here. This is tax code.
 import { authMutation, authQuery, requireCompanyAccessById } from "./lib/withAuth";
 import { v } from "convex/values";
 
@@ -17,7 +25,7 @@ import { v } from "convex/values";
 export const getCompanyTaxProfile = authQuery({
   args: { companyId: v.id("cannabisCompanies") },
   handler: async (ctx, { companyId }) => {
-    const profile = await db
+    const profile = await ctx.db
       .query("taxProfiles")
       .filter(q => q.eq(q.field("companyId"), companyId))
       .first();
@@ -42,11 +50,11 @@ export const listJurisdictions = authQuery({
   args: { companyId: v.id("cannabisCompanies") },
   handler: async (ctx, { companyId }) => {
     // System-wide jurisdictions (companyId null) + company-specific if any
-    const system = await db
+    const system = await ctx.db
       .query("taxJurisdictions")
       .filter(q => q.eq(q.field("companyId"), null))
       .collect();
-    const companySpecific = await db
+    const companySpecific = await ctx.db
       .query("taxJurisdictions")
       .filter(q => q.eq(q.field("companyId"), companyId))
       .collect();
@@ -100,7 +108,7 @@ export const calculateTax = authMutation({
     // Resolve jurisdiction: use provided, else company's primary jurisdiction
     let targetJurisdiction: string | null = jurisdictionId;
     if (!targetJurisdiction) {
-      const profile = await db
+      const profile = await ctx.db
         .query("taxProfiles")
         .filter(q => q.eq(q.field("companyId"), companyId))
         .first();
@@ -119,7 +127,7 @@ export const calculateTax = authMutation({
       typesToCalculate = taxTypeCodes;
     } else {
       // Load company's enabled tax types from taxProfiles.taxTypesEnabled
-      const profile = await db
+      const profile = await ctx.db
         .query("taxProfiles")
         .filter(q => q.eq(q.field("companyId"), companyId))
         .first();
@@ -144,7 +152,7 @@ export const calculateTax = authMutation({
       if (!categoryOk) continue;
 
       // Find active rate
-      const rateRecord = await db
+      const rateRecord = await ctx.db
         .query("taxRates")
         .filter(q =>
           q.and(
@@ -213,7 +221,7 @@ export const getTaxLiability = authQuery({
     periodEnd: v.number(),
   },
   handler: async (ctx, { companyId, periodStart, periodEnd }) => {
-    const calculations = await db
+    const calculations = await ctx.db
       .query("taxCalculations")
       .filter(q =>
         q.and(
@@ -267,7 +275,7 @@ export const getUpcomingDeadlines = authQuery({
     lookAheadDays: v.optional(v.number()),
   },
   handler: async (ctx, { companyId, lookAheadDays = 30 }) => {
-    const profile = await db
+    const profile = await ctx.db
       .query("taxProfiles")
       .filter(q => q.eq(q.field("companyId"), companyId))
       .first();
@@ -372,7 +380,7 @@ export const updateCompanyTaxProfile = authMutation({
     taxTypesEnabled: v.array(v.id("taxTypes")),
   },
   handler: async (ctx, { companyId, primaryJurisdictionId, nexusStates, filingCalendar, taxTypesEnabled }) => {
-    const existing = await db
+    const existing = await ctx.db
       .query("taxProfiles")
       .filter(q => q.eq(q.field("companyId"), companyId))
       .first();
