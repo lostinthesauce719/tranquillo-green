@@ -45,6 +45,14 @@ export default function OnboardingPage() {
   const [states, setStates] = useState<string[]>([]);
   const [accountingMethods, setAccountingMethods] = useState<string[]>([]);
   const [operatorTypes, setOperatorTypes] = useState<string[]>([]);
+  // IRC 471 classification and measured allocation bases. Without these the
+  // reclassification engine correctly refuses to reclassify anything, so the
+  // operator gets no 280E benefit — which is why they are collected up front.
+  const [inventoryRole, setInventoryRole] = useState<"" | "reseller" | "producer">("");
+  const [productionSqFt, setProductionSqFt] = useState("");
+  const [totalSqFt, setTotalSqFt] = useState("");
+  const [productionHours, setProductionHours] = useState("");
+  const [totalHours, setTotalHours] = useState("");
 
   // Step 2: Operator Types (multi-select)
 
@@ -69,7 +77,13 @@ export default function OnboardingPage() {
     const r3 = parseFloat(receipts3) || 0;
     return (r1 + r2 + r3) / 3;
   })();
-  const is471cEligible = avgReceipts > 0 && avgReceipts <= 25_000_000;
+  // IRC 448(c) is inflation-adjusted annually; this was hardcoded at the 2018
+  // figure of 25,000,000, so the UI told operators between $25M and the current
+  // threshold that they were ineligible. $32,000,000 for tax years beginning in
+  // 2026 (Rev. Proc. 2025-32). The server re-checks against the versioned table
+  // in convex/lib/taxConstants.ts, which is authoritative.
+  const GROSS_RECEIPTS_THRESHOLD_2026 = 32_000_000;
+  const is471cEligible = avgReceipts > 0 && avgReceipts <= GROSS_RECEIPTS_THRESHOLD_2026;
 
   const formatUSD = (n: number) =>
     new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
@@ -81,7 +95,17 @@ export default function OnboardingPage() {
       const res = await fetch("/api/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, states, operatorTypes: operatorTypes, accountingMethods: accountingMethods }),
+        body: JSON.stringify({
+          name,
+          states,
+          operatorTypes,
+          accountingMethods,
+          inventoryRole: inventoryRole || undefined,
+          productionSqFt: productionSqFt ? Number(productionSqFt) : undefined,
+          totalSqFt: totalSqFt ? Number(totalSqFt) : undefined,
+          productionHours: productionHours ? Number(productionHours) : undefined,
+          totalHours: totalHours ? Number(totalHours) : undefined,
+        }),
       });
       const data = await res.json();
       if (!res.ok || !data.ok) {
@@ -287,7 +311,169 @@ export default function OnboardingPage() {
                 })}
               </div>
 
-              <div className="flex gap-3">
+                            {/* IRC 471 classification and measured allocation bases.
+                  Collected here because without them the reclassification engine
+                  refuses to reclassify anything — correct, but it means no 280E
+                  benefit. Worded for an operator, not an accountant. */}
+              <div className="space-y-4 rounded-xl border border-border bg-surface-mid p-5">
+                <div>
+                  <h3 className="text-sm font-semibold text-text-primary">
+                    Do you own your product while it&apos;s being made?
+                  </h3>
+                  <p className="mt-1 text-xs text-text-muted">
+                    This decides which costs you&apos;re allowed to treat as cost of
+                    goods sold — which is the main way to reduce a 280E tax bill.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => setInventoryRole("producer")}
+                    className={`rounded-xl border p-4 text-left transition ${
+                      inventoryRole === "producer"
+                        ? "border-brand bg-brand/10"
+                        : "border-border bg-surface hover:border-border/70"
+                    }`}
+                  >
+                    <div className="text-sm font-medium text-text-primary">
+                      Yes — we grow or make it
+                    </div>
+                    <div className="mt-1 text-xs text-text-muted">
+                      You own the plants or ingredients through production. You can
+                      count more of your costs — like grow-space rent and production
+                      wages — toward cost of goods sold.
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setInventoryRole("reseller")}
+                    className={`rounded-xl border p-4 text-left transition ${
+                      inventoryRole === "reseller"
+                        ? "border-brand bg-brand/10"
+                        : "border-border bg-surface hover:border-border/70"
+                    }`}
+                  >
+                    <div className="text-sm font-medium text-text-primary">
+                      No — we buy finished product
+                    </div>
+                    <div className="mt-1 text-xs text-text-muted">
+                      You buy product ready to sell. Generally you can only count
+                      what you paid for it plus the cost of getting it to you.
+                    </div>
+                  </button>
+                </div>
+
+                {inventoryRole === "reseller" && (
+                  <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+                    Buying finished product usually limits cost of goods sold to the
+                    invoice price plus freight. A court denied a dispensary&apos;s
+                    attempt to include rent and overhead on these facts
+                    (Patients Mutual / &ldquo;Harborside&rdquo;). Tranquillo Green will
+                    flag any allocation that goes beyond this so you can decide
+                    knowingly.
+                  </p>
+                )}
+
+                {inventoryRole === "producer" && (
+                  <div className="space-y-4">
+                    <p className="text-xs text-text-muted">
+                      These two measurements are what justify your numbers if they&apos;re
+                      ever questioned. Estimates are not enough — use your lease and
+                      your payroll records.
+                    </p>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label htmlFor="prod-sqft" className="mb-1.5 block text-xs font-medium text-text-secondary">
+                          Production / grow space (sq ft)
+                        </label>
+                        <input
+                          id="prod-sqft"
+                          type="number"
+                          min="0"
+                          value={productionSqFt}
+                          onChange={(e) => setProductionSqFt(e.target.value)}
+                          placeholder="6000"
+                          className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-faint focus:border-accent/50 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="total-sqft" className="mb-1.5 block text-xs font-medium text-text-secondary">
+                          Total space you occupy (sq ft)
+                        </label>
+                        <input
+                          id="total-sqft"
+                          type="number"
+                          min="0"
+                          value={totalSqFt}
+                          onChange={(e) => setTotalSqFt(e.target.value)}
+                          placeholder="10000"
+                          className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-faint focus:border-accent/50 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="prod-hours" className="mb-1.5 block text-xs font-medium text-text-secondary">
+                          Production hours (per month)
+                        </label>
+                        <input
+                          id="prod-hours"
+                          type="number"
+                          min="0"
+                          value={productionHours}
+                          onChange={(e) => setProductionHours(e.target.value)}
+                          placeholder="1200"
+                          className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-faint focus:border-accent/50 focus:outline-none"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="total-hours" className="mb-1.5 block text-xs font-medium text-text-secondary">
+                          Total paid hours (per month)
+                        </label>
+                        <input
+                          id="total-hours"
+                          type="number"
+                          min="0"
+                          value={totalHours}
+                          onChange={(e) => setTotalHours(e.target.value)}
+                          placeholder="2000"
+                          className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-sm text-text-primary placeholder:text-text-faint focus:border-accent/50 focus:outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {Number(productionSqFt) > 0 && Number(totalSqFt) > 0 && (
+                      <p className="text-xs text-text-muted">
+                        {Number(productionSqFt) > Number(totalSqFt) ? (
+                          <span className="text-rose-300">
+                            Production space can&apos;t be larger than your total space.
+                          </span>
+                        ) : (
+                          <>
+                            That&apos;s{" "}
+                            <span className="font-semibold text-text-primary">
+                              {((Number(productionSqFt) / Number(totalSqFt)) * 100).toFixed(1)}%
+                            </span>{" "}
+                            of your space — so that share of rent can count toward cost
+                            of goods sold.
+                          </>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {!inventoryRole && (
+                  <p className="text-xs text-text-faint">
+                    You can set this later, but until you do we won&apos;t move any
+                    costs into cost of goods sold — we&apos;d rather record nothing
+                    than guess.
+                  </p>
+                )}
+              </div>
+
+<div className="flex gap-3">
                 <button
                   onClick={() => setStep(0)}
                   className="rounded-xl border border-border bg-surface-mid px-5 py-3 text-sm font-medium text-text-primary transition hover:bg-surface"

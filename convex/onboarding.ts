@@ -115,6 +115,23 @@ export const createCompany = authMutation({
     accountingMethods: v.array(v.union(v.literal("cash"), v.literal("accrual"))),
     timezone: v.optional(v.string()),
     slug: v.optional(v.string()),
+    /**
+     * IRC 471 inventory classification. Determines whether indirect production
+     * costs may be capitalised at all — Reg. 1.471-3(b) for resellers vs
+     * 1.471-11 full absorption for producers.
+     */
+    inventoryRole: v.optional(
+      v.union(v.literal("reseller"), v.literal("producer"))
+    ),
+    /**
+     * Measured allocation bases. Without these the 471(c) reclassification
+     * engine correctly refuses to reclassify anything, because the honest
+     * answer to "how much of this rent is inventoriable" is not a guess.
+     */
+    productionSqFt: v.optional(v.number()),
+    totalSqFt: v.optional(v.number()),
+    productionHours: v.optional(v.number()),
+    totalHours: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     // Ensure user is authenticated
@@ -127,6 +144,41 @@ export const createCompany = authMutation({
     }
     if (!args.accountingMethods?.length) {
       throw new Error("At least one accounting method must be selected.");
+    }
+
+    // Measurements must be internally coherent. A production area larger than
+    // the total, or a negative figure, is a data-entry error — not a position.
+    if (args.totalSqFt !== undefined && args.totalSqFt < 0) {
+      throw new Error("Total square footage must not be negative.");
+    }
+    if (args.productionSqFt !== undefined && args.productionSqFt < 0) {
+      throw new Error("Production square footage must not be negative.");
+    }
+    if (
+      args.productionSqFt !== undefined &&
+      args.totalSqFt !== undefined &&
+      args.productionSqFt > args.totalSqFt
+    ) {
+      throw new Error(
+        `Production space (${args.productionSqFt.toLocaleString()} sq ft) cannot exceed ` +
+        `total space (${args.totalSqFt.toLocaleString()} sq ft).`
+      );
+    }
+    if (args.totalHours !== undefined && args.totalHours < 0) {
+      throw new Error("Total hours must not be negative.");
+    }
+    if (args.productionHours !== undefined && args.productionHours < 0) {
+      throw new Error("Production hours must not be negative.");
+    }
+    if (
+      args.productionHours !== undefined &&
+      args.totalHours !== undefined &&
+      args.productionHours > args.totalHours
+    ) {
+      throw new Error(
+        `Production hours (${args.productionHours.toLocaleString()}) cannot exceed ` +
+        `total paid hours (${args.totalHours.toLocaleString()}).`
+      );
     }
 
     // Derive primary operator and additional types
@@ -164,6 +216,11 @@ export const createCompany = authMutation({
       defaultAccountingMethod: args.accountingMethods[0] ?? "cash",
       accountingMethods: args.accountingMethods,
       status: "active",
+      ...(args.inventoryRole ? { inventoryRole: args.inventoryRole } : {}),
+      ...(args.productionSqFt !== undefined ? { productionSqFt: args.productionSqFt } : {}),
+      ...(args.totalSqFt !== undefined ? { totalSqFt: args.totalSqFt } : {}),
+      ...(args.productionHours !== undefined ? { productionHours: args.productionHours } : {}),
+      ...(args.totalHours !== undefined ? { totalHours: args.totalHours } : {}),
     });
 
     // Create tax profiles for each operating state

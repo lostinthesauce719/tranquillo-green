@@ -29,7 +29,17 @@ function sanitizeNumber(value: unknown): number | undefined {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, states, operatorTypes, accountingMethods } = body;
+    const {
+      name,
+      states,
+      operatorTypes,
+      accountingMethods,
+      inventoryRole,
+      productionSqFt,
+      totalSqFt,
+      productionHours,
+      totalHours,
+    } = body;
 
     // Name the missing fields. The previous generic "Missing required fields."
     // gave the user no way to tell which step to go back to — and the UI let
@@ -72,6 +82,22 @@ export async function POST(request: Request) {
         states,
         operatorTypes,
         accountingMethods,
+        // IRC 471 classification and the measured allocation bases. Without
+        // these the reclassification engine refuses to reclassify anything,
+        // which is correct but leaves the operator with no 280E benefit.
+        ...(inventoryRole ? { inventoryRole } : {}),
+        ...(sanitizeNumber(productionSqFt) !== undefined
+          ? { productionSqFt: sanitizeNumber(productionSqFt) }
+          : {}),
+        ...(sanitizeNumber(totalSqFt) !== undefined
+          ? { totalSqFt: sanitizeNumber(totalSqFt) }
+          : {}),
+        ...(sanitizeNumber(productionHours) !== undefined
+          ? { productionHours: sanitizeNumber(productionHours) }
+          : {}),
+        ...(sanitizeNumber(totalHours) !== undefined
+          ? { totalHours: sanitizeNumber(totalHours) }
+          : {}),
       }
     );
 
