@@ -10,7 +10,25 @@ function normalizeAmount(value: number): number {
 // 280E allocation helpers
 // ---------------------------------------------------------------------------
 
-type AllocationMethod = "square_footage" | "labor" | "custom";
+type AllocationMethod =
+  | "square_footage"
+  | "labor"
+  | "custom"
+  | "flat_percentage"
+  | "flat_amount";
+
+/** IRC 471 inventory classification. See schema.ts cannabisCompanies. */
+export type InventoryRole = "reseller" | "producer";
+
+/**
+ * Methods that capitalise indirect production costs. Under Reg. 1.471-3(b) a
+ * reseller is generally limited to invoice price plus costs of acquiring
+ * possession, so applying these to a reseller asserts a contested position.
+ */
+const PRODUCTION_BASIS_METHODS: AllocationMethod[] = [
+  "square_footage",
+  "labor",
+];
 
 interface AllocationInput {
   totalCost: number;
@@ -24,6 +42,98 @@ interface AllocationResult {
   ratio: number;
   confidence: number;
   basisType: string;
+}
+
+/** A condition the operator must explicitly acknowledge before handoff. */
+export interface AllocationWarning {
+  code: string;
+  message: string;
+}
+
+/**
+ * Refuses arithmetic that does not reconcile. There is no override for this —
+ * an allocation that creates or destroys value is a bug, never a tax position.
+ * Contestable *positions* are handled separately, via warnings that require
+ * acknowledgement at submission or CPA handoff.
+ */
+export function assertAllocationIntegrity(
+  totalCost: number,
+  deductible: number,
+  nondeductible: number
+): void {
+  if (!Number.isFinite(deductible) || !Number.isFinite(nondeductible)) {
+    throw new Error(
+      "Allocation produced a non-finite amount. Check the basis values."
+    );
+  }
+  if (deductible < 0 || nondeductible < 0) {
+    throw new Error(
+      `Allocation produced a negative amount (COGS ${deductible}, non-COGS ${nondeductible}). ` +
+        "Basis values must not be negative."
+    );
+  }
+  // Allow a cent of tolerance for rounding on repeating decimals.
+  const drift = Math.abs(deductible + nondeductible - totalCost);
+  if (drift > 0.01) {
+    throw new Error(
+      `Allocation does not reconcile: ${deductible} + ${nondeductible} != ${totalCost} ` +
+        `(off by ${normalizeAmount(drift)}). Refusing to record it.`
+    );
+  }
+}
+
+/**
+ * Positions that are permitted but contestable, and must be acknowledged before
+ * a filing or CPA handoff. Returning them rather than throwing is deliberate:
+ * the operator may have a defensible reason, but it must be a conscious choice.
+ */
+export function collectAllocationWarnings(params: {
+  method: AllocationMethod;
+  inventoryRole?: InventoryRole;
+  operatorType?: string;
+  confidence: number;
+}): AllocationWarning[] {
+  const warnings: AllocationWarning[] = [];
+  const { method, inventoryRole, confidence } = params;
+
+  if (!inventoryRole) {
+    warnings.push({
+      code: "inventory_role_unset",
+      message:
+        "This entity has no IRC 471 inventory classification. Whether indirect " +
+        "costs may be capitalised depends on reseller vs producer status.",
+    });
+  }
+
+  if (inventoryRole === "reseller" && PRODUCTION_BASIS_METHODS.includes(method)) {
+    warnings.push({
+      code: "reseller_production_basis",
+      message:
+        `This entity is classified as a reseller, but "${method}" capitalises ` +
+        "indirect production costs. Reg. 1.471-3(b) generally limits a reseller " +
+        "to invoice price plus costs of acquiring possession. This position was " +
+        "denied in Harborside.",
+    });
+  }
+
+  if (method === "flat_percentage" || method === "flat_amount") {
+    warnings.push({
+      code: "unmeasured_basis",
+      message:
+        "A flat figure has no measured basis behind it. CCA 201504011 and " +
+        "Reg. 1.471-11 contemplate measured allocations such as direct labour " +
+        "or machine hours. Retain documentation supporting this figure.",
+    });
+  }
+
+  if (confidence < 70) {
+    warnings.push({
+      code: "low_confidence",
+      message: `Allocation confidence is ${confidence}. Review before filing.`,
+    });
+  }
+
+  return warnings;
 }
 
 /**
@@ -53,7 +163,12 @@ function computeAllocation(input: AllocationInput): AllocationResult {
       if (totalSqFt <= 0) {
         throw new Error("totalSqFt must be greater than zero for square footage allocation.");
       }
-      ratio = Math.min(productionSqFt / totalSqFt, 1);
+      if (productionSqFt < 0) {
+        throw new Error("productionSqFt must not be negative.");
+      }
+      // Clamp both ends. Previously Math.min(x, 1) only, so a negative basis
+      // produced negative COGS and a nondeductible amount exceeding the cost.
+      ratio = Math.max(0, Math.min(productionSqFt / totalSqFt, 1));
       confidence = 85; // objective, verifiable metric
       basisType = "square_footage";
       break;
@@ -64,7 +179,10 @@ function computeAllocation(input: AllocationInput): AllocationResult {
       if (totalHours <= 0) {
         throw new Error("totalHours must be greater than zero for labor allocation.");
       }
-      ratio = Math.min(productionHours / totalHours, 1);
+      if (productionHours < 0) {
+        throw new Error("productionHours must not be negative.");
+      }
+      ratio = Math.max(0, Math.min(productionHours / totalHours, 1));
       confidence = 80; // reasonable but depends on time-keeping accuracy
       basisType = "labor";
       break;
@@ -79,12 +197,46 @@ function computeAllocation(input: AllocationInput): AllocationResult {
       basisType = "custom";
       break;
     }
+    case "flat_percentage": {
+      // A fixed percentage of every cost, expressed 0..1 (or 0..100 for
+      // convenience — both accepted, normalised here).
+      const raw = basisDetails.percentage ?? basisDetails.ratio ?? 0;
+      const pct = raw > 1 ? raw / 100 : raw;
+      if (pct < 0 || pct > 1) {
+        throw new Error("Flat percentage must be between 0 and 100.");
+      }
+      ratio = pct;
+      // Deliberately low: a flat percentage has no measured basis, which is
+      // exactly what an examiner asks for.
+      confidence = 40;
+      basisType = "flat_percentage";
+      break;
+    }
+    case "flat_amount": {
+      // A fixed dollar amount treated as COGS-eligible, capped at the cost so
+      // the allocation cannot exceed what was actually spent.
+      const amount = basisDetails.amount ?? 0;
+      if (amount < 0) {
+        throw new Error("Flat amount must not be negative.");
+      }
+      if (totalCost <= 0) {
+        throw new Error("Cannot apply a flat amount to a zero cost.");
+      }
+      ratio = Math.max(0, Math.min(amount / totalCost, 1));
+      confidence = 40;
+      basisType = "flat_amount";
+      break;
+    }
     default:
       throw new Error(`Unsupported allocation method: ${method}`);
   }
 
   const deductibleAmount = normalizeAmount(totalCost * ratio);
   const nondeductibleAmount = normalizeAmount(totalCost - deductibleAmount);
+
+  // Refuse arithmetic that does not reconcile. No override: this is a bug
+  // condition, not a tax position.
+  assertAllocationIntegrity(totalCost, deductibleAmount, nondeductibleAmount);
 
   return { deductibleAmount, nondeductibleAmount, ratio, confidence, basisType };
 }
@@ -182,9 +334,23 @@ export const allocateTransaction = authMutation(
     const totalDeductible = allocation.deductibleAmount;
     const totalNondeductible = normalizeAmount(nonCogsCost + allocation.nondeductibleAmount);
 
-    // Determine review status: low confidence or large amounts need review
+    // Whole-transaction reconciliation, not just the COGS slice.
+    assertAllocationIntegrity(totalCost, totalDeductible, totalNondeductible);
+
+    // Contestable positions. These do not block recording the allocation, but
+    // they must be acknowledged before a filing or CPA handoff.
+    const company = await ctx.db.get(args.companyId);
+    const warnings = collectAllocationWarnings({
+      method: policy.method as AllocationMethod,
+      inventoryRole: company?.inventoryRole,
+      operatorType: company?.operatorType,
+      confidence: allocation.confidence,
+    });
+
+    // Determine review status: low confidence, large amounts, or any contestable
+    // position needs human review.
     const reviewStatus =
-      allocation.confidence < 70 || totalCost > 10_000
+      allocation.confidence < 70 || totalCost > 10_000 || warnings.length > 0
         ? ("needs_review" as const)
         : ("system_applied" as const);
 
@@ -195,27 +361,32 @@ export const allocateTransaction = authMutation(
       .filter((q: any) => q.eq(q.field("transactionId"), args.transactionId))
       .first();
 
+    // Persist the warnings with the allocation. Acknowledgement is deliberately
+    // NOT collected here — it is required at filing or CPA handoff, so the
+    // operator confirms a position at the point it leaves the building, not
+    // while routinely categorising costs.
+    const persisted = {
+      policyId: args.policyId,
+      basisType: allocation.basisType,
+      deductibleAmount: totalDeductible,
+      nondeductibleAmount: totalNondeductible,
+      confidence: allocation.confidence,
+      reviewStatus,
+      warnings,
+      requiresAcknowledgement: warnings.length > 0,
+      acknowledgedAt: undefined as number | undefined,
+      acknowledgedBy: undefined as string | undefined,
+    };
+
     let allocationId: string;
     if (existing) {
-      await ctx.db.patch(existing._id, {
-        policyId: args.policyId,
-        basisType: allocation.basisType,
-        deductibleAmount: totalDeductible,
-        nondeductibleAmount: totalNondeductible,
-        confidence: allocation.confidence,
-        reviewStatus,
-      });
+      await ctx.db.patch(existing._id, persisted);
       allocationId = existing._id;
     } else {
       allocationId = await ctx.db.insert("cogsAllocations", {
         companyId: args.companyId,
         transactionId: args.transactionId,
-        policyId: args.policyId,
-        basisType: allocation.basisType,
-        deductibleAmount: totalDeductible,
-        nondeductibleAmount: totalNondeductible,
-        confidence: allocation.confidence,
-        reviewStatus,
+        ...persisted,
       });
     }
 

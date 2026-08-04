@@ -21,7 +21,7 @@ import {
   getCompanyTaxProfile,
   listJurisdictions,
 } from "../tax";
-import { TestDb, makeCtx, call, rejects, cents } from "./harness";
+import { TestDb, makeCtx, call, rejects, cents } from "../../tests/convex/harness";
 
 /* ─── Fixture ────────────────────────────────────────────────────────────── */
 
@@ -356,15 +356,10 @@ describe("getTaxLiability", () => {
     assert.equal(cents(liability.grandTotal), 0);
   });
 
-  it("DEFECT: period matching is exact-equality, not a range", async () => {
-    // getTaxLiability filters on periodStart === and periodEnd ===, so a caller
-    // must reproduce calculateTax's exact stamps. A natural month range — e.g.
-    // an end-of-month timestamp at 23:59:59 rather than 00:00:00 — silently
-    // returns zero liability rather than erroring.
-    //
-    // Reporting no tax owed is the most dangerous possible failure mode here,
-    // so this is pinned deliberately. Changing it to a range query is the
-    // likely fix, but that is a decision for a CPA review, not a silent edit.
+  it("matches calculations by period containment, not exact equality", async () => {
+    // Previously filtered periodStart === and periodEnd ===, so a caller whose
+    // period end differed by a second received ZERO liability rather than an
+    // error. Silently reporting no tax owed is the worst failure mode here.
     await call(calculateTax, ctx, {
       companyId: ACME,
       transactionAmount: 1000,
@@ -373,16 +368,35 @@ describe("getTaxLiability", () => {
       transactionDate: JAN_15,
     });
 
-    const offByOneSecond = await call(getTaxLiability, ctx, {
+    const slightlyWider = await call(getTaxLiability, ctx, {
       companyId: ACME,
       periodStart: JAN_START,
       periodEnd: JAN_END + 1000,
     });
-    assert.equal(
-      cents(offByOneSecond.grandTotal),
-      0,
-      "current behaviour: a period end that differs at all yields zero"
-    );
+    assert.equal(cents(slightlyWider.grandTotal), 150);
+
+    const wholeYear = await call(getTaxLiability, ctx, {
+      companyId: ACME,
+      periodStart: new Date(2026, 0, 1).getTime(),
+      periodEnd: new Date(2026, 11, 31).getTime(),
+    });
+    assert.equal(cents(wholeYear.grandTotal), 150);
+  });
+
+  it("still excludes calculations outside the requested window", async () => {
+    await call(calculateTax, ctx, {
+      companyId: ACME,
+      transactionAmount: 1000,
+      productCategory: "flower",
+      taxTypeCodes: [EXCISE],
+      transactionDate: JAN_15,
+    });
+    const february = await call(getTaxLiability, ctx, {
+      companyId: ACME,
+      periodStart: new Date(2026, 1, 1).getTime(),
+      periodEnd: new Date(2026, 2, 0).getTime(),
+    });
+    assert.equal(cents(february.grandTotal), 0, "January tax must not appear in February");
   });
 });
 

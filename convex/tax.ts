@@ -223,11 +223,16 @@ export const getTaxLiability = authQuery({
   handler: async (ctx, { companyId, periodStart, periodEnd }) => {
     const calculations = await ctx.db
       .query("taxCalculations")
+      // Containment, not exact equality. This previously matched
+      // periodStart === and periodEnd ===, so a caller whose boundaries differed
+      // by even a second silently received ZERO liability rather than an error —
+      // the most dangerous failure mode this product has. Any calculation whose
+      // period falls inside the requested window now counts.
       .filter(q =>
         q.and(
           q.eq(q.field("companyId"), companyId),
-          q.eq(q.field("periodStart"), periodStart),
-          q.eq(q.field("periodEnd"), periodEnd),
+          q.gte(q.field("periodStart"), periodStart),
+          q.lte(q.field("periodEnd"), periodEnd),
           q.eq(q.field("isPosted"), false)
         )
       )

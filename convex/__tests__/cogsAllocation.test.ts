@@ -19,7 +19,7 @@ import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { allocateTransaction, getAllocationSummary } from "../allocationEngine";
-import { TestDb, makeCtx, call, rejects, cents } from "./harness";
+import { TestDb, makeCtx, call, rejects, cents } from "../../tests/convex/harness";
 
 /* ─── Fixture ────────────────────────────────────────────────────────────── */
 
@@ -32,12 +32,20 @@ const POLICY_CUSTOM = "policy_custom";
 const POLICY_INACTIVE = "policy_inactive";
 const ACCT_COGS = "acct_cogs";
 const ACCT_OPEX = "acct_opex";
+const RESELLER = "company_reseller";
+const UNCLASSIFIED = "company_unclassified";
+const POLICY_FLAT_PCT = "policy_flat_pct";
+const POLICY_FLAT_AMT = "policy_flat_amt";
 
 function seed() {
   return new TestDb({
     cannabisCompanies: [
-      { _id: DISPENSARY, name: "Acme Dispensary", operatorType: "dispensary" },
-      { _id: CULTIVATOR, name: "Acme Grow", operatorType: "cultivator" },
+      // A dispensary that owns product through production can be a producer;
+      // classification is independent of licence type.
+      { _id: DISPENSARY, name: "Acme Dispensary", operatorType: "dispensary", inventoryRole: "producer" },
+      { _id: CULTIVATOR, name: "Acme Grow", operatorType: "cultivator", inventoryRole: "producer" },
+      { _id: RESELLER, name: "Buys Finished Goods LLC", operatorType: "dispensary", inventoryRole: "reseller" },
+      { _id: UNCLASSIFIED, name: "No Classification Co", operatorType: "dispensary" },
     ],
     users: [
       { _id: "u1", clerkId: "clerk_owner", companyId: DISPENSARY },
@@ -68,6 +76,8 @@ function seed() {
       { _id: POLICY_LABOR, companyId: DISPENSARY, method: "labor", status: "active" },
       { _id: POLICY_CUSTOM, companyId: DISPENSARY, method: "custom", status: "active" },
       { _id: POLICY_INACTIVE, companyId: DISPENSARY, method: "custom", status: "draft" },
+      { _id: POLICY_FLAT_PCT, companyId: DISPENSARY, method: "flat_percentage", status: "active" },
+      { _id: POLICY_FLAT_AMT, companyId: DISPENSARY, method: "flat_amount", status: "active" },
     ],
     transactions: [
       { _id: TXN, companyId: DISPENSARY, status: "posted", transactionDate: Date.now() },
@@ -137,18 +147,18 @@ describe("computeAllocation — square footage", () => {
     );
   });
 
-  it("DEFECT: a negative production area yields a negative COGS figure", async () => {
-    // ratio = Math.min(productionSqFt / totalSqFt, 1) clamps the upper bound but
-    // not the lower, so a negative basis produces negative deductible COGS and a
-    // nondeductible amount exceeding the cost. Math.max(0, …) is the fix, but it
-    // is left pinned so the change is deliberate and reviewed.
-    await allocate({
-      policyId: POLICY_SQFT,
-      basisDetails: { productionSqFt: -2000, totalSqFt: 10000 },
-    });
-    const a = db.rows("cogsAllocations")[0];
-    assert.ok(a.deductibleAmount < 0, "current behaviour: negative COGS is accepted");
-    assert.ok(a.nondeductibleAmount > 1000);
+  it("refuses a negative production area (was: produced negative COGS)", async () => {
+    // Previously ratio = Math.min(x, 1) clamped only the upper bound, so a
+    // negative basis yielded negative deductible COGS and a nondeductible
+    // amount exceeding the cost. Now refused outright.
+    await rejects(
+      () =>
+        allocate({
+          policyId: POLICY_SQFT,
+          basisDetails: { productionSqFt: -2000, totalSqFt: 10000 },
+        }),
+      /must not be negative/
+    );
   });
 });
 
@@ -328,5 +338,115 @@ describe("TAX-REVIEW — positions needing CPA sign-off", () => {
     const a = db.rows("cogsAllocations")[0];
     assert.equal(a.basisType, "square_footage");
     assert.ok(a.confidence > 0, "confidence should be recorded with the allocation");
+  });
+});
+
+/* ─── Flat methods ───────────────────────────────────────────────────────── */
+
+describe("computeAllocation — flat percentage", () => {
+  it("accepts a ratio expressed 0..1", async () => {
+    await allocate({ policyId: POLICY_FLAT_PCT, basisDetails: { percentage: 0.35 } });
+    assert.equal(cents(db.rows("cogsAllocations")[0].deductibleAmount), 350);
+  });
+
+  it("accepts the same figure expressed 0..100", async () => {
+    await allocate({ policyId: POLICY_FLAT_PCT, basisDetails: { percentage: 35 } });
+    assert.equal(cents(db.rows("cogsAllocations")[0].deductibleAmount), 350);
+  });
+
+  it("rejects a percentage above 100", async () => {
+    await rejects(
+      () => allocate({ policyId: POLICY_FLAT_PCT, basisDetails: { percentage: 140 } }),
+      /between 0 and 100/
+    );
+  });
+
+  it("carries low confidence and warns that the basis is unmeasured", async () => {
+    await allocate({ policyId: POLICY_FLAT_PCT, basisDetails: { percentage: 35 } });
+    const a = db.rows("cogsAllocations")[0];
+    assert.ok(a.confidence < 70, "a flat percentage must not read as high confidence");
+    assert.ok(a.warnings.some((w: any) => w.code === "unmeasured_basis"));
+    assert.equal(a.requiresAcknowledgement, true);
+  });
+});
+
+describe("computeAllocation — flat amount", () => {
+  it("treats a fixed dollar amount as the COGS-eligible portion", async () => {
+    await allocate({ policyId: POLICY_FLAT_AMT, basisDetails: { amount: 250 } });
+    const a = db.rows("cogsAllocations")[0];
+    assert.equal(cents(a.deductibleAmount), 250);
+    assert.equal(cents(a.nondeductibleAmount), 750);
+  });
+
+  it("caps the amount at the actual cost", async () => {
+    await allocate({ policyId: POLICY_FLAT_AMT, basisDetails: { amount: 999999 } });
+    const a = db.rows("cogsAllocations")[0];
+    assert.equal(cents(a.deductibleAmount), 1000, "cannot capitalise more than was spent");
+    assert.equal(cents(a.nondeductibleAmount), 0);
+  });
+
+  it("rejects a negative amount", async () => {
+    await rejects(
+      () => allocate({ policyId: POLICY_FLAT_AMT, basisDetails: { amount: -50 } }),
+      /must not be negative/
+    );
+  });
+});
+
+/* ─── Reseller vs producer ───────────────────────────────────────────────── */
+
+describe("IRC 471 classification", () => {
+  async function allocateFor(companyId: string, policyId: string) {
+    const txn = await db.insert("transactions", {
+      companyId,
+      status: "posted",
+      transactionDate: Date.now(),
+    });
+    const acct = await db.insert("chartOfAccounts", {
+      companyId,
+      code: "5000",
+      name: "COGS",
+      category: "cogs",
+      taxTreatment: "cogs",
+      isActive: true,
+    });
+    await db.insert("transactionLines", { transactionId: txn, accountId: acct, debit: 1000, credit: 0 });
+    await db.insert("allocationPolicies", { _id: policyId, companyId, method: "square_footage", status: "active" });
+    await db.insert("users", { clerkId: `clerk_${companyId}`, companyId });
+
+    const c = makeCtx(db, { clerkId: `clerk_${companyId}` });
+    await call(allocateTransaction, c, {
+      companyId,
+      transactionId: txn,
+      policyId,
+      basisDetails: { productionSqFt: 3000, totalSqFt: 10000 },
+    });
+    return db.rows("cogsAllocations").find((a: any) => a.transactionId === txn);
+  }
+
+  it("warns when a reseller uses a production basis", async () => {
+    // Reg. 1.471-3(b): a reseller is generally limited to invoice price plus
+    // costs of acquiring possession. Harborside denied the COGS increases.
+    const a = await allocateFor(RESELLER, "policy_reseller_sqft");
+    assert.ok(
+      a.warnings.some((w: any) => w.code === "reseller_production_basis"),
+      "reseller + square footage must raise a warning"
+    );
+    assert.equal(a.requiresAcknowledgement, true);
+    assert.equal(a.reviewStatus, "needs_review");
+  });
+
+  it("does not warn when a producer uses a production basis", async () => {
+    const a = await allocateFor(CULTIVATOR, "policy_cultivator_sqft");
+    assert.ok(
+      !a.warnings.some((w: any) => w.code === "reseller_production_basis"),
+      "a producer using full absorption is the expected case"
+    );
+  });
+
+  it("warns when the entity has no classification at all", async () => {
+    const a = await allocateFor(UNCLASSIFIED, "policy_unclassified_sqft");
+    assert.ok(a.warnings.some((w: any) => w.code === "inventory_role_unset"));
+    assert.equal(a.requiresAcknowledgement, true);
   });
 });

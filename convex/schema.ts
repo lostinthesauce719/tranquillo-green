@@ -8,6 +8,29 @@ export default defineSchema({
     timezone: v.string(),
     state: v.optional(v.string()),
     states: v.optional(v.array(v.string())),
+    /**
+     * Inventory classification for IRC 471 purposes. This is NOT the same as
+     * operatorType, which describes the licence. A dispensary that buys finished
+     * product is a reseller; a dispensary that owns the goods through the whole
+     * production process may be a producer.
+     *
+     *  reseller — Reg. 1.471-3(b): inventoriable cost is generally the invoice
+     *             price plus the costs of acquiring possession. Indirect costs
+     *             such as rent and non-acquisition labour are generally NOT
+     *             capitalisable.
+     *  producer — Reg. 1.471-11 full absorption: direct and indirect production
+     *             costs may be capitalised.
+     *
+     * Harborside turned on this distinction: the dispensary did not own the
+     * product through production, was treated as a reseller, and its COGS
+     * increases were denied.
+     *
+     * Optional so existing records remain valid; when unset the engine treats
+     * the position as unclassified and requires acknowledgement.
+     */
+    inventoryRole: v.optional(
+      v.union(v.literal("reseller"), v.literal("producer"))
+    ),
     operatorType: v.union(
       v.literal("dispensary"),
       v.literal("cultivator"),
@@ -147,7 +170,18 @@ export default defineSchema({
   allocationPolicies: defineTable({
     companyId: v.id("cannabisCompanies"),
     name: v.string(),
-    method: v.union(v.literal("square_footage"), v.literal("labor"), v.literal("custom")),
+    method: v.union(
+      v.literal("square_footage"),
+      v.literal("labor"),
+      v.literal("custom"),
+      // Flat methods: a fixed percentage, or a fixed dollar amount treated as
+      // COGS-eligible. Both are permitted but carry low confidence, because a
+      // flat figure has no measured basis behind it — which is what an audit
+      // examines. See Reg. 1.471-11 and CCA 201504011, which contemplate
+      // measured bases such as direct labor hours or machine hours.
+      v.literal("flat_percentage"),
+      v.literal("flat_amount"),
+    ),
     effectiveFrom: v.string(),
     status: v.union(v.literal("active"), v.literal("inactive")),
   }).index("by_company", ["companyId"]),
@@ -301,6 +335,12 @@ export default defineSchema({
     effectiveTo: v.optional(v.number()),
     productCategoryFilter: v.optional(v.string()),
     notes: v.optional(v.string()),
+    // Rate currency tracking. Rates are maintained manually against published
+    // state guidance; these fields make staleness visible rather than silent.
+    // A filing computed from an unverified or stale rate should be flagged.
+    lastVerifiedAt: v.optional(v.number()),
+    verifiedBy: v.optional(v.string()),
+    sourceUrl: v.optional(v.string()),
   }).index("by_jurisdiction", ["jurisdictionId"]).index("by_tax_type", ["taxTypeId"]).index("by_effective_dates", ["effectiveFrom", "effectiveTo"]),
 
   taxCalculations: defineTable({

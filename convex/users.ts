@@ -16,7 +16,20 @@ export const getOrCreateUser = authMutation(
   {},
   async (ctx: any, _args: any, identity: any) => {
     const clerkId = identity.subject;
-    const email = identity.email ?? "";
+    // Convex exposes OpenID claims on the identity, but `email` is only present
+    // if the Clerk JWT template emits it. If users are being created with an
+    // empty email, add `"email": "{{user.primary_email_address}}"` to the
+    // "convex" JWT template in the Clerk dashboard.
+    //
+    // Read the common claim spellings so a template variation does not silently
+    // produce blank user records.
+    const email: string =
+      identity.email ??
+      identity.emailAddress ??
+      identity.email_address ??
+      identity.primaryEmailAddress ??
+      identity.primary_email_address ??
+      "";
     const name = identity.name ?? identity.nickname ?? undefined;
     const company = await resolveCompanyFromIdentityClaims(ctx, identity);
     const role = resolveRoleFromIdentityClaims(identity);
@@ -25,7 +38,10 @@ export const getOrCreateUser = authMutation(
 
     if (existing) {
       await ctx.db.patch(existing._id, {
-        email,
+        // Only write email when we actually have one. This previously patched
+        // unconditionally, so a login whose token lacked the claim would
+        // overwrite a good address with "".
+        ...(email ? { email } : {}),
         ...(name ? { name } : {}),
         ...(company ? { companyId: company._id } : {}),
         ...(role ? { role } : {}),
