@@ -985,28 +985,51 @@ export default defineSchema({
   }).index("by_status", ["status"]).index("by_clerk_user", ["clerkUserId"]),
 
   invoices: defineTable({
-    customerId: v.optional(v.id("customers")),
+    customerId: v.id("customers"),
+    /**
+     * Where the invoice came from. Four different shapes were being inserted
+     * here: two generated internally (invoiceNumber, subtotal/tax/total,
+     * lineItems) and two mirroring Stripe (stripeInvoiceId, amountCents only).
+     * Nothing distinguished them, and a total summing totalCents silently
+     * excluded every Stripe row. Both now populate totalCents, and this field
+     * says which kind a row is.
+     */
+    source: v.union(v.literal("internal"), v.literal("stripe")),
     invoiceNumber: v.optional(v.string()),
     stripeInvoiceId: v.optional(v.string()),
-    periodStart: v.optional(v.number()),
-    periodEnd: v.optional(v.number()),
-    subtotalCents: v.optional(v.number()),
-    taxCents: v.optional(v.number()),
-    totalCents: v.optional(v.number()),
+    periodStart: v.number(),
+    periodEnd: v.number(),
+    // Canonical money fields, always present regardless of source.
+    subtotalCents: v.number(),
+    taxCents: v.number(),
+    totalCents: v.number(),
+    /** Retained for Stripe rows; mirrors totalCents. */
     amountCents: v.optional(v.number()),
-    currency: v.optional(v.string()),
-    status: v.optional(v.string()),
+    currency: v.string(),
+    status: v.string(),
+    // Absent rather than null. Convex's v.optional() permits a missing field,
+    // not an explicit null — these were being passed as null and would have
+    // failed validation.
     paymentMethodType: v.optional(v.string()),
     paidAt: v.optional(v.number()),
-    lineItems: v.optional(v.array(v.any())),
-    description: v.optional(v.string()),
-    quantity: v.optional(v.number()),
-    unitPriceCents: v.optional(v.number()),
     paymentIntentId: v.optional(v.string()),
+    lineItems: v.optional(
+      v.array(
+        v.object({
+          description: v.string(),
+          quantity: v.number(),
+          unitPriceCents: v.number(),
+          amountCents: v.number(),
+        })
+      )
+    ),
     generatedAt: v.optional(v.number()),
-    createdAt: v.optional(v.number()),
+    createdAt: v.number(),
     notes: v.optional(v.string()),
-  }).index("by_customer", ["customerId"]).index("by_status", ["status"]),
+  })
+    .index("by_customer", ["customerId"])
+    .index("by_status", ["status"])
+    .index("by_source", ["source"]),
 
   revenueEvents: defineTable({
     customerId: v.optional(v.id("customers")),

@@ -299,6 +299,11 @@ export const startTrial = authMutation({
     // Create first invoice (trial = $0)
     await ctx.db.insert("invoices", {
       customerId,
+      // Canonical invoice shape. Four different shapes were being inserted into
+      // this table; two omitted totalCents entirely (using amountCents), two
+      // omitted createdAt, and several passed null where Convex's v.optional()
+      // requires the field to be absent rather than null.
+      source: "internal" as const,
       invoiceNumber: `INV-${customerId.slice(0, 8).toUpperCase()}-TRIAL`,
       periodStart: now,
       periodEnd: trialEndsAt,
@@ -307,8 +312,8 @@ export const startTrial = authMutation({
       totalCents: 0,
       currency: "USD",
       status: "paid",
-      paymentMethodType: null,
       paidAt: now,
+      createdAt: now,
       lineItems: [
         {
           description: "14-day free trial",
@@ -317,7 +322,6 @@ export const startTrial = authMutation({
           amountCents: 0,
         },
       ],
-      paymentIntentId: null,
       generatedAt: now,
       notes: "Trial period — no charge",
     });
@@ -379,6 +383,7 @@ export const activateSubscription = authMutation({
     // Create invoice
     const invoiceId = await ctx.db.insert("invoices", {
       customerId: args.customerId,
+      source: "internal" as const,
       invoiceNumber: `INV-${args.customerId.slice(0, 8).toUpperCase()}-${Date.now()}`,
       periodStart,
       periodEnd,
@@ -388,7 +393,7 @@ export const activateSubscription = authMutation({
       currency: "USD",
       status: "open",
       paymentMethodType: "card",
-      paidAt: null,
+      createdAt: Date.now(),
       lineItems: [
         {
           description: `${customer.tier.charAt(0).toUpperCase() + customer.tier.slice(1)} subscription`,
@@ -397,7 +402,6 @@ export const activateSubscription = authMutation({
           amountCents: monthlyPrice * 100,
         },
       ],
-      paymentIntentId: null,
       generatedAt: now,
       notes: `First billing cycle — ${args.billingCycle}`,
     });
@@ -680,8 +684,16 @@ export const markSubscriptionActive = authMutation({
     // Create first invoice record
     await ctx.db.insert("invoices", {
       customerId: args.customerId,
+      source: "stripe" as const,
       stripeInvoiceId: `initial_${args.stripeSubscriptionId}`,
+      // Stripe-sourced rows previously set only amountCents, so any total that
+      // summed totalCents silently excluded every Stripe invoice. Both are now
+      // populated, with totalCents canonical.
       amountCents: Math.round(customer.monthlyRecurringRevenue),
+      subtotalCents: Math.round(customer.monthlyRecurringRevenue),
+      taxCents: 0,
+      totalCents: Math.round(customer.monthlyRecurringRevenue),
+      currency: "USD",
       status: "paid",
       periodStart: Date.now(),
       periodEnd:
@@ -715,8 +727,13 @@ export const recordPayment = authMutation({
 
     await ctx.db.insert("invoices", {
       customerId,
+      source: "stripe" as const,
       stripeInvoiceId: args.invoiceId,
       amountCents: args.amount,
+      subtotalCents: args.amount,
+      taxCents: 0,
+      totalCents: args.amount,
+      currency: "USD",
       status: "paid",
       periodStart: args.periodStart,
       periodEnd: args.periodEnd,
