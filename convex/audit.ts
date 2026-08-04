@@ -63,7 +63,9 @@ async function writeAuditEvent(
     entity: string;
     entityId: string;
     changes: Array<{ field: string; oldValue: any; newValue: any }>;
-    metadata: Record<string, any>;
+    // Optional: logDataChange and logDataMutation both accept an optional
+    // metadata argument and pass it straight through.
+    metadata?: Record<string, any>;
     ipAddress?: string;
     userAgent?: string;
     clientUrl?: string;
@@ -137,7 +139,7 @@ export const logDataChange = authMutation({
     metadata: v.optional(v.record(v.string(), v.any())),
   },
   handler: async (ctx, { action, entity, entityId, oldValues, newValues, metadata }) => {
-    const changes = [];
+    const changes: Array<{ field: string; oldValue: any; newValue: any }> = [];
     if (oldValues && newValues) {
       // Compare two objects and build change list
       for (const key of Object.keys({ ...oldValues, ...newValues })) {

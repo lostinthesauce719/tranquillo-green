@@ -50,6 +50,11 @@ export default function AuthPage() {
         {/* Clerk auth component */}
         {mode === "sign-in" ? (
           <SignIn
+            // This page toggles SignIn/SignUp on a single non-catch-all route,
+            // so Clerk cannot use path-based sub-routes for its multi-step flows
+            // (verification, 2FA, password reset). Hash routing keeps those
+            // steps in the URL fragment and works on a plain route.
+            routing="hash"
             fallbackRedirectUrl="/dashboard"
             appearance={{
               elements: {
@@ -90,6 +95,8 @@ export default function AuthPage() {
           />
         ) : (
           <SignUp
+            // Same reason as SignIn above — see comment there.
+            routing="hash"
             fallbackRedirectUrl="/dashboard"
             appearance={{
               elements: {
