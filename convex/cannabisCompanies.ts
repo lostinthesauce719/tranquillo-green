@@ -64,13 +64,18 @@ export const create = authMutation({
 
     // Also create a tax profile for each state
     for (const state of args.states) {
+      // Same invalid shape as onboarding.ts had — these three fields are not in
+      // the taxProfiles schema, so this insert always threw. See schema.ts:
+      // filingCalendar is a record keyed "<STATE>-<taxType>".
       await ctx.db.insert("taxProfiles", {
         companyId,
         state,
-        exciseRule: "default", // Placeholder
-        salesTaxRule: "default", // Placeholder
-        filingFrequency: "monthly", // Placeholder
-        isPrimary: args.states.length === 1 || state === "CO", // Mark CO as primary if multiple, or if single state
+        filingCalendar: {
+          [`${state}-excise`]: "monthly",
+          [`${state}-sales`]: "monthly",
+        },
+        nexusStates: args.states,
+        isPrimary: args.states.length === 1 || state === "CO", // CO is primary when multi-state
       });
     }
 

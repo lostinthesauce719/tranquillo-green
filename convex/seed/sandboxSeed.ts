@@ -411,8 +411,14 @@ async function seedTaxProfile(ctx: any, companyId: string) {
     state: "CO",
     primaryJurisdictionId: jur?._id,
     nexusStates: ["CO"],
-    filingCalendar: { excise: "quarterly", sales: "monthly" },
-    taxTypesEnabled: { excise: true, sales: true },
+    // Keys must be "<STATE>-<taxType>" — tax.ts reads filingCalendar["CO-excise"].
+    // These were previously "excise"/"sales", so every lookup missed and silently
+    // fell back to "monthly".
+    filingCalendar: { "CO-excise": "quarterly", "CO-sales": "monthly" },
+    // taxTypesEnabled was { excise: true, sales: true }, but the schema declares
+    // v.array(v.id("taxTypes")) — an object would fail validation. Omitted: it is
+    // optional, and seeding real taxTypes ids would require looking them up.
+    isPrimary: true, // required by the schema, and was missing
   });
 }
 

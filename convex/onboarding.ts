@@ -168,12 +168,19 @@ export const createCompany = authMutation({
 
     // Create tax profiles for each operating state
     for (const state of args.states) {
+      // exciseRule / salesTaxRule / filingFrequency are not in the taxProfiles
+      // schema and never were — this insert could not have succeeded. The
+      // schema models filing cadence as `filingCalendar`, a record keyed by
+      // "<STATE>-<taxType>", which is the form tax.ts reads:
+      //   tax.ts:295  profile.filingCalendar?.["CO-excise"]
       await ctx.db.insert("taxProfiles", {
         companyId,
         state,
-        exciseRule: "default",
-        salesTaxRule: "default",
-        filingFrequency: "monthly",
+        filingCalendar: {
+          [`${state}-excise`]: "monthly",
+          [`${state}-sales`]: "monthly",
+        },
+        nexusStates: args.states,
         isPrimary: args.states.length === 1 || state === "CO",
       });
     }
