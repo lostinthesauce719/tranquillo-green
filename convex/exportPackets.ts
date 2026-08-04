@@ -1,5 +1,9 @@
 // @ts-nocheck
 import { v } from "convex/values";
+import {
+  gatherBlockingWarnings,
+  requireAcknowledgement,
+} from "./lib/acknowledgement";
 import { authMutation, authQuery, requireCompanyAccessById } from "./lib/withAuth";
 
 const exportPacketStatus = v.union(
@@ -58,15 +62,65 @@ export const createRun = authMutation(
     generatedBy: v.string(),
     detail: v.string(),
     blockers: v.array(v.string()),
+    /**
+     * Typed confirmation for contestable tax positions. Required only when the
+     * packet contains allocations carrying unacknowledged warnings — a reseller
+     * using a production basis, an unmeasured flat figure, or an entity with no
+     * IRC 471 classification.
+     *
+     * This is the point at which a position leaves the building, which is why
+     * the gate sits here rather than on day-to-day categorising.
+     */
+    acknowledgement: v.optional(v.string()),
   },
   async (ctx: any, args: any, identity: any) => {
     await requireCompanyAccessById(ctx, identity, args.companyId);
 
-    const generatedAt = Date.now();
-    const runId = await ctx.db.insert("exportPacketRuns", {
-      ...args,
-      generatedAt,
+    // Gather every allocation in this packet that asserts a contestable
+    // position and has not yet been affirmed.
+    const allocations = await ctx.db
+      .query("cogsAllocations")
+      .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))
+      .collect();
+
+    const blocking = gatherBlockingWarnings(allocations);
+
+    // Throws AcknowledgementRequiredError, carrying the warnings and the
+    // required phrase, when the operator has not typed it.
+    const ack = requireAcknowledgement({
+      warnings: blocking,
+      acknowledgement: args.acknowledgement,
+      actor: identity.subject,
     });
+
+    const generatedAt = Date.now();
+    const { acknowledgement: _typed, ...packetArgs } = args;
+    const runId = await ctx.db.insert("exportPacketRuns", {
+      ...packetArgs,
+      generatedAt,
+      // Record what was affirmed, by whom, and when — the acknowledgement is
+      // part of the evidence, not merely a gate that was passed.
+      ...(ack.acknowledged
+        ? {
+            acknowledgedAt: ack.acknowledgedAt,
+            acknowledgedBy: ack.acknowledgedBy,
+            acknowledgedWarnings: ack.acknowledgedWarnings,
+          }
+        : {}),
+    });
+
+    // Mark the allocations themselves, so a later packet does not re-prompt for
+    // positions already affirmed.
+    if (ack.acknowledged) {
+      for (const a of allocations) {
+        if (a.requiresAcknowledgement && !a.acknowledgedAt) {
+          await ctx.db.patch(a._id, {
+            acknowledgedAt: ack.acknowledgedAt,
+            acknowledgedBy: ack.acknowledgedBy,
+          });
+        }
+      }
+    }
 
     await ctx.db.insert("accountingAuditEvents", {
       companyId: args.companyId,

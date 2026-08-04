@@ -211,6 +211,11 @@ export default defineSchema({
   }).index("by_company", ["companyId"]),
 
   cogsAllocations: defineTable({
+    /** Contestable positions raised by the allocation engine. */
+    warnings: v.optional(v.array(v.object({ code: v.string(), message: v.string() }))),
+    requiresAcknowledgement: v.optional(v.boolean()),
+    acknowledgedAt: v.optional(v.number()),
+    acknowledgedBy: v.optional(v.string()),
     companyId: v.id("cannabisCompanies"),
     transactionId: v.optional(v.id("transactions")),
     policyId: v.optional(v.id("allocationPolicies")),
@@ -827,4 +832,85 @@ export default defineSchema({
     status: v.union(v.literal("completed"), v.literal("partial"), v.literal("failed")),
   }).index("by_company", ["companyId"])
     .index("by_company_type", ["companyId", "runType"]),
+
+  /**
+   * Added 2026-08-03. These tables were written to by live code but were never
+   * declared in the schema. Convex enforces schemaValidation by default, so
+   * every insert failed — which is a third, independent reason the audit trail
+   * has never worked, and why CPA handoff has never produced a packet.
+   */
+  auditLogs: defineTable({
+    action: v.string(),
+    entity: v.string(),
+    entityId: v.string(),
+    userId: v.id("users"),
+    companyId: v.id("cannabisCompanies"),
+    timestamp: v.number(),
+    changes: v.array(
+      v.object({ field: v.string(), oldValue: v.any(), newValue: v.any() })
+    ),
+    metadata: v.optional(v.record(v.string(), v.any())),
+  })
+    .index("by_company", ["companyId"])
+    .index("by_entity", ["entity", "entityId"])
+    .index("by_company_timestamp", ["companyId", "timestamp"]),
+
+  accountingAuditEvents: defineTable({
+    companyId: v.id("cannabisCompanies"),
+    periodId: v.optional(v.id("reportingPeriods")),
+    exportPacketRunId: v.optional(v.id("exportPacketRuns")),
+    category: v.string(),
+    entityId: v.optional(v.string()),
+    entityLabel: v.optional(v.string()),
+    action: v.string(),
+    detail: v.optional(v.string()),
+    actor: v.optional(v.string()),
+    source: v.optional(v.string()),
+    occurredAt: v.number(),
+  })
+    .index("by_company", ["companyId"])
+    .index("by_company_category", ["companyId", "category"]),
+
+  exportPacketRuns: defineTable({
+    companyId: v.id("cannabisCompanies"),
+    periodId: v.optional(v.id("reportingPeriods")),
+    bundleId: v.string(),
+    bundleName: v.string(),
+    periodLabel: v.string(),
+    recipient: v.string(),
+    owner: v.string(),
+    status: v.union(
+      v.literal("draft"),
+      v.literal("generated"),
+      v.literal("sent"),
+      v.literal("held")
+    ),
+    selectedFormats: v.array(v.string()),
+    selectedSchedules: v.array(v.string()),
+    selectedChecklistTitles: v.array(v.string()),
+    coverMemoMode: v.union(
+      v.literal("controller_summary"),
+      v.literal("cpa_handoff"),
+      v.literal("open_items")
+    ),
+    includeDeliveryNotes: v.boolean(),
+    generatedBy: v.string(),
+    generatedAt: v.number(),
+    detail: v.string(),
+    blockers: v.array(v.string()),
+    /** Typed confirmation of contestable positions at handoff. */
+    acknowledgedAt: v.optional(v.number()),
+    acknowledgedBy: v.optional(v.string()),
+    acknowledgedWarnings: v.optional(
+      v.array(
+        v.object({
+          code: v.string(),
+          message: v.string(),
+          sourceId: v.optional(v.string()),
+        })
+      )
+    ),
+  })
+    .index("by_company", ["companyId"])
+    .index("by_company_period", ["companyId", "periodLabel"]),
 });
