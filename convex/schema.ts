@@ -913,4 +913,126 @@ export default defineSchema({
   })
     .index("by_company", ["companyId"])
     .index("by_company_period", ["companyId", "periodLabel"]),
+
+  /**
+   * Added 2026-08-03. Like the three above, these were written to by live code
+   * but never declared, so every insert failed under Convex schemaValidation.
+   * business.ts is the internal revenue/CRM layer — leads, customers, invoices,
+   * revenue events and daily metrics. None of it has ever persisted anything.
+   *
+   * Field shapes are derived from the actual insert call sites, not invented.
+   * Most fields are optional because the call sites are inconsistent: invoices
+   * alone is inserted with four different shapes. That inconsistency is worth
+   * resolving separately — a permissive schema unblocks the writes but does not
+   * make the data coherent.
+   */
+  leads: defineTable({
+    email: v.string(),
+    companyName: v.optional(v.string()),
+    contactName: v.optional(v.string()),
+    phone: v.optional(v.string()),
+    operatorType: v.optional(v.string()),
+    state: v.optional(v.string()),
+    monthlyRevenueRange: v.optional(v.string()),
+    bookkeepingMethod: v.optional(v.string()),
+    painPoints: v.optional(v.array(v.string())),
+    acquisitionSource: v.optional(v.string()),
+    utmSource: v.optional(v.string()),
+    utmMedium: v.optional(v.string()),
+    utmCampaign: v.optional(v.string()),
+    referrer: v.optional(v.string()),
+    status: v.optional(v.string()),
+    firstTouchAt: v.optional(v.number()),
+    lastTouchAt: v.optional(v.number()),
+    touchCount: v.optional(v.number()),
+    createdAt: v.optional(v.number()),
+  }).index("by_email", ["email"]).index("by_status", ["status"]),
+
+  customers: defineTable({
+    clerkUserId: v.optional(v.string()),
+    companyName: v.optional(v.string()),
+    dbaName: v.optional(v.string()),
+    operatorType: v.optional(v.string()),
+    primaryState: v.optional(v.string()),
+    states: v.optional(v.array(v.string())),
+    taxIdLast4: v.optional(v.string()),
+    contactName: v.optional(v.string()),
+    contactEmail: v.optional(v.string()),
+    contactPhone: v.optional(v.string()),
+    tier: v.optional(v.string()),
+    billingCycle: v.optional(v.string()),
+    status: v.optional(v.string()),
+    monthlyRecurringRevenue: v.optional(v.number()),
+    annualContractValue: v.optional(v.number()),
+    seats: v.optional(v.number()),
+    additionalLicenses: v.optional(v.number()),
+    trialStartsAt: v.optional(v.number()),
+    currentPeriodStartsAt: v.optional(v.number()),
+    currentPeriodEndsAt: v.optional(v.number()),
+    activatedAt: v.optional(v.number()),
+    canceledAt: v.optional(v.number()),
+    churnedAt: v.optional(v.number()),
+    acquisitionSource: v.optional(v.string()),
+    assignedTo: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+  }).index("by_status", ["status"]).index("by_clerk_user", ["clerkUserId"]),
+
+  invoices: defineTable({
+    customerId: v.optional(v.id("customers")),
+    invoiceNumber: v.optional(v.string()),
+    stripeInvoiceId: v.optional(v.string()),
+    periodStart: v.optional(v.number()),
+    periodEnd: v.optional(v.number()),
+    subtotalCents: v.optional(v.number()),
+    taxCents: v.optional(v.number()),
+    totalCents: v.optional(v.number()),
+    amountCents: v.optional(v.number()),
+    currency: v.optional(v.string()),
+    status: v.optional(v.string()),
+    paymentMethodType: v.optional(v.string()),
+    paidAt: v.optional(v.number()),
+    lineItems: v.optional(v.array(v.any())),
+    description: v.optional(v.string()),
+    quantity: v.optional(v.number()),
+    unitPriceCents: v.optional(v.number()),
+    paymentIntentId: v.optional(v.string()),
+    generatedAt: v.optional(v.number()),
+    createdAt: v.optional(v.number()),
+    notes: v.optional(v.string()),
+  }).index("by_customer", ["customerId"]).index("by_status", ["status"]),
+
+  revenueEvents: defineTable({
+    customerId: v.optional(v.id("customers")),
+    eventType: v.optional(v.string()),
+    amountCents: v.optional(v.number()),
+    recognizedAt: v.optional(v.number()),
+    servicePeriodStart: v.optional(v.number()),
+    servicePeriodEnd: v.optional(v.number()),
+    memo: v.optional(v.string()),
+    createdAt: v.optional(v.number()),
+    createdBy: v.optional(v.string()),
+  }).index("by_customer", ["customerId"]).index("by_recognized", ["recognizedAt"]),
+
+  dailyMetrics: defineTable({
+    date: v.string(),
+    activeCustomers: v.optional(v.number()),
+    churnedCustomers: v.optional(v.number()),
+    expansionMrrCents: v.optional(v.number()),
+    grossChurnCents: v.optional(v.number()),
+    cacCents: v.optional(v.number()),
+    quickRatio: v.optional(v.number()),
+    ltvCents: v.optional(v.number()),
+    mrrByTier: v.optional(v.record(v.string(), v.number())),
+    mrrByState: v.optional(v.record(v.string(), v.number())),
+    recordedAt: v.optional(v.number()),
+  }).index("by_date", ["date"]),
+
+  organizationCompanies: defineTable({
+    clerkOrgId: v.string(),
+    companyId: v.optional(v.id("cannabisCompanies")),
+    role: v.optional(v.string()),
+    invitedAt: v.optional(v.number()),
+    joinedAt: v.optional(v.number()),
+  }).index("by_org", ["clerkOrgId"]).index("by_company", ["companyId"]),
 });
