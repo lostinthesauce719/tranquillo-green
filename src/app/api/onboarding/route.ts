@@ -31,10 +31,25 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { name, states, operatorTypes, accountingMethods } = body;
 
-    // Basic validation
-    if (!name || !states?.length || !operatorTypes?.length || !accountingMethods?.length) {
+    // Name the missing fields. The previous generic "Missing required fields."
+    // gave the user no way to tell which step to go back to — and the UI let
+    // them reach this point with empty selections, so it fired routinely.
+    const missing = [
+      !name && "business name",
+      !states?.length && "operating state(s)",
+      !operatorTypes?.length && "operator type(s)",
+      !accountingMethods?.length && "accounting method(s)",
+    ].filter(Boolean) as string[];
+
+    if (missing.length > 0) {
       return NextResponse.json(
-        { ok: false, message: "Missing required fields." },
+        {
+          ok: false,
+          message: `Missing required ${
+            missing.length === 1 ? "field" : "fields"
+          }: ${missing.join(", ")}.`,
+          missing,
+        },
         { status: 400 }
       );
     }

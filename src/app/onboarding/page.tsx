@@ -228,7 +228,15 @@ export default function OnboardingPage() {
 
               <button
                 onClick={() => setStep(1)}
-                disabled={!name.trim() || states.length === 0}
+                // accountingMethods is collected on this step and is required by
+                // /api/onboarding. It was missing from this gate, so you could
+                // advance without choosing one and only find out at the final
+                // submit, as a generic "Missing required fields."
+                disabled={
+                  !name.trim() ||
+                  states.length === 0 ||
+                  accountingMethods.length === 0
+                }
                 className="w-full rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Continue
@@ -480,7 +488,16 @@ export default function OnboardingPage() {
                 </button>
                 <button
                   onClick={handleFinish}
-                  disabled={loading || !name.trim()}
+                  // Was `loading || !name.trim()`, so this stayed enabled with
+                  // empty states / operatorTypes / accountingMethods — reachable
+                  // via the Skip button — and failed server-side instead.
+                  disabled={
+                    loading ||
+                    !name.trim() ||
+                    states.length === 0 ||
+                    operatorTypes.length === 0 ||
+                    accountingMethods.length === 0
+                  }
                   className="flex-1 rounded-xl bg-brand px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand/90 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {loading ? "Creating company..." : "Create Company & Get Started"}
