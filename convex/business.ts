@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Tranquillo Green — Business API
  *
@@ -465,6 +464,15 @@ export const computeDailyMetrics = authMutation({
       .query("customers")
       .withIndex("by_status", (q) => q.eq("status", "churned"))
       .collect();
+
+    // The 30-day filter the comment above describes was never written, and the
+    // variable it should have produced (recentChurns) was referenced further
+    // down without ever being defined — a ReferenceError at runtime, hidden by
+    // @ts-nocheck. Every churn ever recorded would otherwise be counted as
+    // "this month".
+    const recentChurns = churnedCustomers.filter(
+      (c: any) => (c.churnedAt || 0) > thirtyDaysAgo
+    ).length;
 
     // ... rest of the function
     // Net retention (simplified — production would cohort-analyze)

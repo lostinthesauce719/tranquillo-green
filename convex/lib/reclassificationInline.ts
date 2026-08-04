@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Shared 471(c) reclassification logic.
  * Can be called from within any mutation context (no action/scheduler needed).
@@ -34,11 +33,31 @@ import {
   type MeasuredBasis,
 } from "./reclassificationBasis";
 
+export interface ReclassificationSkip {
+  accountCode: string;
+  reason: string;
+  whatToDo: string;
+}
+
+export interface ReclassificationBasisRecord {
+  accountCode: string;
+  originalAmount: number;
+  reclassifiedAmount: number;
+  basisKind: string;
+  basisRatio: number;
+  explanation: string;
+  inputs: Record<string, number>;
+}
+
 export async function apply471cReclassificationInline(ctx: any, transactionId: string): Promise<{
   applied: boolean;
   reason?: string;
   reclassificationTransactionId?: string;
   reclassAmount?: number;
+  /** Bases used, for the support schedule. */
+  basis?: ReclassificationBasisRecord[];
+  /** Accounts declined, and what the operator can do about each. */
+  skipped?: ReclassificationSkip[];
 }> {
   const txn = await ctx.db.get(transactionId);
   if (!txn) return { applied: false, reason: "transaction_not_found" };
@@ -106,7 +125,7 @@ export async function apply471cReclassificationInline(ctx: any, transactionId: s
     if ((account.taxTreatment as string) !== "nondeductible") continue;
 
     const resolution = resolveBasis(account.code, account.name ?? account.code, measurements);
-    if (!resolution.ok) {
+    if (resolution.ok === false) {
       skipped.push({
         accountCode: account.code,
         reason: resolution.refusal.reason,

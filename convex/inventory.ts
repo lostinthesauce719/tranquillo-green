@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { authMutation, authQuery } from "./lib/withAuth";
 import { v } from "convex/values";
 
@@ -408,7 +407,7 @@ export const syncMetrcInventory = authMutation({
       // --- Resolve location ---
       let locationId: string | undefined;
       if (pkg.LocationName) {
-        locationId = locMap.get(pkg.LocationName.toLowerCase());
+        locationId = locMap.get(pkg.LocationName.toLowerCase()) as string | undefined;
       }
 
       const pkgTag = pkg.Tag;

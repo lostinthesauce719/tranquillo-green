@@ -16,7 +16,6 @@ import type * as audit from "../audit.js";
 import type * as auditTrail from "../auditTrail.js";
 import type * as automation from "../automation.js";
 import type * as business from "../business.js";
-import type * as businessApi from "../businessApi.js";
 import type * as businessSchema from "../businessSchema.js";
 import type * as cannabisCompanies from "../cannabisCompanies.js";
 import type * as cashAccounts from "../cashAccounts.js";
@@ -71,7 +70,6 @@ declare const fullApi: ApiFromModules<{
   auditTrail: typeof auditTrail;
   automation: typeof automation;
   business: typeof business;
-  businessApi: typeof businessApi;
   businessSchema: typeof businessSchema;
   cannabisCompanies: typeof cannabisCompanies;
   cashAccounts: typeof cashAccounts;

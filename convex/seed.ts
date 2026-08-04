@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { v } from "convex/values";
 import { authQuery, authMutation, requireCurrentUserRecord } from "./lib/withAuth";
 import { californiaOperatorDemo, demoReportingPeriods, demoTransactions } from "../src/lib/demo/accounting";

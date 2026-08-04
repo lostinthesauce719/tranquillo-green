@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { v } from "convex/values";
 import { authMutation, authQuery, requireCompanyAccessById } from "./lib/withAuth";
 

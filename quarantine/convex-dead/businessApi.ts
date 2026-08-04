@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Tranquillo Green — Business API Interface
  *

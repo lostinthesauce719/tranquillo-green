@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Batch 471(c) reclassification for existing transactions.
  * 

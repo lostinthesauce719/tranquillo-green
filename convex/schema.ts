@@ -1016,6 +1016,10 @@ export default defineSchema({
 
   dailyMetrics: defineTable({
     date: v.string(),
+    mrrCents: v.optional(v.number()),
+    arrCents: v.optional(v.number()),
+    newCustomers: v.optional(v.number()),
+    netRetentionPercentage: v.optional(v.number()),
     activeCustomers: v.optional(v.number()),
     churnedCustomers: v.optional(v.number()),
     expansionMrrCents: v.optional(v.number()),
