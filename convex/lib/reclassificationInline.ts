@@ -156,6 +156,14 @@ export async function apply471cReclassificationInline(ctx: any, transactionId: s
     });
   }
 
+  // Persist the skips on the source transaction. They were being computed and
+  // returned, then discarded — so an operator reviewing a posted journal saw
+  // rent and labour treated, advertising untouched, and no explanation
+  // anywhere. The reason already existed; it just never reached them.
+  if (skipped.length > 0) {
+    await ctx.db.patch(transactionId, { reclassificationSkips: skipped });
+  }
+
   if (reclassEntries.length === 0) {
     return {
       applied: false,
@@ -238,6 +246,11 @@ export async function apply471cReclassificationInline(ctx: any, transactionId: s
     debit: totalReclass,
     credit: 0,
     locationId: txn.locationId,
+  });
+
+  await ctx.db.patch(transactionId, {
+    reclassificationTransactionId: reclassTxnId,
+    reclassificationAmount: totalReclass,
   });
 
   return {

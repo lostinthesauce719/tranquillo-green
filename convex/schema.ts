@@ -157,6 +157,24 @@ export default defineSchema({
   }).index("by_company", ["companyId"]).index("by_company_label", ["companyId", "label"]),
 
   transactions: defineTable({
+    /**
+     * Accounts the 471(c) engine declined to reclassify, and what the operator
+     * can do about each. Previously computed and thrown away, so an operator
+     * saw some costs treated and others not, with no explanation.
+     */
+    reclassificationSkips: v.optional(
+      v.array(
+        v.object({
+          accountCode: v.string(),
+          reason: v.string(),
+          whatToDo: v.string(),
+        })
+      )
+    ),
+    /** Link to the reclassification journal this transaction produced. */
+    reclassificationTransactionId: v.optional(v.id("transactions")),
+    reclassificationAmount: v.optional(v.number()),
+
     /** Contestable positions carried to the handoff gate (e.g. 471(c) reclass). */
     warnings: v.optional(v.array(v.object({ code: v.string(), message: v.string() }))),
     requiresAcknowledgement: v.optional(v.boolean()),

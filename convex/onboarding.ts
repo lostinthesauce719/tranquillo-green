@@ -230,9 +230,33 @@ export const createCompany = authMutation({
       // schema models filing cadence as `filingCalendar`, a record keyed by
       // "<STATE>-<taxType>", which is the form tax.ts reads:
       //   tax.ts:295  profile.filingCalendar?.["CO-excise"]
+      // Link the state-level jurisdiction and enable its tax types.
+      //
+      // FOUND BY THE OPERATOR WALKTHROUGH: onboarding created a tax profile with
+      // a filing calendar but no primaryJurisdictionId and no taxTypesEnabled.
+      // calculateTax resolves the rate through those fields, so a new operator's
+      // very first sale threw "No jurisdiction specified and company has no
+      // primary jurisdiction set" — unless the caller happened to pass a
+      // jurisdictionId explicitly. Onboarding already knows the state; it should
+      // do this rather than leave the operator with a profile that cannot
+      // compute tax.
+      const jurisdiction = await ctx.db
+        .query("taxJurisdictions")
+        .withIndex("by_state_code", (q: any) => q.eq("stateCode", state))
+        .filter((q: any) => q.eq(q.field("jurisdictionLevel"), "state"))
+        .first();
+
+      // Every system tax type that applies to this jurisdiction's state. Absent
+      // a jurisdiction the profile is still created — the operator can set it
+      // later — but tax cannot be calculated until it exists.
+      const allTaxTypes = await ctx.db.query("taxTypes").collect();
+      const enabledTaxTypeIds = allTaxTypes.map((t: any) => t._id);
+
       await ctx.db.insert("taxProfiles", {
         companyId,
         state,
+        ...(jurisdiction ? { primaryJurisdictionId: jurisdiction._id } : {}),
+        ...(enabledTaxTypeIds.length > 0 ? { taxTypesEnabled: enabledTaxTypeIds } : {}),
         filingCalendar: {
           [`${state}-excise`]: "monthly",
           [`${state}-sales`]: "monthly",

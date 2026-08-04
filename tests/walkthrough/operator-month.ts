@@ -79,7 +79,17 @@ async function main() {
     // A Clerk user exists after sign-in but has no company yet.
     users: [{ _id: "user_owner", clerkId: CLERK_ID, companyId: undefined, role: "owner" }],
     taxJurisdictions: [
-      { _id: "jur_co", stateCode: "CO", jurisdictionName: "Colorado", companyId: null },
+      {
+        _id: "jur_co",
+        stateCode: "CO",
+        jurisdictionName: "Colorado",
+        jurisdictionLevel: "state",
+        filingFrequency: "monthly",
+        isActive: true,
+        companyId: null,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      },
     ],
     taxTypes: [
       {
@@ -154,10 +164,15 @@ async function main() {
   const profile = db.rows("taxProfiles")[0];
   if (profile) {
     ok("tax profile auto-created", `state ${profile.state}, calendar ${JSON.stringify(profile.filingCalendar)}`);
-    if (!profile.primaryJurisdictionId) {
+    if (profile.primaryJurisdictionId && profile.taxTypesEnabled?.length) {
+      ok(
+        "jurisdiction linked automatically",
+        `${profile.primaryJurisdictionId} with ${profile.taxTypesEnabled.length} tax types enabled — tax works on the first sale`
+      );
+    } else {
       friction(
         "tax profile has no jurisdiction",
-        "onboarding does not link the CO jurisdiction, so calculateTax cannot resolve a rate without an explicit jurisdictionId"
+        "calculateTax cannot resolve a rate without an explicit jurisdictionId"
       );
       await db.patch(profile._id, { primaryJurisdictionId: "jur_co", taxTypesEnabled: ["tt_excise", "tt_sales"] });
     }
@@ -300,7 +315,14 @@ async function main() {
         );
       } else if (res.skipped?.length) {
         for (const s of res.skipped) {
-          friction(`skipped ${txn.reference} acct ${s.accountCode}`, s.reason);
+          // Declining a categorically non-inventoriable account is the engine
+          // working, not friction — provided the reason reaches the operator,
+          // which STEP 10 verifies.
+          const correct = /not inventoriable/.test(s.reason);
+          (correct ? ok : friction)(
+            `${correct ? "correctly declined" : "skipped"} ${txn.reference} acct ${s.accountCode}`,
+            s.reason
+          );
         }
       }
     } catch (e: any) {
@@ -345,6 +367,16 @@ async function main() {
 
   /* ── 8. Retail sales and tax ───────────────────────────────────────────── */
   console.log("\nSTEP 8 — Calculate tax on March retail sales");
+
+  await attempt("first sale without an explicit jurisdiction", async () => {
+    const r = await call(calculateTax, ctx, {
+      companyId,
+      transactionAmount: 100,
+      productCategory: "flower",
+      transactionDate: new Date(2026, 2, 15).getTime(),
+    });
+    return `resolved from the profile: $${r.totalTax.toFixed(2)} on $100`;
+  });
 
   const SALES = [412.5, 88.99, 1_240.0, 76.25, 2_015.75, 33.4];
   let taxRuns = 0;
@@ -489,6 +521,17 @@ async function main() {
     broken("advertising was reclassified", "a selling cost is not inventoriable under 1.471-3 or 1.471-11");
   } else {
     ok("advertising correctly left alone", "selling costs are never inventoriable");
+  }
+
+  // The advertising skip must be visible on the journal itself.
+  const advTxn = db.rows("transactions").find((t: any) => t.reference === "ADV-221");
+  if (advTxn?.reclassificationSkips?.length) {
+    ok(
+      "skip reason is on the journal",
+      `${advTxn.reclassificationSkips[0].accountCode}: ${advTxn.reclassificationSkips[0].whatToDo}`
+    );
+  } else {
+    friction("skip reason not persisted", "the operator sees advertising untreated with no explanation");
   }
 
   // Every reclassification journal must balance.
