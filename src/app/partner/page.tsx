@@ -268,8 +268,14 @@ function PricingCard({
           ))}
         </ul>
       </div>
-      <button
-        className={`mt-8 w-full rounded-xl py-3 text-sm font-semibold transition-all duration-200 ${
+      {/*
+        Was a <button> with no handler on a public marketing page — the CTA on
+        every pricing tier did nothing when clicked. As a server component there
+        was never a handler to attach; these navigate, so they are links.
+      */}
+      <Link
+        href={cta.toLowerCase().includes("partner") ? "/contact?intent=partner" : "/sign-up"}
+        className={`mt-8 block w-full rounded-xl py-3 text-center text-sm font-semibold transition-all duration-200 ${
           highlighted
             ? "text-white hover:opacity-90"
             : "border border-border hover:border-brand/50 hover:bg-brand/5"
@@ -281,7 +287,7 @@ function PricingCard({
         }
       >
         {cta}
-      </button>
+      </Link>
     </div>
   );
 }
@@ -347,16 +353,26 @@ export default function PartnerPage() {
               it under your firm&apos;s brand.
             </p>
             <div className="mt-10 flex flex-wrap gap-4">
-              <button
+              {/*
+                The primary CTA on the public partner page was a dead <button>.
+                Every firm that clicked it got nothing — a lead lost silently.
+                The intent parameter lets /contact pre-select the partner enquiry
+                rather than dropping them on a generic form.
+              */}
+              <Link
+                href="/contact?intent=partner"
                 className="inline-flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-semibold text-white transition-all duration-200 hover:opacity-90"
                 style={{ backgroundColor: "var(--brand)" }}
               >
                 Apply for Partner Access
                 <ArrowRight className="h-4 w-4" />
-              </button>
-              <button className="inline-flex items-center gap-2 rounded-xl border border-border px-6 py-3 text-sm font-semibold text-text-primary transition-all duration-200 hover:border-brand/50 hover:bg-brand/5">
+              </Link>
+              <Link
+                href="/demo"
+                className="inline-flex items-center gap-2 rounded-xl border border-border px-6 py-3 text-sm font-semibold text-text-primary transition-all duration-200 hover:border-brand/50 hover:bg-brand/5"
+              >
                 Watch Demo
-              </button>
+              </Link>
             </div>
             <div className="mt-8 flex flex-wrap items-center gap-6 text-sm text-text-muted">
               <div className="flex items-center gap-2">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { AppShell } from "@/components/shell/app-shell";
 import {
   RefreshCw,
@@ -119,12 +120,19 @@ export default function MetrcReconciliationPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-xs font-medium text-text-secondary hover:border-brand/30 hover:text-brand transition-colors">
+            {/* Both were dead buttons. They navigate to the real workspaces. */}
+            <Link
+              href="/dashboard/accounting/imports"
+              className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-xs font-medium text-text-secondary hover:border-brand/30 hover:text-brand transition-colors"
+            >
               <Upload className="h-3 w-3" /> Import CSV
-            </button>
-            <button className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/90 transition-colors">
+            </Link>
+            <Link
+              href="/dashboard/metrc/sync"
+              className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/90 transition-colors"
+            >
               <RefreshCw className="h-3 w-3" /> Sync Now
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -196,12 +204,28 @@ export default function MetrcReconciliationPage() {
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-2">
                       {pkg.status === "variance" && (
-                        <button className="rounded px-2 py-1 text-xs text-brand hover:bg-brand/10 transition-colors">Investigate</button>
+                        <button
+                          disabled
+                          title="Sample data — a variance workflow is not built yet"
+                          className="rounded px-2 py-1 text-xs text-text-faint cursor-not-allowed"
+                        >
+                          Investigate
+                        </button>
                       )}
                       {pkg.status === "investigating" && (
-                        <button className="rounded px-2 py-1 text-xs text-emerald-400 hover:bg-emerald-500/10 transition-colors">Resolve</button>
+                        <button
+                          disabled
+                          title="Sample data — a variance workflow is not built yet"
+                          className="rounded px-2 py-1 text-xs text-text-faint cursor-not-allowed"
+                        >
+                          Resolve
+                        </button>
                       )}
-                      <button className="rounded p-1 text-text-faint hover:text-text-secondary transition-colors">
+                      <button
+                        disabled
+                        title="Sample data"
+                        className="rounded p-1 text-text-faint/50 cursor-not-allowed"
+                      >
                         <ExternalLink className="h-3 w-3" />
                       </button>
                     </div>
@@ -218,12 +242,12 @@ export default function MetrcReconciliationPage() {
             Showing {filteredPackages.length} of {SUMMARY.totalPackages} packages
           </div>
           <div className="flex items-center gap-2">
-            <button className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-xs font-medium text-text-secondary hover:border-brand/30 hover:text-brand transition-colors">
+            <Link href="/dashboard/exports" className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-xs font-medium text-text-secondary hover:border-brand/30 hover:text-brand transition-colors">
               <Download className="h-3 w-3" /> Export Report
-            </button>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-xs font-medium text-text-secondary hover:border-brand/30 hover:text-brand transition-colors">
+            </Link>
+            <Link href="/dashboard/exports" className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-xs font-medium text-text-secondary hover:border-brand/30 hover:text-brand transition-colors">
               <Download className="h-3 w-3" /> Export for CPA
-            </button>
+            </Link>
           </div>
         </div>
       </div>

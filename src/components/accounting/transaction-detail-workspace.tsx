@@ -225,7 +225,16 @@ export function TransactionDetailWorkspace({ transaction, detail }: { transactio
             <div className="text-xs uppercase tracking-[0.2em] text-accent">Reviewer actions</div>
             <div className="mt-4 grid gap-3">
               {detail.reviewerActions.map((action) => (
-                <button key={action.label} className={`rounded-2xl border px-4 py-3 text-left text-sm transition hover:opacity-90 ${actionToneClass(action.tone)}`}>
+                /* reviewerActions come from demo fixtures and no reviewer
+                   mutation exists, which the note below already admits. A
+                   disabled control with a reason is honest; one that looks
+                   clickable and does nothing is not. */
+                <button
+                  key={action.label}
+                  disabled
+                  title="Reviewer actions are not yet persisted"
+                  className={`rounded-2xl border px-4 py-3 text-left text-sm opacity-60 cursor-not-allowed ${actionToneClass(action.tone)}`}
+                >
                   <div className="font-medium">{action.label}</div>
                   <div className="mt-1 opacity-90">{action.detail}</div>
                 </button>

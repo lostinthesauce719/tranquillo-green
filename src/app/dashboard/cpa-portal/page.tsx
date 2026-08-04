@@ -102,6 +102,34 @@ export default function CPAPartnerPortal() {
   return (
     <AppShell title="CPA Partner Portal" description="Manage all your cannabis clients from one dashboard.">
       <div className="space-y-6">
+        {/*
+          This page renders entirely from static arrays — the clients,
+          allocations and metrics below are illustrative, not records. Its
+          buttons were unwired, and wiring them would have made sample clients
+          look actionable, which is worse than a dead control. The ones that
+          navigate now point at the real workspaces; the ones that would act on
+          a non-existent client are disabled with a reason.
+
+          Say so plainly rather than letting an accountant mistake this for
+          their own client list.
+        */}
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+          <div className="text-sm font-medium text-text-primary">
+            Preview — the clients below are sample data
+          </div>
+          <p className="mt-1 text-xs text-text-muted">
+            Client management isn&apos;t built yet. Allocation and export both
+            work today on your own company:{" "}
+            <Link href="/dashboard/allocations" className="text-accent hover:text-accent/80">
+              run an allocation
+            </Link>{" "}
+            or{" "}
+            <Link href="/dashboard/exports" className="text-accent hover:text-accent/80">
+              build a CPA packet
+            </Link>
+            .
+          </p>
+        </div>
         {/* Partner banner */}
         <div className="rounded-lg border border-brand/20 bg-brand/5 px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -147,10 +175,20 @@ export default function CPAPartnerPortal() {
                   className="w-full h-10 rounded-lg border border-border bg-surface pl-10 pr-3 text-sm text-text-primary placeholder:text-text-faint focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand" />
               </div>
               <div className="flex items-center gap-2">
-                <button className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs text-text-muted hover:text-text-secondary transition-colors">
+                {/* No client-management backend exists. Disabled with a reason
+                    beats a button that silently does nothing. */}
+                <button
+                  disabled
+                  title="Not yet available"
+                  className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs text-text-faint cursor-not-allowed"
+                >
                   <Filter className="h-3 w-3" /> Filter
                 </button>
-                <button className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/90 transition-colors">
+                <button
+                  disabled
+                  title="Client management is not built yet"
+                  className="inline-flex items-center gap-2 rounded-lg bg-brand/40 px-4 py-2 text-xs font-semibold text-white/60 cursor-not-allowed"
+                >
                   <Plus className="h-3 w-3" /> Add Client
                 </button>
               </div>
@@ -189,10 +227,21 @@ export default function CPAPartnerPortal() {
                     <span>Last allocation: {client.lastAllocation}</span>
                     <div className="flex items-center gap-4">
                       <span>${client.monthlySpend}/mo</span>
-                      <button className="inline-flex items-center gap-1 text-brand hover:text-brand/80">
+                      {/* These act on the sample clients above, which are not
+                          real records. Disabled rather than wired, so they do
+                          not imply an action on a client that does not exist. */}
+                      <button
+                        disabled
+                        title="Sample data — connect real clients to enable"
+                        className="inline-flex items-center gap-1 text-text-faint cursor-not-allowed"
+                      >
                         <Eye className="h-3 w-3" /> View
                       </button>
-                      <button className="inline-flex items-center gap-1 text-brand hover:text-brand/80">
+                      <button
+                        disabled
+                        title="Sample data — connect real clients to enable"
+                        className="inline-flex items-center gap-1 text-text-faint cursor-not-allowed"
+                      >
                         <FileText className="h-3 w-3" /> Export
                       </button>
                     </div>
@@ -208,9 +257,12 @@ export default function CPAPartnerPortal() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-text-primary">Recent Allocations</h3>
-              <button className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/90 transition-colors">
+              <Link
+                href="/dashboard/allocations"
+                className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/90 transition-colors"
+              >
                 <Plus className="h-3 w-3" /> Run Allocation
-              </button>
+              </Link>
             </div>
 
             <div className="rounded-xl border border-border bg-surface-raised overflow-hidden">
@@ -253,9 +305,12 @@ export default function CPAPartnerPortal() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-text-primary">Export Center</h3>
-              <button className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/90 transition-colors">
+              <Link
+                href="/dashboard/exports"
+                className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/90 transition-colors"
+              >
                 <Download className="h-3 w-3" /> Build Packet
-              </button>
+              </Link>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -278,9 +333,12 @@ export default function CPAPartnerPortal() {
                     </div>
                   </div>
                   <p className="text-xs text-text-muted mb-3">{exportItem.description}</p>
-                  <button className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-medium text-text-secondary hover:border-brand/30 hover:text-brand transition-colors">
+                  <Link
+                    href="/dashboard/exports"
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-medium text-text-secondary hover:border-brand/30 hover:text-brand transition-colors"
+                  >
                     <Download className="h-3 w-3" /> Generate
-                  </button>
+                  </Link>
                 </div>
               ))}
             </div>

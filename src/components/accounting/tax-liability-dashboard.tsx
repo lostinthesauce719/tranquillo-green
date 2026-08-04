@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useTenant } from "@/lib/auth/tenant-context";
 
 interface TaxLiabilityDashboardProps {
@@ -104,9 +105,15 @@ export function TaxLiabilityDashboard({ className }: TaxLiabilityDashboardProps)
                 ))}
               </div>
               <div className="mt-3 flex justify-end">
-                <button className="rounded-lg border border-brand bg-brand/10 px-3 py-1.5 text-xs font-medium text-brand hover:bg-brand/20">
+                {/* Was a dead button. The per-tax-type breakdown is already
+                    rendered above it, so the useful destination is the reports
+                    workspace rather than a modal repeating what is on screen. */}
+                <Link
+                  href="/dashboard/accounting/reports"
+                  className="rounded-lg border border-brand bg-brand/10 px-3 py-1.5 text-xs font-medium text-brand hover:bg-brand/20"
+                >
                   View Details
-                </button>
+                </Link>
               </div>
             </div>
           ))}
