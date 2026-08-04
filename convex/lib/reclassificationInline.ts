@@ -14,28 +14,25 @@
  *  - Credit each reclassifiable expense line's account for its reclass portion
  */
 
-const RECLASS_PERCENTAGES: Record<string, Record<string, number>> = {
-  dispensary: {
-    "4210": 0.45,  // Rent → 45% reclass
-    "4200": 0.55,  // Labor → 55% reclass
-  },
-  cultivator: {
-    "4210": 0.45,
-    "4200": 0.55,
-  },
-  manufacturer: {
-    "4210": 0.45,
-    "4200": 0.55,
-  },
-  distributor: {
-    "4210": 0.45,
-    "4200": 0.55,
-  },
-  vertical: {
-    "4210": 0.45,
-    "4200": 0.55,
-  },
-};
+// The hardcoded RECLASS_PERCENTAGES table was removed on 2026-08-03.
+//
+// It held rent 45% / labour 55%, identical across dispensary, cultivator,
+// manufacturer, distributor and vertical, plus a 40% catch-all for every other
+// nondeductible account. No IRS safe harbour establishes those figures; searches
+// of IRS guidance, The Tax Adviser, the Journal of Accountancy and AICPA
+// material found nothing supporting them. They were unsourced placeholders
+// generating real tax positions on every posted transaction.
+//
+// Percentages now come from measured operational data — floor area and hours
+// worked, the bases CCA 201504011 and Reg. 1.471-11 contemplate. Where no
+// measurement exists, nothing is reclassified and the operator is told which
+// measurement to supply.
+import {
+  resolveBasis,
+  NEVER_INVENTORIABLE_CODES,
+  type CompanyMeasurements,
+  type MeasuredBasis,
+} from "./reclassificationBasis";
 
 export async function apply471cReclassificationInline(ctx: any, transactionId: string): Promise<{
   applied: boolean;
@@ -87,26 +84,65 @@ export async function apply471cReclassificationInline(ctx: any, transactionId: s
     .withIndex("by_transaction", (q: any) => q.eq("transactionId", transactionId))
     .collect();
 
-  const pctMap = RECLASS_PERCENTAGES[operatorType] || {};
-  const defaultPct = (election.reclassifiablePct as any)?.default ?? 0.4;
+  // Measurements recorded against the company. Absent these, nothing is
+  // reclassified — there is no fallback percentage.
+  const measurements: CompanyMeasurements = {
+    productionSqFt: company.productionSqFt,
+    totalSqFt: company.totalSqFt,
+    productionHours: company.productionHours,
+    totalHours: company.totalHours,
+    declaredRatios: company.declaredReclassRatios,
+  };
 
   const reclassEntries: any[] = [];
+  /** Accounts we declined to reclassify, and what the operator can do about it. */
+  const skipped: Array<{ accountCode: string; reason: string; whatToDo: string }> = [];
+
   for (const line of lines) {
     const account = await ctx.db.get(line.accountId);
     if (!account) continue;
     const amount = Math.abs((line.debit ?? 0) - (line.credit ?? 0));
     if (amount <= 0) continue;
     if ((account.taxTreatment as string) !== "nondeductible") continue;
-    const acctCode = account.code;
-    const pct = pctMap[acctCode] ?? defaultPct;
-    if (pct <= 0) continue;
-    const reclassAmount = Math.round(amount * pct * 100) / 100;
+
+    const resolution = resolveBasis(account.code, account.name ?? account.code, measurements);
+    if (!resolution.ok) {
+      skipped.push({
+        accountCode: account.code,
+        reason: resolution.refusal.reason,
+        whatToDo: resolution.refusal.whatToDo,
+      });
+      continue;
+    }
+
+    const basis: MeasuredBasis = resolution.basis;
+    if (basis.ratio <= 0) continue;
+
+    const reclassAmount = Math.round(amount * basis.ratio * 100) / 100;
     if (reclassAmount < 0.01) continue;
-    reclassEntries.push({ accountId: line.accountId, acctCode, amount: reclassAmount });
+
+    reclassEntries.push({
+      accountId: line.accountId,
+      acctCode: account.code,
+      amount: reclassAmount,
+      // Evidence, carried through to the support schedule. This is the whole
+      // point: an examiner asks how the figure was reached, and the answer is
+      // recorded rather than reconstructed.
+      basisKind: basis.kind,
+      basisRatio: basis.ratio,
+      basisExplanation: basis.explanation,
+      basisInputs: basis.inputs,
+      originalAmount: amount,
+    });
   }
 
   if (reclassEntries.length === 0) {
-    return { applied: false, reason: "no_reclassifiable_lines" };
+    return {
+      applied: false,
+      reason: "no_reclassifiable_lines",
+      // Tell the operator what is missing rather than silently doing nothing.
+      skipped,
+    };
   }
 
   const totalReclass = reclassEntries.reduce((s: number, e: any) => s + e.amount, 0);
@@ -155,6 +191,12 @@ export async function apply471cReclassificationInline(ctx: any, transactionId: s
       debit: 0,
       credit: entry.amount,
       locationId: txn.locationId,
+      // Substantiation travels with the entry.
+      basisKind: entry.basisKind,
+      basisRatio: entry.basisRatio,
+      basisExplanation: entry.basisExplanation,
+      basisInputs: entry.basisInputs,
+      originalAmount: entry.originalAmount,
     });
   }
 
@@ -171,5 +213,17 @@ export async function apply471cReclassificationInline(ctx: any, transactionId: s
     applied: true,
     reclassificationTransactionId: reclassTxnId,
     reclassAmount: totalReclass,
+    // Every basis used, so the caller can render a support schedule without
+    // re-deriving anything.
+    basis: reclassEntries.map((e: any) => ({
+      accountCode: e.acctCode,
+      originalAmount: e.originalAmount,
+      reclassifiedAmount: e.amount,
+      basisKind: e.basisKind,
+      basisRatio: e.basisRatio,
+      explanation: e.basisExplanation,
+      inputs: e.basisInputs,
+    })),
+    skipped,
   };
 }

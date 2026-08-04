@@ -31,6 +31,30 @@ export default defineSchema({
     inventoryRole: v.optional(
       v.union(v.literal("reseller"), v.literal("producer"))
     ),
+    /**
+     * Measured bases for 471(c) reclassification and COGS allocation.
+     *
+     * These replaced a hardcoded rent 45% / labour 55% table with a 40%
+     * catch-all. Reg. 1.471-11 and CCA 201504011 contemplate measured
+     * allocations — floor area, direct labour hours — and a measurement is what
+     * substantiates the figure if it is examined. When these are absent the
+     * engine reclassifies nothing and tells the operator what to record.
+     */
+    productionSqFt: v.optional(v.number()),
+    totalSqFt: v.optional(v.number()),
+    productionHours: v.optional(v.number()),
+    totalHours: v.optional(v.number()),
+    /**
+     * Per-account percentages entered explicitly by the operator or their
+     * accountant, keyed by account code, expressed 0..1. A note is expected —
+     * an unexplained percentage is the problem this replaced.
+     */
+    declaredReclassRatios: v.optional(
+      v.record(
+        v.string(),
+        v.object({ ratio: v.number(), note: v.optional(v.string()) })
+      )
+    ),
     operatorType: v.union(
       v.literal("dispensary"),
       v.literal("cultivator"),

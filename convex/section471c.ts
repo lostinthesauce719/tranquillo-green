@@ -7,6 +7,7 @@
 // caller belongs to the companyId being written.
 import { authMutation, authQuery } from "./lib/withAuth";
 import { v } from "convex/values";
+import { grossReceiptsThreshold } from "./lib/taxConstants";
 
 /**
  * IRC Section 471(c) Election Management
@@ -51,12 +52,20 @@ export const testEligibility = authQuery({
   handler: async (ctx, args) => {
     const totalReceipts = args.priorYear1Receipts + args.priorYear2Receipts + args.priorYear3Receipts;
     const averageReceipts = totalReceipts / 3;
-    const threshold = 25_000_000;
-    
+    // The IRC 448(c) threshold is inflation-adjusted annually. This was
+    // hardcoded at 25,000,000 — the 2018 figure — which denied the election to
+    // every operator between $25M and the current amount ($32M for 2026).
+    // The election year is the year following the three prior years supplied.
+    const electionYear = Math.max(args.priorYear1, args.priorYear2, args.priorYear3) + 1;
+    const entry = grossReceiptsThreshold(electionYear);
+    const threshold = entry.amount;
+
     return {
       eligible: averageReceipts <= threshold,
       averageGrossReceipts: averageReceipts,
       threshold,
+      thresholdYear: entry.year,
+      thresholdSource: entry.source,
       priorYears: [
         { taxYear: args.priorYear1, grossReceipts: args.priorYear1Receipts },
         { taxYear: args.priorYear2, grossReceipts: args.priorYear2Receipts },
@@ -87,7 +96,10 @@ export const recordElection = authMutation({
   handler: async (ctx, args) => {
     const totalReceipts = args.priorYear1Receipts + args.priorYear2Receipts + args.priorYear3Receipts;
     const averageReceipts = totalReceipts / 3;
-    const threshold = 25_000_000;
+    const electionYear =
+      args.taxYear ?? Math.max(args.priorYear1, args.priorYear2, args.priorYear3) + 1;
+    const entry = grossReceiptsThreshold(electionYear);
+    const threshold = entry.amount;
     const eligible = averageReceipts <= threshold;
     
     // Check for existing election
@@ -101,7 +113,11 @@ export const recordElection = authMutation({
     }
     
     if (!eligible) {
-      throw new Error(`Company is not eligible for 471(c). Average gross receipts (${averageReceipts.toLocaleString()}) exceed the $25M threshold.`);
+      throw new Error(
+        `Company is not eligible for 471(c) in ${electionYear}. Average gross receipts ` +
+        `($${averageReceipts.toLocaleString()}) exceed the $${threshold.toLocaleString()} ` +
+        `threshold (${entry.source}).`
+      );
     }
     
     const electionId = await ctx.db.insert("section471cElections", {
