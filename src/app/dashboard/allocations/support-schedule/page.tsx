@@ -1,8 +1,7 @@
 "use client";
 
 import { AppShell } from "@/components/shell/app-shell";
-import { SupportScheduleReport } from "@/components/accounting/support-schedule-report";
-import { demoSupportScheduleReport } from "@/lib/demo/accounting-reports";
+import { SupportScheduleClient } from "./support-schedule-client";
 import { useTenant } from "@/lib/auth/tenant-context";
 import { getOperatorProfile, getCogsCategories, getNondeductibleCategories, getReclassifiable471cCosts, getFullyNondeductibleCosts } from "@/lib/operator-profiles";
 
@@ -17,7 +16,7 @@ export default function SupportSchedulePage() {
   return (
     <AppShell
       title="280E support schedule"
-      description="First-pass support schedule for deductible versus nondeductible allocations. The page is demo-backed and static-safe, but organized like an audit-ready monthly tax workpaper."
+      description="Deductible versus nondeductible allocations for the selected period, with the measured basis behind each one. Built from your posted transactions."
     >
       {/* Operator-specific COGS vs nondeductible breakdown */}
       <div className="mb-6 rounded-2xl border border-border bg-surface-mid p-5">
@@ -66,7 +65,24 @@ export default function SupportSchedulePage() {
             <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-violet-300">Key Advantage</span>
           </div>
           <p className="mt-2 text-xs text-text-muted">
-            These costs are nondeductible under 280E alone, but can be capitalized into COGS under IRC 471(c) small business inventory method election.
+            These costs are nondeductible under 280E alone, but may be capitalized into COGS under an IRC 471(c) election. Which of them qualify, and in what proportion, depends on your own measurements — square footage, hours, or another basis you can evidence.
+          </p>
+          {/*
+            This block previously printed a percentage against each category —
+            "45% → COGS under 471(c)" and so on. Those figures were invented.
+            They are the same hardcoded 45/55 constants that were removed from
+            the allocation engine, and they survived here, on the one page whose
+            job is to be defensible.
+
+            A number on a support schedule implies a measurement behind it. These
+            had none. The categories themselves are useful orientation, so they
+            stay; the fabricated proportions do not.
+          */}
+          <p className="mt-2 text-xs text-violet-200/80">
+            No percentage is shown here on purpose. A reclassification rate has to
+            come from your facility and payroll figures, not from a category
+            default. The schedule below states the measured basis actually used
+            for each cost.
           </p>
           <div className="mt-3 grid gap-3 md:grid-cols-2">
             <div className="space-y-2">
@@ -77,7 +93,7 @@ export default function SupportSchedulePage() {
                   <div>
                     <div className="text-text-primary">{cat.name}</div>
                     <div className="text-xs text-text-muted">{cat.description}</div>
-                    <div className="text-xs text-violet-200">{((cat.reclassifiablePercentage471c ?? 0) * 100).toFixed(0)}% → COGS under 471(c)</div>
+                    <div className="text-xs text-violet-200">Eligible for 471(c) treatment — rate must be measured</div>
                   </div>
                 </div>
               ))}
@@ -99,7 +115,7 @@ export default function SupportSchedulePage() {
         </div>
       </div>
 
-      <SupportScheduleReport report={demoSupportScheduleReport} />
+      <SupportScheduleClient />
     </AppShell>
   );
 }

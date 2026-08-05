@@ -253,6 +253,64 @@ export async function apply471cReclassificationInline(ctx: any, transactionId: s
     reclassificationAmount: totalReclass,
   });
 
+  /*
+   * Record each reclassification as an allocation.
+   *
+   * This was missing, and it mattered more than it looks. A 471(c)
+   * reclassification is exactly what a cogsAllocation describes: a cost split
+   * into a COGS-eligible part and a nondeductible part, on a stated basis. But
+   * this function only ever wrote the journal, and the 280E support schedule
+   * reads cogsAllocations.
+   *
+   * The consequence: for a company whose books were entirely correct — the
+   * walkthrough operator, whose rent and labour reclassified cleanly to $12,025
+   * and $30,975 — the support schedule showed none of it. The single largest
+   * 280E position the product takes was absent from the document that exists to
+   * defend it, and the page looked fine because it was rendering fixtures.
+   *
+   * Writing the allocation here also means reclassifications flow into the
+   * review queue, the summary, and the CPA handoff without further plumbing.
+   */
+  for (const entry of reclassEntries) {
+    const nondeductible = Math.round((entry.originalAmount - entry.amount) * 100) / 100;
+
+    const existing = await ctx.db
+      .query("cogsAllocations")
+      .withIndex("by_company", (q: any) => q.eq("companyId", companyId))
+      .filter((q: any) => q.eq(q.field("transactionId"), transactionId))
+      .first();
+
+    const record = {
+      basisType: `471c_${entry.basisKind}`,
+      deductibleAmount: entry.amount,
+      nondeductibleAmount: nondeductible,
+      // A measured basis, but a contested legal position. High confidence in
+      // the arithmetic is not high confidence in the outcome, and the warning
+      // below is what carries that distinction.
+      confidence: 75,
+      reviewStatus: "needs_review" as const,
+      basisExplanation: entry.basisExplanation,
+      basisInputs: entry.basisInputs,
+      warnings: [
+        {
+          code: SECTION_471C_POSITION_EXPLAINER.code,
+          message: SECTION_471C_POSITION_EXPLAINER.headline,
+        },
+      ],
+      requiresAcknowledgement: true,
+    };
+
+    if (existing && existing.basisType?.startsWith("471c_")) {
+      await ctx.db.patch(existing._id, record);
+    } else {
+      await ctx.db.insert("cogsAllocations", {
+        companyId,
+        transactionId,
+        ...record,
+      });
+    }
+  }
+
   return {
     applied: true,
     reclassificationTransactionId: reclassTxnId,

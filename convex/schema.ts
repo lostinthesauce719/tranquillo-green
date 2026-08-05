@@ -248,6 +248,16 @@ export default defineSchema({
     nondeductibleAmount: v.number(),
     confidence: v.optional(v.number()),
     reviewStatus: v.union(v.literal("system_applied"), v.literal("needs_review"), v.literal("approved")),
+
+    /**
+     * How the ratio was derived, written for a reader rather than a machine.
+     * This is what the 280E support schedule prints and what answers an
+     * information document request. Optional only because rows written before
+     * this field existed do not have one — the engine always writes it now.
+     */
+    basisExplanation: v.optional(v.string()),
+    /** The measured values behind the ratio, retained as evidence. */
+    basisInputs: v.optional(v.record(v.string(), v.number())),
   }).index("by_company", ["companyId"]).index("by_company_review", ["companyId", "reviewStatus"]),
 
   products: defineTable({

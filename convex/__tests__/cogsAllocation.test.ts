@@ -18,8 +18,9 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { allocateTransaction, getAllocationSummary } from "../allocationEngine";
+import { allocateTransaction, getAllocationSummary, getSupportSchedule } from "../allocationEngine";
 import { TestDb, makeCtx, call, rejects, cents } from "../../tests/convex/harness";
+import { apply471cReclassificationInline } from "../lib/reclassificationInline";
 
 /* ─── Fixture ────────────────────────────────────────────────────────────── */
 
@@ -576,6 +577,256 @@ describe("classifyTransactionLines — balanced journals", () => {
           basisDetails: { productionSqFt: 5000, totalSqFt: 10000 },
         }),
       /zero cost/
+    );
+  });
+});
+
+/* ─── Support schedule ───────────────────────────────────────────────────── */
+
+describe("getSupportSchedule", () => {
+  /**
+   * The support schedule is the audit-defence surface: it is what an operator
+   * hands over when the allocation is questioned. Two things have to hold —
+   * the figures must be right, and the reason behind each one must be present.
+   */
+
+  async function seedPostedMonth() {
+    // A realistic balanced journal: one expense leg, one cash leg.
+    const rent = await db.insert("chartOfAccounts", {
+      companyId: DISPENSARY,
+      code: "4210",
+      name: "Rent Expense",
+      category: "opex",
+      taxTreatment: "nondeductible",
+      isActive: true,
+    });
+    const cash = await db.insert("chartOfAccounts", {
+      companyId: DISPENSARY,
+      code: "1000",
+      name: "Cash",
+      category: "asset",
+      taxTreatment: "deductible",
+      isActive: true,
+    });
+    await db.insert("reportingPeriods", {
+      companyId: DISPENSARY,
+      label: "March 2026",
+      startDate: "2026-03-01",
+      endDate: "2026-03-31",
+      status: "open",
+    });
+    const txn = await db.insert("transactions", {
+      companyId: DISPENSARY,
+      status: "posted",
+      transactionDate: "2026-03-05",
+      memo: "March rent",
+    });
+    await db.insert("transactionLines", { transactionId: txn, accountId: rent, debit: 18_500, credit: 0 });
+    await db.insert("transactionLines", { transactionId: txn, accountId: cash, debit: 0, credit: 18_500 });
+    return { txn, rent, cash };
+  }
+
+  it("does not count both legs of a balanced journal", async () => {
+    // The defect: Math.abs(debit - credit) over every line counted the expense
+    // and the cash leg, reporting $37,000 of cost against an $18,500 bill. The
+    // same bug classifyTransactionLines had; it lived on here because no test
+    // drove a balanced journal through the schedule.
+    const { txn } = await seedPostedMonth();
+    await call(allocateTransaction, ctx, {
+      companyId: DISPENSARY,
+      transactionId: txn,
+      policyId: POLICY_SQFT,
+      basisDetails: { productionSqFt: 5_200, totalSqFt: 8_000 },
+    });
+
+    const report: any = await call(getSupportSchedule, ctx, {
+      companyId: DISPENSARY,
+      periodLabel: "March 2026",
+    });
+
+    const rentRows = report.rows.filter((r: any) => r.accountCode === "4210");
+    assert.equal(rentRows.length, 1, "the cash leg must not appear as a cost row");
+    assert.equal(cents(rentRows[0].totalAmount), 18_500, "cost is 18,500 — not 37,000");
+  });
+
+  it("ties back to the allocations it was built from", async () => {
+    const { txn } = await seedPostedMonth();
+    await call(allocateTransaction, ctx, {
+      companyId: DISPENSARY,
+      transactionId: txn,
+      policyId: POLICY_SQFT,
+      basisDetails: { productionSqFt: 5_200, totalSqFt: 8_000 },
+    });
+
+    const report: any = await call(getSupportSchedule, ctx, {
+      companyId: DISPENSARY,
+      periodLabel: "March 2026",
+    });
+
+    assert.equal(report.reconciliation.reconciles, true);
+    // Rent is an opex account, so allocateTransaction leaves it fully
+    // nondeductible — moving it into COGS is the 471(c) reclassification's job,
+    // covered separately below. What matters here is that the schedule totals
+    // match the allocation exactly rather than being pro-rated against an
+    // unrelated header amount.
+    assert.equal(cents(report.summary.totalNondeductible), 18_500);
+    assert.equal(
+      cents(report.reconciliation.scheduleNondeductible),
+      cents(report.reconciliation.allocationNondeductible)
+    );
+  });
+
+  it("carries the measured basis on every row", async () => {
+    const { txn } = await seedPostedMonth();
+    await call(allocateTransaction, ctx, {
+      companyId: DISPENSARY,
+      transactionId: txn,
+      policyId: POLICY_SQFT,
+      basisDetails: { productionSqFt: 5_200, totalSqFt: 8_000 },
+    });
+
+    const report: any = await call(getSupportSchedule, ctx, {
+      companyId: DISPENSARY,
+      periodLabel: "March 2026",
+    });
+
+    const row = report.rows.find((r: any) => r.accountCode === "4210");
+    // The sentence is the substantiation. Assert its substance, not its wording,
+    // so the prose can be improved without the test objecting — but the
+    // measurements themselves must be in it.
+    assert.match(row.basisExplanation, /5,200/);
+    assert.match(row.basisExplanation, /8,000/);
+    assert.match(row.basisExplanation, /65\.0%/);
+    assert.equal(report.summary.unsubstantiatedCount, 0);
+  });
+
+  it("excludes transactions outside the period", async () => {
+    const { txn } = await seedPostedMonth();
+    await call(allocateTransaction, ctx, {
+      companyId: DISPENSARY,
+      transactionId: txn,
+      policyId: POLICY_SQFT,
+      basisDetails: { productionSqFt: 5_200, totalSqFt: 8_000 },
+    });
+
+    await db.insert("reportingPeriods", {
+      companyId: DISPENSARY,
+      label: "April 2026",
+      startDate: "2026-04-01",
+      endDate: "2026-04-30",
+      status: "open",
+    });
+
+    const april: any = await call(getSupportSchedule, ctx, {
+      companyId: DISPENSARY,
+      periodLabel: "April 2026",
+    });
+    assert.equal(april.rows.length, 0, "March cost must not appear in April");
+    assert.equal(cents(april.summary.totalDeductible), 0);
+  });
+
+  it("refuses to serve another company's schedule", async () => {
+    await seedPostedMonth();
+    const intruder = makeCtx(db, { clerkId: "clerk_other" });
+    await rejects(
+      () => call(getSupportSchedule, intruder, { companyId: DISPENSARY, periodLabel: "March 2026" }),
+      /unauthorized|access|denied|not found/i
+    );
+  });
+});
+
+describe("getSupportSchedule — 471(c) reclassifications", () => {
+  /**
+   * The gap this covers: apply471cReclassificationInline wrote a journal entry
+   * and nothing else. The support schedule reads cogsAllocations, so the single
+   * largest 280E position the product takes never appeared on the document that
+   * exists to defend it.
+   *
+   * Nothing caught it because the walkthrough asserted the journal was correct
+   * (it was) and the page rendered fixtures (so it looked populated).
+   */
+  it("shows reclassified rent on the schedule, with its measurement", async () => {
+    await db.patch(DISPENSARY, {
+      productionSqFt: 5_200,
+      totalSqFt: 8_000,
+      productionHours: 2_100,
+      totalHours: 3_200,
+    });
+
+    const rent = await db.insert("chartOfAccounts", {
+      companyId: DISPENSARY,
+      code: "4210",
+      name: "Rent Expense",
+      category: "opex",
+      taxTreatment: "nondeductible",
+      isActive: true,
+    });
+    const cash = await db.insert("chartOfAccounts", {
+      companyId: DISPENSARY,
+      code: "1000",
+      name: "Cash",
+      category: "asset",
+      taxTreatment: "deductible",
+      isActive: true,
+    });
+    // 4110 is the destination account; without it reclassification bails out.
+    await db.insert("chartOfAccounts", {
+      companyId: DISPENSARY,
+      code: "4110",
+      name: "COGS — 280E Reclassification",
+      category: "cogs",
+      taxTreatment: "cogs",
+      isActive: true,
+    });
+    await db.insert("reportingPeriods", {
+      companyId: DISPENSARY,
+      label: "March 2026",
+      startDate: "2026-03-01",
+      endDate: "2026-03-31",
+      status: "open",
+    });
+    // Reclassification correctly refuses without an election on file.
+    await db.insert("section471cElections", {
+      companyId: DISPENSARY,
+      elected: true,
+      eligible: true,
+      taxYear: 2026,
+      electionDate: "2026-01-15",
+      priorYear1: 2025, priorYear1Receipts: 4_000_000,
+      priorYear2: 2024, priorYear2Receipts: 3_500_000,
+      priorYear3: 2023, priorYear3Receipts: 3_000_000,
+      averageGrossReceipts: 3_500_000,
+    });
+    const txn = await db.insert("transactions", {
+      companyId: DISPENSARY,
+      status: "posted",
+      transactionDate: "2026-03-05",
+      memo: "March rent",
+      amount: 18_500,
+    });
+    await db.insert("transactionLines", { transactionId: txn, accountId: rent, debit: 18_500, credit: 0 });
+    await db.insert("transactionLines", { transactionId: txn, accountId: cash, debit: 0, credit: 18_500 });
+
+    const result: any = await apply471cReclassificationInline(ctx, txn);
+    assert.equal(result.applied, true, JSON.stringify(result));
+
+    const report: any = await call(getSupportSchedule, ctx, {
+      companyId: DISPENSARY,
+      periodLabel: "March 2026",
+    });
+
+    // 5,200 / 8,000 = 65% of 18,500 = 12,025
+    assert.equal(cents(report.summary.totalDeductible), 12_025);
+    assert.equal(cents(report.summary.totalNondeductible), 6_475);
+    assert.equal(report.reconciliation.reconciles, true);
+
+    const row = report.rows[0];
+    assert.match(row.basisExplanation, /5,200 sq ft/);
+    assert.match(row.basisExplanation, /65\.0%/);
+    // The contested position must travel with the row, not be discovered later.
+    assert.ok(
+      row.warnings.some((w: any) => /471|CCA|contest/i.test(w.message)),
+      "the 471(c) position warning must appear on the schedule row"
     );
   });
 });

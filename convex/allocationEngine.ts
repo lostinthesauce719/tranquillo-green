@@ -41,6 +41,18 @@ interface AllocationResult {
   ratio: number;
   confidence: number;
   basisType: string;
+  /**
+   * How the ratio was arrived at, in a sentence an examiner can read.
+   *
+   * This is the substantiation. Under Reg. 1.471-11 an allocation is defensible
+   * because of the measurement behind it, not because of the number itself, so
+   * the measurement has to survive alongside the figure. Reconstructing it later
+   * from basisType and two amounts is guesswork — the inputs may have changed by
+   * then. It is recorded at the moment of calculation and never recomputed.
+   */
+  basisExplanation: string;
+  /** The measured values the ratio came from, retained as evidence. */
+  basisInputs: Record<string, number>;
 }
 
 /** A condition the operator must explicitly acknowledge before handoff. */
@@ -154,6 +166,12 @@ function computeAllocation(input: AllocationInput): AllocationResult {
   let ratio = 0;
   let confidence = 50; // base confidence – adjusted per method
   let basisType = method;
+  let basisExplanation = "";
+  let basisInputs: Record<string, number> = {};
+
+  const pct = (r: number) => `${(r * 100).toFixed(1)}%`;
+  const money = (n: number) =>
+    n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 
   switch (method) {
     case "square_footage": {
@@ -170,6 +188,11 @@ function computeAllocation(input: AllocationInput): AllocationResult {
       ratio = Math.max(0, Math.min(productionSqFt / totalSqFt, 1));
       confidence = 85; // objective, verifiable metric
       basisType = "square_footage";
+      basisExplanation =
+        `${productionSqFt.toLocaleString()} sq ft of production space out of ` +
+        `${totalSqFt.toLocaleString()} sq ft total = ${pct(ratio)} of this cost ` +
+        `treated as inventoriable. Supported by a floor plan or lease schedule.`;
+      basisInputs = { productionSqFt, totalSqFt };
       break;
     }
     case "labor": {
@@ -184,6 +207,11 @@ function computeAllocation(input: AllocationInput): AllocationResult {
       ratio = Math.max(0, Math.min(productionHours / totalHours, 1));
       confidence = 80; // reasonable but depends on time-keeping accuracy
       basisType = "labor";
+      basisExplanation =
+        `${productionHours.toLocaleString()} production hours out of ` +
+        `${totalHours.toLocaleString()} total paid hours = ${pct(ratio)} of this ` +
+        `cost treated as inventoriable. Supported by timesheets or a payroll export.`;
+      basisInputs = { productionHours, totalHours };
       break;
     }
     case "custom": {
@@ -194,21 +222,32 @@ function computeAllocation(input: AllocationInput): AllocationResult {
       ratio = customRatio;
       confidence = 55; // less defensible without documentation
       basisType = "custom";
+      basisExplanation =
+        `${pct(ratio)} of this cost treated as inventoriable, using a ratio ` +
+        `entered by the operator. No measurement was supplied with it — the ` +
+        `working papers behind this figure need to be retained separately.`;
+      basisInputs = { ratio: customRatio };
       break;
     }
     case "flat_percentage": {
       // A fixed percentage of every cost, expressed 0..1 (or 0..100 for
       // convenience — both accepted, normalised here).
       const raw = basisDetails.percentage ?? basisDetails.ratio ?? 0;
-      const pct = raw > 1 ? raw / 100 : raw;
-      if (pct < 0 || pct > 1) {
+      const flatPct = raw > 1 ? raw / 100 : raw;
+      if (flatPct < 0 || flatPct > 1) {
         throw new Error("Flat percentage must be between 0 and 100.");
       }
-      ratio = pct;
+      ratio = flatPct;
       // Deliberately low: a flat percentage has no measured basis, which is
       // exactly what an examiner asks for.
       confidence = 40;
       basisType = "flat_percentage";
+      basisExplanation =
+        `A flat ${pct(ratio)} of this cost treated as inventoriable. This is a ` +
+        `standing rate chosen by the operator, not a measurement of this period. ` +
+        `Reg. 1.471-11 contemplates a measured basis; this figure will need one ` +
+        `if it is questioned.`;
+      basisInputs = { percentage: flatPct };
       break;
     }
     case "flat_amount": {
@@ -224,6 +263,15 @@ function computeAllocation(input: AllocationInput): AllocationResult {
       ratio = Math.max(0, Math.min(amount / totalCost, 1));
       confidence = 40;
       basisType = "flat_amount";
+      basisExplanation =
+        `${money(Math.min(amount, totalCost))} of ${money(totalCost)} treated as ` +
+        `inventoriable — a fixed amount set by the operator, which works out to ` +
+        `${pct(ratio)} of this cost. It is not derived from a measurement of ` +
+        `production activity.` +
+        (amount > totalCost
+          ? ` The amount entered (${money(amount)}) exceeded the cost and was capped.`
+          : "");
+      basisInputs = { amount, totalCost };
       break;
     }
     default:
@@ -237,7 +285,15 @@ function computeAllocation(input: AllocationInput): AllocationResult {
   // condition, not a tax position.
   assertAllocationIntegrity(totalCost, deductibleAmount, nondeductibleAmount);
 
-  return { deductibleAmount, nondeductibleAmount, ratio, confidence, basisType };
+  return {
+    deductibleAmount,
+    nondeductibleAmount,
+    ratio,
+    confidence,
+    basisType,
+    basisExplanation,
+    basisInputs,
+  };
 }
 
 /**
@@ -375,6 +431,32 @@ export const allocateTransaction = authMutation(
       .filter((q: any) => q.eq(q.field("transactionId"), args.transactionId))
       .first();
 
+    /*
+     * Refuse to allocate a cost that a 471(c) reclassification has already
+     * treated.
+     *
+     * Two mechanisms write one allocation record per transaction, and this
+     * overwrote without checking. In the walkthrough, March rent was
+     * reclassified 65% into COGS and then allocated again a step later — the
+     * allocation replaced the reclassification record, reporting the same rent
+     * as 100% nondeductible while the reclassification journal still sat in the
+     * ledger moving $12,025 of it into COGS. The books said one thing and the
+     * support schedule said another, and the measurement behind the
+     * reclassification was destroyed in the process.
+     *
+     * Applying two treatments to one cost is not a position to be acknowledged;
+     * it is a mistake. So this refuses rather than warns, and says which
+     * treatment already exists.
+     */
+    if (existing && String(existing.basisType ?? "").startsWith("471c_")) {
+      throw new Error(
+        `This cost has already been treated under IRC 471(c): ` +
+          `${existing.basisExplanation ?? "a reclassification was applied"} ` +
+          `Allocating it again would treat the same cost twice. Reverse the ` +
+          `reclassification first if you want to allocate it on a different basis.`,
+      );
+    }
+
     // Persist the warnings with the allocation. Acknowledgement is deliberately
     // NOT collected here — it is required at filing or CPA handoff, so the
     // operator confirms a position at the point it leaves the building, not
@@ -386,6 +468,8 @@ export const allocateTransaction = authMutation(
       nondeductibleAmount: totalNondeductible,
       confidence: allocation.confidence,
       reviewStatus,
+      basisExplanation: allocation.basisExplanation,
+      basisInputs: allocation.basisInputs,
       warnings,
       requiresAcknowledgement: warnings.length > 0,
       acknowledgedAt: undefined as number | undefined,
@@ -549,6 +633,8 @@ export const batchAllocate = authMutation(
             nondeductibleAmount: nondeductible,
             confidence: allocation.confidence,
             reviewStatus,
+            basisExplanation: allocation.basisExplanation,
+            basisInputs: allocation.basisInputs,
           });
           allocationId = existing._id;
         } else {
@@ -561,6 +647,8 @@ export const batchAllocate = authMutation(
             nondeductibleAmount: nondeductible,
             confidence: allocation.confidence,
             reviewStatus,
+            basisExplanation: allocation.basisExplanation,
+            basisInputs: allocation.basisInputs,
           });
         }
 
@@ -848,10 +936,12 @@ export const getSupportSchedule = authQuery(
       taxTreatment: string;
       totalAmount: number;
       allocationBasis: string;
+      basisExplanation: string;
       deductibleAmount: number;
       nondeductibleAmount: number;
       confidence: number;
       reviewStatus: string;
+      warnings: Array<{ code: string; message: string }>;
     }> = [];
 
     for (const alloc of allocations) {
@@ -881,7 +971,19 @@ export const getSupportSchedule = authQuery(
       for (const line of lines) {
         const account = await ctx.db.get(line.accountId);
         if (!account) continue;
-        const amount = Math.abs((line.debit ?? 0) - (line.credit ?? 0));
+
+        // Only income-statement accounts represent cost. A balanced journal is
+        //   DR Rent Expense 18,500 / CR Cash 18,500
+        // and this loop previously summed Math.abs(debit - credit) over every
+        // line, so it counted both legs and reported $37,000 of cost against an
+        // $18,500 bill. Same defect classifyTransactionLines had; it survived
+        // here because no test drove a balanced journal through the schedule.
+        const category = account.category as string;
+        if (category !== "cogs" && category !== "opex") continue;
+
+        // Signed, not absolute: a credit to an expense account is a reversal
+        // and must reduce the cost rather than add to it.
+        const amount = (line.debit ?? 0) - (line.credit ?? 0);
         const key = account.code;
         const existing = accountBuckets.get(key);
         if (existing) {
@@ -897,12 +999,34 @@ export const getSupportSchedule = authQuery(
         }
       }
 
-      for (const [, bucket] of Array.from(accountBuckets)) {
-        // Pro-rate allocation amounts to this account line
-        const txnAmount = txn.amount ?? 1;
-        const lineRatio = txnAmount > 0 ? bucket.amount / txnAmount : 0;
-        const deductible = normalizeAmount(alloc.deductibleAmount * lineRatio);
-        const nondeductible = normalizeAmount(alloc.nondeductibleAmount * lineRatio);
+      // Spread the allocation across this journal's cost accounts.
+      //
+      // The denominator is the journal's own cost total, not txn.amount. Those
+      // two are not the same thing — txn.amount is a header figure that may
+      // include tax, the cash leg, or nothing at all — and dividing by it meant
+      // the rows did not sum back to the allocation they came from. A support
+      // schedule whose rows do not tie to the allocation is not support.
+      const buckets = Array.from(accountBuckets.values());
+      const costTotal = buckets.reduce((s, b) => s + b.amount, 0);
+
+      let deductibleAssigned = 0;
+      let nondeductibleAssigned = 0;
+
+      buckets.forEach((bucket, i) => {
+        const isLast = i === buckets.length - 1;
+        const share = costTotal !== 0 ? bucket.amount / costTotal : 0;
+
+        // The final row absorbs the rounding residue so the rows reconcile to
+        // the cent. Splitting $100 three ways gives 33.33 + 33.33 + 33.34.
+        const deductible = isLast
+          ? normalizeAmount(alloc.deductibleAmount - deductibleAssigned)
+          : normalizeAmount(alloc.deductibleAmount * share);
+        const nondeductible = isLast
+          ? normalizeAmount(alloc.nondeductibleAmount - nondeductibleAssigned)
+          : normalizeAmount(alloc.nondeductibleAmount * share);
+
+        deductibleAssigned = normalizeAmount(deductibleAssigned + deductible);
+        nondeductibleAssigned = normalizeAmount(nondeductibleAssigned + nondeductible);
 
         scheduleRows.push({
           transactionId: alloc.transactionId,
@@ -914,12 +1038,14 @@ export const getSupportSchedule = authQuery(
           taxTreatment: bucket.taxTreatment,
           totalAmount: normalizeAmount(bucket.amount),
           allocationBasis: alloc.basisType,
+          basisExplanation: alloc.basisExplanation ?? "",
           deductibleAmount: deductible,
           nondeductibleAmount: nondeductible,
           confidence: alloc.confidence ?? 0,
           reviewStatus: alloc.reviewStatus,
+          warnings: alloc.warnings ?? [],
         });
-      }
+      });
     }
 
     // Sort by date then account code
@@ -955,6 +1081,30 @@ export const getSupportSchedule = authQuery(
     const grandTotalDeductible = normalizeAmount(scheduleRows.reduce((s, r) => s + r.deductibleAmount, 0));
     const grandTotalNondeductible = normalizeAmount(scheduleRows.reduce((s, r) => s + r.nondeductibleAmount, 0));
 
+    // Tie the schedule back to the allocations it was built from.
+    //
+    // A support schedule exists to be checked, so it should check itself first.
+    // If these disagree the schedule is wrong, and saying so is far better than
+    // handing an operator a workpaper that quietly does not foot.
+    const allocationsInScope = new Set(scheduleRows.map((r) => r.transactionId));
+    const sourceDeductible = normalizeAmount(
+      allocations
+        .filter((a: any) => allocationsInScope.has(a.transactionId))
+        .reduce((s: number, a: any) => s + a.deductibleAmount, 0),
+    );
+    const sourceNondeductible = normalizeAmount(
+      allocations
+        .filter((a: any) => allocationsInScope.has(a.transactionId))
+        .reduce((s: number, a: any) => s + a.nondeductibleAmount, 0),
+    );
+    const reconciles =
+      Math.abs(sourceDeductible - grandTotalDeductible) < 0.01 &&
+      Math.abs(sourceNondeductible - grandTotalNondeductible) < 0.01;
+
+    // Rows carrying no explanation cannot be defended from this schedule alone.
+    // Counted rather than hidden, so the gap is visible before a filing.
+    const unsubstantiatedCount = scheduleRows.filter((r) => !r.basisExplanation).length;
+
     return {
       periodLabel: args.periodLabel,
       periodFound: !!period,
@@ -964,6 +1114,19 @@ export const getSupportSchedule = authQuery(
         totalDeductible: grandTotalDeductible,
         totalNondeductible: grandTotalNondeductible,
         totalCost: normalizeAmount(grandTotalDeductible + grandTotalNondeductible),
+        deductiblePercent:
+          grandTotalDeductible + grandTotalNondeductible === 0
+            ? 0
+            : grandTotalDeductible / (grandTotalDeductible + grandTotalNondeductible),
+        unsubstantiatedCount,
+        needsReviewCount: scheduleRows.filter((r) => r.reviewStatus === "needs_review").length,
+      },
+      reconciliation: {
+        reconciles,
+        scheduleDeductible: grandTotalDeductible,
+        allocationDeductible: sourceDeductible,
+        scheduleNondeductible: grandTotalNondeductible,
+        allocationNondeductible: sourceNondeductible,
       },
       categoryBreakdown,
       rows: scheduleRows,

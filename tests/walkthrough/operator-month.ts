@@ -32,7 +32,7 @@ import { create as createPeriod } from "../../convex/reportingPeriods";
 import { recordElection, testEligibility } from "../../convex/section471c";
 import { createManualJournal, postTransaction } from "../../convex/transactions";
 import { create as createPolicy } from "../../convex/allocationPolicies";
-import { allocateTransaction } from "../../convex/allocationEngine";
+import { allocateTransaction, getSupportSchedule } from "../../convex/allocationEngine";
 import { calculateTax, getTaxLiability } from "../../convex/tax";
 import { createRun } from "../../convex/exportPackets";
 import { apply471cReclassificationInline } from "../../convex/lib/reclassificationInline";
@@ -349,16 +349,31 @@ async function main() {
   const company = await db.get(companyId);
   for (const txnId of journalIds.slice(0, 3)) {
     const txn = await db.get(txnId);
+    const alreadyReclassified = !!txn?.reclassificationTransactionId;
+
     await attempt(`allocate ${txn?.reference}`, async () => {
-      await call(allocateTransaction, ctx, {
-        companyId,
-        transactionId: txnId,
-        policyId,
-        basisDetails: {
-          productionSqFt: company.productionSqFt,
-          totalSqFt: company.totalSqFt,
-        },
-      });
+      try {
+        await call(allocateTransaction, ctx, {
+          companyId,
+          transactionId: txnId,
+          policyId,
+          basisDetails: {
+            productionSqFt: company.productionSqFt,
+            totalSqFt: company.totalSqFt,
+          },
+        });
+      } catch (e: any) {
+        // Refusing to allocate an already-reclassified cost is the engine
+        // working. This script used to do exactly that — reclassify rent 65%
+        // into COGS at posting, then allocate the same rent again a step later
+        // — and the second write silently replaced the first. The ledger and
+        // the support schedule disagreed and nothing said so.
+        if (alreadyReclassified && /already been treated/i.test(e.message)) {
+          return `correctly refused — already reclassified under 471(c), allocating again would treat it twice`;
+        }
+        throw e;
+      }
+
       const a = db.rows("cogsAllocations").find((x: any) => x.transactionId === txnId);
       if (!a) throw new Error("no allocation recorded");
       return `COGS $${a.deductibleAmount.toLocaleString()} / non-COGS $${a.nondeductibleAmount.toLocaleString()}${a.warnings?.length ? ` — ${a.warnings.length} warning(s)` : ""}`;
@@ -562,6 +577,63 @@ async function main() {
     }
   }
   ok("all allocations tie to their expense", `${db.rows("cogsAllocations").length} allocation(s) checked`);
+
+  /* ── 11. The support schedule ──────────────────────────────────────────── */
+  console.log("\nSTEP 11 — Open the 280E support schedule");
+
+  // This is the document handed over when the allocation is questioned. Until
+  // now the page rendered fixtures, so nothing here was ever exercised: the
+  // reclassifications above wrote journals but no allocation records, and the
+  // schedule reads allocation records. A company with entirely correct books
+  // would have opened this page and seen its largest 280E position missing.
+  await attempt("support schedule builds for the period", async () => {
+    const rep: any = await call(getSupportSchedule, ctx, {
+      companyId,
+      periodLabel: "2026-03",
+    });
+    if (!rep.periodFound) throw new Error("period not resolved");
+    if (rep.rows.length === 0) throw new Error("no rows — the schedule is empty");
+    return `${rep.rows.length} row(s), ${fromCents(Math.round(rep.summary.totalDeductible * 100))} deductible / ${fromCents(Math.round(rep.summary.totalNondeductible * 100))} nondeductible`;
+  });
+
+  await attempt("schedule ties to the allocations behind it", async () => {
+    const rep: any = await call(getSupportSchedule, ctx, {
+      companyId,
+      periodLabel: "2026-03",
+    });
+    if (!rep.reconciliation.reconciles) {
+      throw new Error(
+        `schedule ${rep.reconciliation.scheduleDeductible} vs allocations ${rep.reconciliation.allocationDeductible}`,
+      );
+    }
+    return "rows foot to the source allocations";
+  });
+
+  await attempt("every row states its basis", async () => {
+    const rep: any = await call(getSupportSchedule, ctx, {
+      companyId,
+      periodLabel: "2026-03",
+    });
+    if (rep.summary.unsubstantiatedCount > 0) {
+      throw new Error(`${rep.summary.unsubstantiatedCount} row(s) carry no explanation`);
+    }
+    const sample = rep.rows.find((r: any) => r.basisExplanation);
+    return sample ? sample.basisExplanation : "all rows substantiated";
+  });
+
+  await attempt("the 471(c) reclassification appears on the schedule", async () => {
+    const rep: any = await call(getSupportSchedule, ctx, {
+      companyId,
+      periodLabel: "2026-03",
+    });
+    const reclass = rep.rows.filter((r: any) => String(r.allocationBasis).startsWith("471c_"));
+    if (reclass.length === 0) {
+      throw new Error("no 471(c) rows — the contested position is invisible on its own support schedule");
+    }
+    const warned = reclass.every((r: any) => r.warnings?.length > 0);
+    if (!warned) throw new Error("a 471(c) row shipped without its position warning");
+    return `${reclass.length} reclassification row(s), each carrying the CCA 201504011 warning`;
+  });
 
   report();
 }
