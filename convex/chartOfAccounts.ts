@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import { authQuery, authMutation, requireCompanyAccessById } from "./lib/withAuth";
 
 /** Default cannabis chart of accounts seeded for every new tenant. */
-const DEFAULT_CHART: Array<{
+export const DEFAULT_CHART: Array<{
   code: string;
   name: string;
   category: "asset" | "liability" | "equity" | "revenue" | "cogs" | "opex";

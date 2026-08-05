@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useTenant } from "@/lib/auth/tenant-context";
 import { ROLE_LABELS } from "@/lib/auth/roles";
@@ -125,16 +125,11 @@ type Operation = {
   isActive: boolean;
 };
 
-const DEMO_OPERATIONS: Operation[] = [
-  { id: "op_1", name: "Demo Dispensary", operatorType: "dispensary", state: "CA", accountingMethod: "cash", isActive: true },
-  { id: "op_2", name: "Emerald Cultivation", operatorType: "cultivator", state: "CA", accountingMethod: "accrual", isActive: false },
-  { id: "op_3", name: "Green Rush Delivery", operatorType: "delivery", state: "CA", accountingMethod: "cash", isActive: false },
-];
-
 function OperationsPanel() {
-  const [operations, setOperations] = useState<Operation[]>(DEMO_OPERATIONS);
+  const [operations, setOperations] = useState<Operation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [opError, setOpError] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
-  // Multi-operation management is preview-only until multi-company tenancy ships.
   const [saving, setSaving] = useState(false);
 
   // New operation form state
@@ -143,42 +138,89 @@ function OperationsPanel() {
   const [newState, setNewState] = useState("CA");
   const [newMethod, setNewMethod] = useState("cash");
 
-  function handleAdd() {
+  const loadOperations = useCallback(async () => {
+    setLoading(true);
+    setOpError(null);
+    try {
+      const res = await fetch("/api/settings/operations");
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || "Failed to load operations");
+      setOperations(
+        (data.operations ?? []).map((op: any): Operation => ({
+          id: op.companyId,
+          name: op.name,
+          operatorType: op.operatorType,
+          state: Array.isArray(op.states) && op.states.length > 0 ? op.states.join(", ") : "—",
+          accountingMethod: op.accountingMethod,
+          isActive: op.isActive,
+        }))
+      );
+    } catch (e: any) {
+      setOpError(e.message || "Failed to load operations");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadOperations();
+  }, [loadOperations]);
+
+  async function handleAdd() {
     if (!newName.trim()) return;
     setSaving(true);
-    // Demo: add locally
-    const newOp: Operation = {
-      id: `op_${Date.now()}`,
-      name: newName.trim(),
-      operatorType: newType,
-      state: newState,
-      accountingMethod: newMethod,
-      isActive: false,
-    };
-    setOperations((prev) => [...prev, newOp]);
-    setNewName("");
-    setNewType("dispensary");
-    setNewState("CA");
-    setNewMethod("cash");
-    setShowAdd(false);
-    setSaving(false);
+    setOpError(null);
+    try {
+      const res = await fetch("/api/settings/operations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create",
+          name: newName.trim(),
+          operatorType: newType,
+          state: newState,
+          accountingMethod: newMethod,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || "Failed to create operation");
+      setNewName("");
+      setNewType("dispensary");
+      setNewState("CA");
+      setNewMethod("cash");
+      setShowAdd(false);
+      await loadOperations();
+    } catch (e: any) {
+      setOpError(e.message || "Failed to create operation");
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleActivate(id: string) {
-    setOperations((prev) =>
-      prev.map((op) => ({ ...op, isActive: op.id === id }))
-    );
-  }
-
-  function handleRemove(id: string) {
-    setOperations((prev) => prev.filter((op) => op.id !== id));
+  async function handleActivate(id: string) {
+    setOpError(null);
+    try {
+      const res = await fetch("/api/settings/operations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "switch", companyId: id }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || "Failed to switch operation");
+      // Reload so the whole dashboard picks up the new active tenant.
+      window.location.reload();
+    } catch (e: any) {
+      setOpError(e.message || "Failed to switch operation");
+    }
   }
 
   return (
     <section className="rounded-2xl border border-border bg-surface-mid p-5 md:col-span-2">
-      <div className="mb-4 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-300">
-        <strong>Preview</strong> — Multi-operation management is illustrative until multi-company tenancy ships. Changes here are not persisted.
-      </div>
+      {opError && (
+        <div className="mb-4 rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 text-xs text-red-300">
+          {opError}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <div className="text-xs uppercase tracking-[0.2em] text-accent">Operations</div>
@@ -226,7 +268,11 @@ function OperationsPanel() {
 
       {/* Operations list */}
       <div className="mt-5 grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-        {operations.map((op) => (
+        {loading &&
+          [0, 1].map((i) => (
+            <div key={i} className="h-28 animate-pulse rounded-xl border border-border/50 bg-surface/50" />
+          ))}
+        {!loading && operations.map((op) => (
           <div
             key={op.id}
             className={`rounded-xl border p-4 transition ${
@@ -260,14 +306,7 @@ function OperationsPanel() {
                   Activate
                 </button>
               )}
-              {!op.isActive && (
-                <button
-                  onClick={() => handleRemove(op.id)}
-                  className="rounded-lg px-2.5 py-1 text-xs text-text-faint transition hover:text-red-400"
-                >
-                  Remove
-                </button>
-              )}
+
             </div>
           </div>
         ))}

@@ -1,234 +1,370 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { AppShell } from "@/components/shell/app-shell";
+import { useTenant } from "@/lib/auth/tenant-context";
 import {
-  RefreshCw,
-  AlertTriangle,
-  CheckCircle2,
-  ArrowRight,
-  Download,
-  Upload,
-  Search,
-  Filter,
-  ExternalLink,
-  Clock,
   Package,
-  TrendingUp,
-  TrendingDown,
+  CheckCircle2,
+  AlertTriangle,
+  HelpCircle,
+  Plus,
+  Trash2,
+  RefreshCw,
 } from "lucide-react";
 
-/* ─── Types ─────────────────────────────────────────────────────── */
+type PackageStatus = "matched" | "variance" | "missing_in_books" | "resolved";
 
 interface MetrcPackage {
-  id: string;
-  packageTag: string;
-  productName: string;
-  category: string;
-  metrcQuantity: number;
-  bookQuantity: number;
-  variance: number;
-  variancePct: number;
-  status: "matched" | "variance" | "investigating" | "resolved";
-  lastSync: string;
+  _id: string;
+  packageLabel: string;
+  product: string;
+  uom: string;
+  metrcQty: number;
+  bookQty: number;
+  status: PackageStatus;
+  resolutionNote?: string;
+  lastSyncAt: number;
 }
 
-interface ReconSummary {
-  totalPackages: number;
-  matched: number;
-  variance: number;
-  investigating: number;
-  totalVariance: number;
-  lastSync: string;
-}
-
-/* ─── Demo Data ─────────────────────────────────────────────────── */
-
-const DEMO_PACKAGES: MetrcPackage[] = [
-  { id: "p1", packageTag: "METC-001234", productName: "Blue Dream Flower", category: "Flower", metrcQuantity: 1250.5, bookQuantity: 1250.5, variance: 0, variancePct: 0, status: "matched", lastSync: "2026-05-17T10:00:00Z" },
-  { id: "p2", packageTag: "METC-001235", productName: "OG Kush Flower", category: "Flower", metrcQuantity: 890.2, bookQuantity: 887.9, variance: 2.3, variancePct: 0.26, status: "variance", lastSync: "2026-05-17T10:00:00Z" },
-  { id: "p3", packageTag: "METC-001236", productName: "Sour Diesel Concentrate", category: "Concentrate", metrcQuantity: 450.0, bookQuantity: 450.0, variance: 0, variancePct: 0, status: "matched", lastSync: "2026-05-17T10:00:00Z" },
-  { id: "p4", packageTag: "METC-001237", productName: "Gummy Edibles 100mg", category: "Edible", metrcQuantity: 2400, bookQuantity: 2353, variance: 47, variancePct: 1.96, status: "investigating", lastSync: "2026-05-17T10:00:00Z" },
-  { id: "p5", packageTag: "METC-001238", productName: "Vape Cartridge 1g", category: "Vape", metrcQuantity: 1800, bookQuantity: 1800, variance: 0, variancePct: 0, status: "matched", lastSync: "2026-05-17T10:00:00Z" },
-  { id: "p6", packageTag: "METC-001239", productName: "Pre-Roll 1g", category: "Flower", metrcQuantity: 5600, bookQuantity: 5580, variance: 20, variancePct: 0.36, status: "variance", lastSync: "2026-05-17T10:00:00Z" },
-  { id: "p7", packageTag: "METC-001240", productName: "Topical Cream 50mg", category: "Topical", metrcQuantity: 320, bookQuantity: 320, variance: 0, variancePct: 0, status: "matched", lastSync: "2026-05-17T10:00:00Z" },
-  { id: "p8", packageTag: "METC-001241", productName: "Tincture 30ml", category: "Tincture", metrcQuantity: 150, bookQuantity: 142, variance: 8, variancePct: 5.33, status: "investigating", lastSync: "2026-05-17T10:00:00Z" },
-];
-
-const SUMMARY: ReconSummary = {
-  totalPackages: DEMO_PACKAGES.length,
-  matched: DEMO_PACKAGES.filter((p) => p.status === "matched").length,
-  variance: DEMO_PACKAGES.filter((p) => p.status === "variance").length,
-  investigating: DEMO_PACKAGES.filter((p) => p.status === "investigating").length,
-  totalVariance: DEMO_PACKAGES.reduce((s, p) => s + Math.abs(p.variance), 0),
-  lastSync: "2026-05-17T10:00:00Z",
+const STATUS_META: Record<PackageStatus, { label: string; badge: string }> = {
+  matched: { label: "Matched", badge: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" },
+  variance: { label: "Variance", badge: "bg-amber-500/15 text-amber-300 border-amber-500/30" },
+  missing_in_books: { label: "Missing in books", badge: "bg-red-500/15 text-red-300 border-red-500/30" },
+  resolved: { label: "Resolved", badge: "bg-blue-500/15 text-blue-300 border-blue-500/30" },
 };
 
-/* ─── Components ────────────────────────────────────────────────── */
-
-function StatusBadge({ status }: { status: MetrcPackage["status"] }) {
-  const config = {
-    matched: { label: "Matched", color: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30", icon: CheckCircle2 },
-    variance: { label: "Variance", color: "bg-amber-500/15 text-amber-300 border-amber-500/30", icon: AlertTriangle },
-    investigating: { label: "Investigating", color: "bg-blue-500/15 text-blue-300 border-blue-500/30", icon: Clock },
-    resolved: { label: "Resolved", color: "bg-zinc-500/15 text-zinc-300 border-zinc-500/30", icon: CheckCircle2 },
-  };
-  const c = config[status];
-  const Icon = c.icon;
-  return <span className={"inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full border " + c.color}><Icon className="h-3 w-3" />{c.label}</span>;
-}
-
-function SummaryCard({ label, value, icon: Icon, color, subtext }: { label: string; value: string; icon: React.ElementType; color: string; subtext?: string }) {
-  return (
-    <div className="rounded-xl border border-border bg-surface-raised p-4">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-text-muted">{label}</span>
-        <Icon className={"h-4 w-4 " + color} />
-      </div>
-      <div className="mt-2 text-xl font-bold text-text-primary">{value}</div>
-      {subtext && <div className="mt-1 text-xs text-text-faint">{subtext}</div>}
-    </div>
-  );
-}
-
-/* ─── Main Page ─────────────────────────────────────────────────── */
-
 export default function MetrcReconciliationPage() {
-  const [activeTab, setActiveTab] = useState<"all" | "variance" | "investigating">("all");
-  const [searchQuery, setSearchQuery] = useState("");
+  const tenant = useTenant();
+  const companyId = tenant.companyId;
 
-  const filteredPackages = DEMO_PACKAGES.filter((p) => {
-    if (activeTab === "variance" && p.status !== "variance") return false;
-    if (activeTab === "investigating" && p.status !== "investigating") return false;
-    if (searchQuery && !p.productName.toLowerCase().includes(searchQuery.toLowerCase()) && !p.packageTag.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-    return true;
-  });
+  const [packages, setPackages] = useState<MetrcPackage[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
+  const [resolutionNote, setResolutionNote] = useState("");
+  const [filter, setFilter] = useState<PackageStatus | "all">("all");
+
+  const [newLabel, setNewLabel] = useState("");
+  const [newProduct, setNewProduct] = useState("");
+  const [newUom, setNewUom] = useState("g");
+  const [newMetrcQty, setNewMetrcQty] = useState("");
+  const [newBookQty, setNewBookQty] = useState("");
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/metrc/packages?companyId=${companyId}`);
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || "Failed to load packages");
+      setPackages(data.packages ?? []);
+    } catch (e: any) {
+      setError(e.message || "Failed to load packages");
+    } finally {
+      setLoading(false);
+    }
+  }, [companyId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const stats = useMemo(() => ({
+    total: packages.length,
+    matched: packages.filter((p) => p.status === "matched").length,
+    variance: packages.filter((p) => p.status === "variance").length,
+    missing: packages.filter((p) => p.status === "missing_in_books").length,
+    resolved: packages.filter((p) => p.status === "resolved").length,
+  }), [packages]);
+
+  const filtered = filter === "all" ? packages : packages.filter((p) => p.status === filter);
+
+  async function postAction(payload: Record<string, unknown>): Promise<any> {
+    const res = await fetch("/api/metrc/packages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.message || "Request failed");
+    return data;
+  }
+
+  async function handleAdd() {
+    if (!newLabel.trim()) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await postAction({
+        action: "upsert",
+        companyId,
+        packageLabel: newLabel.trim(),
+        product: newProduct.trim(),
+        uom: newUom,
+        metrcQty: parseFloat(newMetrcQty) || 0,
+        bookQty: parseFloat(newBookQty) || 0,
+      });
+      setNewLabel("");
+      setNewProduct("");
+      setNewMetrcQty("");
+      setNewBookQty("");
+      setShowAddForm(false);
+      await load();
+    } catch (e: any) {
+      setError(e.message || "Failed to add package");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleResolve(pkg: MetrcPackage) {
+    if (!resolutionNote.trim()) return;
+    try {
+      const data = await postAction({ action: "resolve", packageId: pkg._id, resolutionNote: resolutionNote.trim() });
+      setPackages((prev) => prev.map((p) => (p._id === pkg._id ? data.package : p)));
+      setResolvingId(null);
+      setResolutionNote("");
+    } catch (e: any) {
+      setError(e.message || "Failed to resolve variance");
+    }
+  }
+
+  async function handleDelete(pkg: MetrcPackage) {
+    if (!confirm(`Delete package ${pkg.packageLabel}?`)) return;
+    const previous = packages;
+    setPackages((prev) => prev.filter((p) => p._id !== pkg._id));
+    try {
+      await postAction({ action: "delete", packageId: pkg._id });
+    } catch (e: any) {
+      setPackages(previous);
+      setError(e.message || "Failed to delete package");
+    }
+  }
 
   return (
-    <AppShell title="Metrc Reconciliation" description="Reconcile Metrc inventory with your books. Catch variances before auditors do.">
-      <div className="mb-6 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-300">
-        <strong>Preview</strong> — Sample package data for illustration. Connect Metrc in Settings to reconcile live inventory.
-      </div>
+    <AppShell title="Metrc Reconciliation" description="Reconcile Metrc package quantities with your books. Catch variances before auditors do.">
       <div className="space-y-6">
-        {/* Sync status */}
-        <div className="rounded-lg border border-border bg-surface-raised p-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand/10">
-              <RefreshCw className="h-5 w-5 text-brand" />
-            </div>
-            <div>
-              <div className="text-sm font-medium text-text-primary">Last sync: {new Date(SUMMARY.lastSync).toLocaleString()}</div>
-              <div className="text-xs text-text-muted">{SUMMARY.totalPackages} packages synced · {SUMMARY.matched} matched · {SUMMARY.variance + SUMMARY.investigating} need attention</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-xs font-medium text-text-secondary hover:border-brand/30 hover:text-brand transition-colors">
-              <Upload className="h-3 w-3" /> Import CSV
-            </button>
-            <button className="inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-xs font-semibold text-white hover:bg-brand/90 transition-colors">
-              <RefreshCw className="h-3 w-3" /> Sync Now
+        {error && (
+          <div className="flex items-center justify-between rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300">
+            <span>{error}</span>
+            <button
+              onClick={load}
+              className="inline-flex items-center gap-1.5 rounded-md border border-red-500/30 px-3 py-1 text-xs font-medium hover:bg-red-500/10"
+            >
+              <RefreshCw className="h-3 w-3" />
+              Retry
             </button>
           </div>
-        </div>
+        )}
 
-        {/* Summary cards */}
+        {/* Stats */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <SummaryCard label="Total Packages" value={SUMMARY.totalPackages.toString()} icon={Package} color="text-brand" subtext="Across all locations" />
-          <SummaryCard label="Matched" value={SUMMARY.matched.toString()} icon={CheckCircle2} color="text-emerald-400" subtext={`${((SUMMARY.matched / SUMMARY.totalPackages) * 100).toFixed(0)}% match rate`} />
-          <SummaryCard label="Variances" value={SUMMARY.variance.toString()} icon={AlertTriangle} color="text-amber-400" subtext="Within tolerance" />
-          <SummaryCard label="Investigating" value={SUMMARY.investigating.toString()} icon={Clock} color="text-blue-400" subtext="Needs resolution" />
+          <div className="rounded-xl border border-border bg-surface-raised p-4">
+            <div className="flex items-center gap-2 text-xs text-text-muted"><Package className="h-4 w-4" /> Packages</div>
+            <div className="mt-1 text-2xl font-bold text-text-primary">{stats.total}</div>
+          </div>
+          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+            <div className="flex items-center gap-2 text-xs text-emerald-300"><CheckCircle2 className="h-4 w-4" /> Matched</div>
+            <div className="mt-1 text-2xl font-bold text-emerald-300">{stats.matched}</div>
+          </div>
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+            <div className="flex items-center gap-2 text-xs text-amber-300"><AlertTriangle className="h-4 w-4" /> Variances</div>
+            <div className="mt-1 text-2xl font-bold text-amber-300">{stats.variance + stats.missing}</div>
+          </div>
+          <div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-4">
+            <div className="flex items-center gap-2 text-xs text-blue-300"><HelpCircle className="h-4 w-4" /> Resolved</div>
+            <div className="mt-1 text-2xl font-bold text-blue-300">{stats.resolved}</div>
+          </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex items-center justify-between">
-          <div className="flex gap-1 rounded-xl border border-border bg-surface/60 p-1">
-            {(["all", "variance", "investigating"] as const).map((tab) => (
-              <button key={tab} onClick={() => setActiveTab(tab)}
-                className={"rounded-lg px-4 py-2 text-xs font-medium transition " + (activeTab === tab ? "bg-brand text-white" : "text-text-muted hover:text-text-secondary")}>
-                {tab === "all" ? "All" : tab === "variance" ? "Variances" : "Investigating"}
-                {tab !== "all" && (
-                  <span className="ml-1.5 rounded-full bg-white/20 px-1.5 py-0.5 text-[10px]">
-                    {tab === "variance" ? SUMMARY.variance : SUMMARY.investigating}
-                  </span>
-                )}
+        {/* Filters + add */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap gap-2">
+            {(["all", "variance", "missing_in_books", "matched", "resolved"] as const).map((value) => (
+              <button
+                key={value}
+                onClick={() => setFilter(value)}
+                className={"rounded-full border px-3 py-1 text-sm transition " + (filter === value ? "border-brand bg-brand text-white" : "border-border bg-surface text-text-muted hover:text-text-primary")}
+              >
+                {value === "all" ? "All" : STATUS_META[value].label}
               </button>
             ))}
           </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-faint" />
-            <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search packages..."
-              className="h-9 w-64 rounded-lg border border-border bg-surface pl-10 pr-3 text-sm text-text-primary placeholder:text-text-faint focus:border-brand focus:outline-none" />
-          </div>
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="flex items-center gap-2 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-brand/90"
+          >
+            <Plus className="h-4 w-4" />
+            Add Package
+          </button>
         </div>
 
-        {/* Package list */}
-        <div className="rounded-xl border border-border bg-surface-raised overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border bg-surface">
-                <th className="text-left px-4 py-3 font-semibold text-text-muted">Package</th>
-                <th className="text-left px-4 py-3 font-semibold text-text-muted">Product</th>
-                <th className="text-right px-4 py-3 font-semibold text-text-muted">Metrc Qty</th>
-                <th className="text-right px-4 py-3 font-semibold text-text-muted">Book Qty</th>
-                <th className="text-right px-4 py-3 font-semibold text-text-muted">Variance</th>
-                <th className="text-center px-4 py-3 font-semibold text-text-muted">Status</th>
-                <th className="text-right px-4 py-3 font-semibold text-text-muted">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredPackages.map((pkg) => (
-                <tr key={pkg.id} className={"border-b border-border-subtle hover:bg-surface/50 " + (pkg.status !== "matched" ? "bg-amber-500/5" : "")}>
-                  <td className="px-4 py-3">
-                    <div className="font-mono text-xs text-text-secondary">{pkg.packageTag}</div>
-                    <div className="text-xs text-text-faint">{pkg.category}</div>
-                  </td>
-                  <td className="px-4 py-3 font-medium text-text-primary">{pkg.productName}</td>
-                  <td className="px-4 py-3 text-right text-text-secondary">{pkg.metrcQuantity.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-right text-text-secondary">{pkg.bookQuantity.toLocaleString()}</td>
-                  <td className="px-4 py-3 text-right">
-                    {pkg.variance !== 0 ? (
-                      <span className={"font-medium " + (Math.abs(pkg.variancePct) > 2 ? "text-red-400" : "text-amber-400")}>
-                        {pkg.variance > 0 ? "+" : ""}{pkg.variance.toLocaleString()} ({pkg.variancePct.toFixed(2)}%)
-                      </span>
-                    ) : (
-                      <span className="text-emerald-400">—</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-center"><StatusBadge status={pkg.status} /></td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {pkg.status === "variance" && (
-                        <button className="rounded px-2 py-1 text-xs text-brand hover:bg-brand/10 transition-colors">Investigate</button>
+        {showAddForm && (
+          <div className="rounded-xl border border-brand/30 bg-brand/5 p-4">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <div>
+                <label className="mb-1 block text-xs text-text-muted">Metrc tag</label>
+                <input
+                  value={newLabel}
+                  onChange={(e) => setNewLabel(e.target.value)}
+                  placeholder="1A4060300003F1000001234"
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm font-mono text-text-primary outline-none focus:border-brand"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-text-muted">Product</label>
+                <input
+                  value={newProduct}
+                  onChange={(e) => setNewProduct(e.target.value)}
+                  placeholder="Blue Dream 1g"
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-brand"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-text-muted">Unit</label>
+                <select
+                  value={newUom}
+                  onChange={(e) => setNewUom(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-brand"
+                >
+                  <option value="g">g</option>
+                  <option value="lb">lb</option>
+                  <option value="ea">ea</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-text-muted">Metrc qty</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={newMetrcQty}
+                  onChange={(e) => setNewMetrcQty(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-brand"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-text-muted">Book qty</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={newBookQty}
+                  onChange={(e) => setNewBookQty(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-brand"
+                />
+              </div>
+            </div>
+            <button
+              onClick={handleAdd}
+              disabled={!newLabel.trim() || saving}
+              className="mt-3 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-brand/90 disabled:opacity-50"
+            >
+              {saving ? "Saving…" : "Save Package"}
+            </button>
+            <p className="mt-2 text-xs text-text-faint">
+              Re-adding an existing tag updates its quantities and recomputes the variance status.
+            </p>
+          </div>
+        )}
+
+        {/* Package table */}
+        {loading ? (
+          <div className="space-y-2">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-14 animate-pulse rounded-lg border border-border/50 bg-surface-mid/50" />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="rounded-2xl border border-border bg-surface-mid py-16 text-center">
+            <Package className="mx-auto mb-3 h-10 w-10 text-text-faint" />
+            <p className="text-sm text-text-muted">
+              {packages.length === 0
+                ? "No packages tracked yet. Add Metrc packages to start reconciling against your books."
+                : "No packages match this filter."}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {filtered.map((pkg) => {
+              const variance = pkg.metrcQty - pkg.bookQty;
+              const meta = STATUS_META[pkg.status];
+              return (
+                <div key={pkg._id}>
+                  <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-surface px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate font-mono text-xs text-text-secondary">{pkg.packageLabel}</span>
+                        <span className={"rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wider " + meta.badge}>
+                          {meta.label}
+                        </span>
+                      </div>
+                      <div className="mt-1 text-xs text-text-muted">
+                        {pkg.product || "—"} · Metrc {pkg.metrcQty}{pkg.uom} · Books {pkg.bookQty}{pkg.uom}
+                        {variance !== 0 && (
+                          <span className={variance > 0 ? " text-amber-300" : " text-red-300"}>
+                            {" "}· Δ {variance > 0 ? "+" : ""}{variance.toFixed(2)}{pkg.uom}
+                          </span>
+                        )}
+                      </div>
+                      {pkg.resolutionNote && (
+                        <div className="mt-1 text-xs text-blue-300">Resolution: {pkg.resolutionNote}</div>
                       )}
-                      {pkg.status === "investigating" && (
-                        <button className="rounded px-2 py-1 text-xs text-emerald-400 hover:bg-emerald-500/10 transition-colors">Resolve</button>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      {(pkg.status === "variance" || pkg.status === "missing_in_books") && (
+                        <button
+                          onClick={() => { setResolvingId(resolvingId === pkg._id ? null : pkg._id); setResolutionNote(""); }}
+                          className="rounded-lg border border-border px-3 py-1.5 text-xs text-blue-300 transition hover:bg-blue-500/10"
+                        >
+                          Resolve
+                        </button>
                       )}
-                      <button className="rounded p-1 text-text-faint hover:text-text-secondary transition-colors">
-                        <ExternalLink className="h-3 w-3" />
+                      <button
+                        onClick={() => handleDelete(pkg)}
+                        className="rounded-lg border border-border p-2 text-text-faint transition hover:text-red-400"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Export */}
-        <div className="flex items-center justify-between">
-          <div className="text-xs text-text-muted">
-            Showing {filteredPackages.length} of {SUMMARY.totalPackages} packages
+                  </div>
+                  {resolvingId === pkg._id && (
+                    <div className="mt-2 rounded-lg border border-blue-500/30 bg-blue-500/5 p-4">
+                      <label className="mb-1 block text-xs text-text-muted">
+                        Resolution note (recorded in the audit trail)
+                      </label>
+                      <textarea
+                        value={resolutionNote}
+                        onChange={(e) => setResolutionNote(e.target.value)}
+                        rows={2}
+                        placeholder="e.g., Data entry error — adjusted book quantity after recount on 8/5."
+                        className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary outline-none focus:border-brand"
+                      />
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          onClick={() => handleResolve(pkg)}
+                          disabled={!resolutionNote.trim()}
+                          className="rounded-lg bg-brand px-4 py-1.5 text-sm font-medium text-white transition hover:bg-brand/90 disabled:opacity-50"
+                        >
+                          Mark Resolved
+                        </button>
+                        <button
+                          onClick={() => setResolvingId(null)}
+                          className="rounded-lg border border-border px-4 py-1.5 text-sm text-text-muted transition hover:text-text-primary"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-          <div className="flex items-center gap-2">
-            <button className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-xs font-medium text-text-secondary hover:border-brand/30 hover:text-brand transition-colors">
-              <Download className="h-3 w-3" /> Export Report
-            </button>
-            <button className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-xs font-medium text-text-secondary hover:border-brand/30 hover:text-brand transition-colors">
-              <Download className="h-3 w-3" /> Export for CPA
-            </button>
-          </div>
-        </div>
+        )}
       </div>
     </AppShell>
   );
