@@ -253,3 +253,61 @@ describe("grossReceiptsThreshold", () => {
     assert.equal(thresholdsAreStale(latestThresholdYear() + 1), true);
   });
 });
+
+/* ─── Utilities follow floor area ────────────────────────────────────────── */
+
+describe("utilities (4220) — occupancy basis", () => {
+  /**
+   * Added 2026-08-05 at the operator's direction. Recorded as a test rather
+   * than only a comment because it is a tax position: if someone later changes
+   * how utilities are treated, that should be a deliberate act with a failing
+   * test in front of it, not a quiet edit to a list of account codes.
+   *
+   * Reg. 1.471-11(c)(2) lists utilities among the indirect production costs a
+   * full-absorption taxpayer includes in inventory, in the same category as
+   * rent. Allocating them on the same measured basis as the rent of the same
+   * building is the consistent treatment.
+   */
+  const measurements = {
+    productionSqFt: 5_200,
+    totalSqFt: 8_000,
+    productionHours: 2_100,
+    totalHours: 3_200,
+  };
+
+  it("routes utilities to the square-footage basis", () => {
+    assert.equal(basisKindForAccount("4220"), "square_footage");
+    assert.equal(basisKindForAccount("4221"), "square_footage");
+    assert.equal(basisKindForAccount("4222"), "square_footage");
+  });
+
+  it("allocates utilities on the same ratio as rent", () => {
+    const utilities = resolveBasis("4220", "Utilities", measurements);
+    const rent = resolveBasis("4210", "Rent Expense", measurements);
+
+    assert.equal(utilities.ok, true);
+    assert.equal(rent.ok, true);
+    if (!utilities.ok || !rent.ok) return;
+
+    assert.equal(utilities.basis.ratio, rent.basis.ratio);
+    assert.equal(utilities.basis.kind, "square_footage");
+  });
+
+  it("names the account in its explanation rather than saying rent", () => {
+    const r = resolveBasis("4220", "Utilities", measurements);
+    assert.equal(r.ok, true);
+    if (!r.ok) return;
+    assert.match(r.basis.explanation, /Utilities/);
+    assert.match(r.basis.explanation, /5,200/);
+    assert.match(r.basis.explanation, /65\.0%/);
+  });
+
+  it("still refuses utilities when no floor area is on file", () => {
+    // The position is that utilities follow measured space. With no measurement
+    // there is no position to take, and the engine must still decline.
+    const r = resolveBasis("4220", "Utilities", { productionHours: 10, totalHours: 20 });
+    assert.equal(r.ok, false);
+    if (r.ok) return;
+    assert.match(r.refusal.reason, /square footage|floor area|sq ft/i);
+  });
+});

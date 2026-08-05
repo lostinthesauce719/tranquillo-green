@@ -81,10 +81,36 @@ export interface CompanyMeasurements {
   declaredRatios?: Record<string, { ratio: number; note?: string }>;
 }
 
-/** Which measurement an account's cost should follow. */
+/**
+ * Which measurement an account's cost should follow.
+ *
+ * OCCUPANCY — 4210–4212 (rent), 4220–4222 (utilities)
+ *
+ * Utilities were added on 2026-08-05 at the operator's direction, and it is a
+ * tax position rather than a code fix, so the reasoning belongs here.
+ *
+ * Reg. 1.471-11(c)(2) enumerates the indirect production costs a taxpayer using
+ * full absorption must include in inventoriable costs, and lists utilities in
+ * the same category as rent. Both are costs of holding and running the
+ * production space, so both scale with how much of that space is production —
+ * which is what the square-footage ratio measures. Allocating utilities on a
+ * different basis from the rent of the same building would be harder to defend
+ * than allocating them the same way.
+ *
+ * This is still a position, not a certainty. A cultivator whose lighting and
+ * HVAC load is overwhelmingly in the grow rooms is arguably under-allocating on
+ * floor area; one with heavy front-of-house climate control is over-allocating.
+ * An operator who can meter production space separately has a better basis than
+ * this and should use it — declaredRatios exists for exactly that, and the
+ * support schedule prints whichever was used.
+ *
+ * PAYROLL — 4200–4202, follows hours worked.
+ */
 export function basisKindForAccount(accountCode: string): BasisKind | null {
-  // Occupancy costs follow floor area.
-  if (["4210", "4211", "4212"].includes(accountCode)) return "square_footage";
+  // Occupancy costs follow floor area: rent and utilities alike.
+  if (["4210", "4211", "4212", "4220", "4221", "4222"].includes(accountCode)) {
+    return "square_footage";
+  }
   // Payroll costs follow hours worked.
   if (["4200", "4201", "4202"].includes(accountCode)) return "labor_hours";
   return null;
