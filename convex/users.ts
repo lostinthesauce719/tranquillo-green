@@ -4,9 +4,21 @@ import {
   authMutation,
   authQuery,
   getUserByClerkId,
+  requireCompanyAccessById,
   resolveCompanyFromIdentityClaims,
   resolveRoleFromIdentityClaims,
 } from "./lib/withAuth";
+
+async function requireCompanyOwner(ctx: any, identity: any, companyId: string) {
+  const caller = await getUserByClerkId(ctx, identity.subject);
+  if (!caller || caller.companyId !== companyId) {
+    throw new Error("Unauthorized: Not a member of this company.");
+  }
+  if (caller.role !== "owner") {
+    throw new Error("Unauthorized: Only the owner can manage team members.");
+  }
+  return caller;
+}
 
 /**
  * getOrCreateUser: Called after Clerk login. Upserts a user row keyed by clerkId.
@@ -87,6 +99,84 @@ export const getCurrentUser = authQuery(
     return (await getUserByClerkId(ctx, identity.subject)) ?? null;
   },
 );
+
+/**
+ * listCompanyMembers: Team roster for the settings page. Any member of the
+ * company can view; sensitive fields are not returned.
+ */
+export const listCompanyMembers = authQuery({
+  args: { companyId: v.id("cannabisCompanies") },
+  handler: async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+    const members = await ctx.db
+      .query("users")
+      .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))
+      .collect();
+
+    return members
+      .filter((m: any) => m.status !== "deactivated")
+      .map((m: any) => ({
+        id: m._id,
+        name: m.name ?? m.email,
+        email: m.email,
+        role: m.role ?? "viewer",
+        status: m.status === "invited" ? "pending" : "active",
+        joinedAt: new Date(m._creationTime).toISOString(),
+        isSelf: m.clerkId === identity.subject,
+      }));
+  },
+});
+
+/**
+ * updateMemberRole: Owner-only role change for a company member.
+ */
+export const updateMemberRole = authMutation({
+  args: {
+    companyId: v.id("cannabisCompanies"),
+    userId: v.id("users"),
+    role: v.union(v.literal("controller"), v.literal("accountant"), v.literal("viewer")),
+  },
+  handler: async (ctx: any, args: any, identity: any) => {
+    const caller = await requireCompanyOwner(ctx, identity, args.companyId);
+    const target = await ctx.db.get(args.userId);
+    if (!target || target.companyId !== args.companyId) {
+      throw new Error("Member not found in this company.");
+    }
+    if (target._id === caller._id) {
+      throw new Error("You cannot change your own role.");
+    }
+    if (target.role === "owner") {
+      throw new Error("The owner role cannot be reassigned here.");
+    }
+    await ctx.db.patch(args.userId, { role: args.role });
+    return await ctx.db.get(args.userId);
+  },
+});
+
+/**
+ * removeMember: Owner-only soft removal (deactivation) of a company member.
+ */
+export const removeMember = authMutation({
+  args: {
+    companyId: v.id("cannabisCompanies"),
+    userId: v.id("users"),
+  },
+  handler: async (ctx: any, args: any, identity: any) => {
+    const caller = await requireCompanyOwner(ctx, identity, args.companyId);
+    const target = await ctx.db.get(args.userId);
+    if (!target || target.companyId !== args.companyId) {
+      throw new Error("Member not found in this company.");
+    }
+    if (target._id === caller._id) {
+      throw new Error("You cannot remove yourself.");
+    }
+    if (target.role === "owner") {
+      throw new Error("The owner cannot be removed.");
+    }
+    await ctx.db.patch(args.userId, { status: "deactivated", companyId: undefined });
+    return { ok: true };
+  },
+});
 
 export const getCurrentTenant = authQuery(
   {},

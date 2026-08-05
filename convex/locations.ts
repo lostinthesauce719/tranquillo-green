@@ -1,19 +1,19 @@
-// @ts-nocheck
-import { authMutation, authQuery, requireCompanyAccessById } from "./lib/withAuth";
+import { authMutation, authQuery, requireIdentity, requireCompanyAccessById } from "./lib/withAuth";
 import { v } from "convex/values";
 
 // ─── LOCATIONS ──────────────────────────────────────────────────────
 
 export const listByCompany = authQuery({
   args: { companyId: v.id("cannabisCompanies") },
-}, async (ctx, args, identity) => {
+  handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx);
     await requireCompanyAccessById(ctx, identity, args.companyId);
     return await ctx.db
       .query("cannabisLocations")
       .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))
       .collect();
   },
-);
+});
 
 export const addLocation = authMutation({
   args: {
@@ -25,7 +25,8 @@ export const addLocation = authMutation({
     isPrimary: v.boolean(),
     squareFootage: v.optional(v.number()),
   },
-}, async (ctx, args, identity) => {
+  handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx);
     await requireCompanyAccessById(ctx, identity, args.companyId);
     // If this is primary, unset other primary locations
     if (args.isPrimary) {
@@ -56,7 +57,7 @@ export const addLocation = authMutation({
 
     return await ctx.db.get(locationId);
   },
-);
+});
 
 export const updateLocation = authMutation({
   args: {
@@ -68,7 +69,8 @@ export const updateLocation = authMutation({
     isPrimary: v.optional(v.boolean()),
     squareFootage: v.optional(v.number()),
   },
-}, async (ctx, args, identity) => {
+  handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx);
     const { locationId, ...updates } = args;
     const location = await ctx.db.get(locationId);
     if (!location) throw new Error("Location not found");
@@ -104,11 +106,12 @@ export const updateLocation = authMutation({
 
     return await ctx.db.get(locationId);
   },
-);
+});
 
 export const deleteLocation = authMutation({
   args: { locationId: v.id("cannabisLocations") },
-}, async (ctx, args, identity) => {
+  handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx);
     const location = await ctx.db.get(args.locationId);
     if (!location) throw new Error("Location not found");
 
@@ -129,4 +132,4 @@ export const deleteLocation = authMutation({
 
     return { ok: true };
   },
-);
+});

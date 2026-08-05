@@ -1,4 +1,4 @@
-import { authMutation, authQuery } from "./lib/withAuth";
+import { authMutation, authQuery, requireCompanyAccessById } from "./lib/withAuth";
 import { v } from "convex/values";
 import { requireCurrentUserRecord } from "./lib/withAuth";
 
@@ -66,7 +66,8 @@ export const getEventsByEntity = authQuery({
     ),
     entityId: v.string(),
   },
-  handler: async (ctx: any, args: any) => {
+  handler: async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
     return await ctx.db
       .query("auditTrailEvents")
       .withIndex("by_company_entity", (q: any) =>
@@ -82,7 +83,8 @@ export const getRecentEvents = authQuery({
     companyId: v.id("cannabisCompanies"),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx: any, args: any) => {
+  handler: async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
     return await ctx.db
       .query("auditTrailEvents")
       .withIndex("by_company_timestamp", (q: any) => q.eq("companyId", args.companyId))
@@ -93,7 +95,8 @@ export const getRecentEvents = authQuery({
 
 export const getEventsByCompany = authQuery({
   args: { companyId: v.id("cannabisCompanies") },
-  handler: async (ctx: any, args: any) => {
+  handler: async (ctx: any, args: any, identity: any) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
     return await ctx.db
       .query("auditTrailEvents")
       .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))

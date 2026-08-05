@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTenant } from "@/lib/auth/tenant-context";
 import { ROLE_LABELS, type TenantRole } from "@/lib/auth/roles";
 import { AppShell } from "@/components/shell/app-shell";
@@ -34,48 +34,9 @@ interface TeamMember {
   status: MemberStatus;
   joinedAt: string; // ISO date string
   avatarInitials: string;
+  isSelf?: boolean;
 }
 
-/* ── demo data ─────────────────────────────────────────────────────── */
-
-const DEMO_MEMBERS: TeamMember[] = [
-  {
-    id: "usr_1",
-    name: "Jordan Reeves",
-    email: "jordan@emeraldleaf.com",
-    role: "owner",
-    status: "active",
-    joinedAt: "2025-01-15T00:00:00Z",
-    avatarInitials: "JR",
-  },
-  {
-    id: "usr_2",
-    name: "Sam Nakamura",
-    email: "sam@emeraldleaf.com",
-    role: "controller",
-    status: "active",
-    joinedAt: "2025-03-22T00:00:00Z",
-    avatarInitials: "SN",
-  },
-  {
-    id: "usr_3",
-    name: "Alex Torres",
-    email: "alex@emeraldleaf.com",
-    role: "accountant",
-    status: "active",
-    joinedAt: "2025-06-10T00:00:00Z",
-    avatarInitials: "AT",
-  },
-  {
-    id: "usr_4",
-    name: "Morgan Lee",
-    email: "morgan@emeraldleaf.com",
-    role: "viewer",
-    status: "pending",
-    joinedAt: "2026-05-01T00:00:00Z",
-    avatarInitials: "ML",
-  },
-];
 
 const INVITABLE_ROLES: { value: TenantRole; label: string }[] = [
   { value: "controller", label: "Controller" },
@@ -144,11 +105,10 @@ function InviteModal({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!email.trim()) return;
-    // Demo mode: simulate invite
     setSent(true);
     setTimeout(() => {
       alert(
-        `Demo mode: Invitation would be sent to ${email.trim()} as ${ROLE_LABELS[role]}.\n\nIn production, this would send an email invitation via Clerk.`
+        `Email invitations are not available yet. Ask ${email.trim()} to sign up, then link them to your company from this page.`
       );
       setSent(false);
       setEmail("");
@@ -378,19 +338,76 @@ export default function UsersSettingsPage() {
   const tenant = useTenant();
   const isOwner = tenant.role === "owner";
 
-  const [members, setMembers] = useState<TeamMember[]>(DEMO_MEMBERS);
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [removingMember, setRemovingMember] = useState<TeamMember | null>(null);
 
-  function handleRoleChange(userId: string, newRole: TenantRole) {
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/settings/team?companyId=${tenant.companyId}`);
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || "Failed to load team members");
+      setMembers(
+        (data.members ?? []).map((m: any) => ({
+          ...m,
+          avatarInitials: (m.name || m.email || "?")
+            .split(/\s+/)
+            .map((part: string) => part[0])
+            .join("")
+            .slice(0, 2)
+            .toUpperCase(),
+        }))
+      );
+    } catch (e: any) {
+      setError(e.message || "Failed to load team members");
+    } finally {
+      setLoading(false);
+    }
+  }, [tenant.companyId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function handleRoleChange(userId: string, newRole: TenantRole) {
+    const previous = members;
     setMembers((prev) =>
       prev.map((m) => (m.id === userId ? { ...m, role: newRole } : m))
     );
+    try {
+      const res = await fetch("/api/settings/team", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "updateRole", companyId: tenant.companyId, userId, role: newRole }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || "Failed to update role");
+    } catch (e: any) {
+      setMembers(previous);
+      setError(e.message || "Failed to update role");
+    }
   }
 
-  function handleRemove(userId: string) {
+  async function handleRemove(userId: string) {
+    const previous = members;
     setMembers((prev) => prev.filter((m) => m.id !== userId));
     setRemovingMember(null);
+    try {
+      const res = await fetch("/api/settings/team", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "remove", companyId: tenant.companyId, userId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || "Failed to remove member");
+    } catch (e: any) {
+      setMembers(previous);
+      setError(e.message || "Failed to remove member");
+    }
   }
 
   const activeCount = members.filter((m) => m.status === "active").length;
@@ -401,11 +418,11 @@ export default function UsersSettingsPage() {
       title="Team Members"
       description="Manage who has access to your organization and their permissions."
     >
-      {/* Demo mode banner */}
-      <div className="mb-6 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-300">
-        <strong>Demo mode</strong> — Showing sample team data. Changes are not
-        persisted.
-      </div>
+      {error && (
+        <div className="mb-6 rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300">
+          {error}
+        </div>
+      )}
 
       {/* Header */}
       <section className="rounded-2xl border border-border bg-surface-mid p-5">
@@ -440,7 +457,16 @@ export default function UsersSettingsPage() {
 
       {/* Members list */}
       <section className="mt-6 space-y-3">
-        {members.map((member) => (
+        {loading &&
+          [0, 1, 2].map((i) => (
+            <div key={i} className="h-16 animate-pulse rounded-xl border border-border/50 bg-surface-mid/50" />
+          ))}
+        {!loading && members.length === 0 && (
+          <div className="rounded-xl border border-border bg-surface-mid px-5 py-10 text-center text-sm text-text-muted">
+            No team members found.
+          </div>
+        )}
+        {!loading && members.map((member) => (
           <div
             key={member.id}
             className="flex items-center gap-4 rounded-xl border border-border bg-surface-mid px-5 py-4 transition hover:border-border-subtle"
@@ -454,7 +480,7 @@ export default function UsersSettingsPage() {
                 <span className="truncate text-sm font-semibold text-text-primary">
                   {member.name}
                 </span>
-                {member.id === "usr_1" && (
+                {member.isSelf && (
                   <span className="shrink-0 rounded-md bg-brand/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-brand">
                     You
                   </span>
@@ -471,7 +497,7 @@ export default function UsersSettingsPage() {
                 member={member}
                 onRoleChange={handleRoleChange}
                 isOwner={isOwner}
-                isSelf={member.id === "usr_1"}
+                isSelf={member.isSelf ?? false}
               />
             </div>
 

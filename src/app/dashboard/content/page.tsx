@@ -98,6 +98,9 @@ export default function ContentEnginePage() {
 
   return (
     <AppShell title="Content Engine" description="Automate your content marketing across Twitter, LinkedIn, Reddit, and email.">
+      <div className="mb-6 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-300">
+        <strong>Preview</strong> — Sample content data for illustration. Channel integrations are not yet available.
+      </div>
       <div className="space-y-6">
         {/* Summary */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

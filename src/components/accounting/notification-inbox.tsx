@@ -355,7 +355,7 @@ export function NotificationInbox() {
     <div className="space-y-6">
       {/* Demo mode banner */}
       <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-300">
-        <strong>Demo mode</strong> — Showing sample notifications. Connect your live systems for real-time alerts.
+        <strong>Preview</strong> — Sample notifications for illustration. Live alerts appear on the Compliance page.
       </div>
 
       {/* Summary bar */}

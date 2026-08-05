@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useTenant } from "@/lib/auth/tenant-context";
 import {
   AlertCircle,
   AlertTriangle,
@@ -11,7 +12,9 @@ import {
   ChevronDown,
   ChevronUp,
   ExternalLink,
-  X,
+  BadgeCheck,
+  FileText,
+  RefreshCw,
 } from "lucide-react";
 
 type Severity = "info" | "warning" | "critical";
@@ -24,13 +27,11 @@ interface ComplianceAlert {
   severity: Severity;
   title: string;
   body: string;
-  resolvedAt: number | null;
-  sourceType: string | null;
-  sourceId: string | null;
-  dueAt: number | null;
+  resolvedAt?: number | null;
+  sourceType?: string | null;
+  sourceId?: string | null;
+  dueAt?: number | null;
   _creationTime: number;
-  linkHref?: string;
-  linkLabel?: string;
 }
 
 interface ComplianceStats {
@@ -40,83 +41,32 @@ interface ComplianceStats {
   info: number;
 }
 
-const DEMO_ALERTS: ComplianceAlert[] = [
-  {
-    _id: "demo-1",
-    companyId: "demo",
-    category: "tax",
-    severity: "critical",
-    title: "280E allocation overdue for Q1 2026",
-    body: "Quarterly 280E COGS allocation has not been reviewed. Deadline was April 15.",
-    resolvedAt: null,
-    sourceType: "system",
-    sourceId: null,
-    dueAt: Date.now() - 7 * 24 * 60 * 60 * 1000,
-    _creationTime: Date.now() - 14 * 24 * 60 * 60 * 1000,
-    linkHref: "/dashboard/allocations",
-    linkLabel: "Review Allocations",
-  },
-  {
-    _id: "demo-2",
-    companyId: "demo",
-    category: "license",
-    severity: "warning",
-    title: "Cultivation license renewal in 45 days",
-    body: "Annual cultivation license renewal due. Submit application at least 30 days before expiration.",
-    resolvedAt: null,
-    sourceType: "system",
-    sourceId: null,
-    dueAt: Date.now() + 45 * 24 * 60 * 60 * 1000,
-    _creationTime: Date.now() - 3 * 24 * 60 * 60 * 1000,
-    linkHref: "/dashboard/compliance",
-    linkLabel: "View License Details",
-  },
-  {
-    _id: "demo-3",
-    companyId: "demo",
-    category: "reconciliation",
-    severity: "warning",
-    title: "Metrc inventory variance detected",
-    body: "Package METC-001234 shows 2.3g variance between Metrc and book inventory.",
-    resolvedAt: null,
-    sourceType: "system",
-    sourceId: null,
-    dueAt: Date.now() + 5 * 24 * 60 * 60 * 1000,
-    _creationTime: Date.now() - 1 * 24 * 60 * 60 * 1000,
-    linkHref: "/dashboard/reconciliations",
-    linkLabel: "Open Reconciliation",
-  },
-  {
-    _id: "demo-4",
-    companyId: "demo",
-    category: "allocation",
-    severity: "info",
-    title: "471(c) election review recommended",
-    body: "Based on current revenue, your operation may benefit from a 471(c) small business inventory method election.",
-    resolvedAt: null,
-    sourceType: "system",
-    sourceId: null,
-    dueAt: null,
-    _creationTime: Date.now() - 2 * 24 * 60 * 60 * 1000,
-    linkHref: "/dashboard/allocations/policies",
-    linkLabel: "Review Policy",
-  },
-  {
-    _id: "demo-5",
-    companyId: "demo",
-    category: "tax",
-    severity: "info",
-    title: "State excise tax filing due in 12 days",
-    body: "Monthly cannabis excise tax return (CDTFA-501) is due by the 15th of next month.",
-    resolvedAt: null,
-    sourceType: "system",
-    sourceId: null,
-    dueAt: Date.now() + 12 * 24 * 60 * 60 * 1000,
-    _creationTime: Date.now() - 5 * 24 * 60 * 60 * 1000,
-    linkHref: "/dashboard/compliance",
-    linkLabel: "View Filing Calendar",
-  },
-];
+interface ComplianceLicense {
+  _id: string;
+  licenseType: string;
+  licenseNumber: string;
+  state: string;
+  status: "active" | "pending" | "expired";
+  issuedAt?: number;
+  expiresAt?: number;
+}
+
+interface ComplianceFiling {
+  _id: string;
+  filingType: string;
+  periodLabel: string;
+  dueDate: string;
+  status: "pending" | "ready" | "filed" | "late";
+}
+
+const EMPTY_STATS: ComplianceStats = { total: 0, critical: 0, warning: 0, info: 0 };
+
+const categoryLink: Record<Category, { href: string; label: string }> = {
+  license: { href: "/dashboard/compliance", label: "View License Details" },
+  tax: { href: "/dashboard/compliance", label: "View Filing Calendar" },
+  reconciliation: { href: "/dashboard/reconciliations", label: "Open Reconciliation" },
+  allocation: { href: "/dashboard/allocations", label: "Review Allocations" },
+};
 
 const severityConfig: Record<
   Severity,
@@ -149,6 +99,19 @@ const categoryLabel: Record<Category, string> = {
   allocation: "Allocation",
 };
 
+const licenseStatusClass: Record<ComplianceLicense["status"], string> = {
+  active: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  pending: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+  expired: "bg-red-500/15 text-red-300 border-red-500/30",
+};
+
+const filingStatusClass: Record<ComplianceFiling["status"], string> = {
+  filed: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  ready: "bg-blue-500/15 text-blue-300 border-blue-500/30",
+  pending: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+  late: "bg-red-500/15 text-red-300 border-red-500/30",
+};
+
 /* ─── Stat Card ───────────────────────────────────────────────────── */
 
 function StatCard({ title, value, icon: Icon, color }: { title: string; value: number; icon: React.ElementType; color: "slate" | "red" | "amber" | "blue" }) {
@@ -176,16 +139,19 @@ function AlertRow({
   isExpanded,
   onToggle,
   onResolve,
+  resolving,
 }: {
   alert: ComplianceAlert;
   isExpanded: boolean;
   onToggle: () => void;
   onResolve: (id: string) => void;
+  resolving: boolean;
 }) {
   const cfg = severityConfig[alert.severity];
   const Icon = cfg.icon;
   const isOverdue = alert.dueAt && alert.dueAt < Date.now();
   const daysSinceCreated = Math.floor((Date.now() - alert._creationTime) / (1000 * 60 * 60 * 24));
+  const link = categoryLink[alert.category];
 
   return (
     <div>
@@ -288,22 +254,21 @@ function AlertRow({
 
           {/* Action buttons */}
           <div className="flex items-center gap-3 pt-1">
-            {alert.linkHref && (
-              <a
-                href={alert.linkHref}
-                className="inline-flex items-center gap-2 rounded-lg bg-brand/10 px-4 py-2 text-sm font-medium text-brand transition hover:bg-brand/20"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {alert.linkLabel || "Open"}
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            )}
+            <a
+              href={link.href}
+              className="inline-flex items-center gap-2 rounded-lg bg-brand/10 px-4 py-2 text-sm font-medium text-brand transition hover:bg-brand/20"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {link.label}
+              <ExternalLink className="w-3.5 h-3.5" />
+            </a>
             <button
               onClick={(e) => { e.stopPropagation(); onResolve(alert._id); }}
-              className="inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand/90"
+              disabled={resolving}
+              className="inline-flex items-center gap-2 rounded-lg bg-brand px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand/90 disabled:opacity-60"
             >
               <CheckCircle2 className="w-4 h-4" />
-              Resolve
+              {resolving ? "Resolving…" : "Resolve"}
             </button>
             <button
               onClick={(e) => { e.stopPropagation(); onToggle(); }}
@@ -321,24 +286,71 @@ function AlertRow({
 /* ─── Main Component ──────────────────────────────────────────────── */
 
 export default function ComplianceClient() {
+  const tenant = useTenant();
+  const companyId = tenant.companyId;
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [alerts, setAlerts] = useState<ComplianceAlert[]>([]);
+  const [stats, setStats] = useState<ComplianceStats>(EMPTY_STATS);
+  const [licenses, setLicenses] = useState<ComplianceLicense[]>([]);
+  const [filings, setFilings] = useState<ComplianceFiling[]>([]);
   const [activeFilter, setActiveFilter] = useState<Severity | "all">("all");
   const [selectedCategory, setSelectedCategory] = useState<Category | "all">("all");
-  const [alerts, setAlerts] = useState<ComplianceAlert[]>(DEMO_ALERTS);
-  const [stats, setStats] = useState<ComplianceStats>({
-    total: DEMO_ALERTS.length,
-    critical: DEMO_ALERTS.filter((a) => a.severity === "critical").length,
-    warning: DEMO_ALERTS.filter((a) => a.severity === "warning").length,
-    info: DEMO_ALERTS.filter((a) => a.severity === "info").length,
-  });
   const [expandedAlertId, setExpandedAlertId] = useState<string | null>(null);
+  const [resolvingId, setResolvingId] = useState<string | null>(null);
+
+  const load = useCallback(async (refresh: boolean) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/compliance?companyId=${companyId}${refresh ? "&refresh=1" : ""}`);
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || "Failed to load compliance data");
+      setAlerts(data.alerts ?? []);
+      setStats(data.stats ?? EMPTY_STATS);
+      setLicenses(data.licenses ?? []);
+      setFilings(data.filings ?? []);
+    } catch (e: any) {
+      setError(e.message || "Failed to load compliance data");
+    } finally {
+      setLoading(false);
+    }
+  }, [companyId]);
+
+  useEffect(() => {
+    load(true);
+  }, [load]);
 
   const handleResolve = useCallback(
-    (alertId: string) => {
-      setAlerts((prev) => prev ? prev.filter((a) => a._id !== alertId) : prev);
-      setStats((prev) => prev ? { ...prev, total: prev.total - 1 } : prev);
-      setExpandedAlertId(null);
+    async (alertId: string) => {
+      setResolvingId(alertId);
+      try {
+        const res = await fetch("/api/compliance", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "resolve", alertId }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.message || "Failed to resolve alert");
+        setAlerts((prev) => prev.filter((a) => a._id !== alertId));
+        setStats((prev) => {
+          const resolved = alerts.find((a) => a._id === alertId);
+          if (!resolved) return { ...prev, total: Math.max(0, prev.total - 1) };
+          return {
+            ...prev,
+            total: Math.max(0, prev.total - 1),
+            [resolved.severity]: Math.max(0, prev[resolved.severity] - 1),
+          };
+        });
+        setExpandedAlertId(null);
+      } catch (e: any) {
+        setError(e.message || "Failed to resolve alert");
+      } finally {
+        setResolvingId(null);
+      }
     },
-    []
+    [alerts]
   );
 
   const filteredAlerts = alerts.filter((a) => {
@@ -347,12 +359,39 @@ export default function ComplianceClient() {
     return true;
   });
 
+  const sortedFilings = [...filings].sort((a, b) => a.dueDate.localeCompare(b.dueDate));
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="h-24 animate-pulse rounded-xl border border-border/50 bg-card/50" />
+          ))}
+        </div>
+        <div className="space-y-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-20 animate-pulse rounded-lg border border-border/50 bg-card/50" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Demo mode banner */}
-      <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-300">
-        <strong>Demo mode</strong> — Showing sample compliance alerts. Connect Convex for live data.
-      </div>
+      {error && (
+        <div className="flex items-center justify-between rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300">
+          <span>{error}</span>
+          <button
+            onClick={() => load(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-red-500/30 px-3 py-1 text-xs font-medium hover:bg-red-500/10"
+          >
+            <RefreshCw className="w-3 h-3" />
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Stats cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -376,7 +415,7 @@ export default function ComplianceClient() {
         ))}
 
         <span className="text-sm font-medium text-muted-foreground mr-2 ml-4">Category:</span>
-        {(["all", "license", "tax"] as const).map((cat) => (
+        {(["all", "license", "tax", "reconciliation", "allocation"] as const).map((cat) => (
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
@@ -389,7 +428,7 @@ export default function ComplianceClient() {
 
       {/* Alert list */}
       <div className="space-y-3">
-        {filteredAlerts && filteredAlerts.length > 0 ? (
+        {filteredAlerts.length > 0 ? (
           filteredAlerts.map((alert) => (
             <AlertRow
               key={alert._id}
@@ -397,15 +436,100 @@ export default function ComplianceClient() {
               isExpanded={expandedAlertId === alert._id}
               onToggle={() => setExpandedAlertId(expandedAlertId === alert._id ? null : alert._id)}
               onResolve={handleResolve}
+              resolving={resolvingId === alert._id}
             />
           ))
         ) : (
           <div className="text-center py-12 text-muted-foreground">
             <CheckCircle2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p>No alerts match the current filters.</p>
+            <p>
+              {alerts.length === 0
+                ? "All clear — no open compliance alerts."
+                : "No alerts match the current filters."}
+            </p>
           </div>
         )}
       </div>
+
+      {/* Licenses */}
+      <section className="rounded-2xl border border-border bg-surface-mid p-5">
+        <div className="mb-4 flex items-center gap-2">
+          <BadgeCheck className="w-5 h-5 text-brand" />
+          <h3 className="text-lg font-semibold text-text-primary">Licenses</h3>
+        </div>
+        {licenses.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-text-faint">
+                  <th className="pb-2 pr-4 font-semibold">Type</th>
+                  <th className="pb-2 pr-4 font-semibold">Number</th>
+                  <th className="pb-2 pr-4 font-semibold">State</th>
+                  <th className="pb-2 pr-4 font-semibold">Status</th>
+                  <th className="pb-2 font-semibold">Expires</th>
+                </tr>
+              </thead>
+              <tbody>
+                {licenses.map((lic) => (
+                  <tr key={lic._id} className="border-b border-border/50 last:border-0">
+                    <td className="py-2.5 pr-4 text-text-secondary">{lic.licenseType}</td>
+                    <td className="py-2.5 pr-4 font-mono text-xs text-text-secondary">{lic.licenseNumber}</td>
+                    <td className="py-2.5 pr-4 text-text-secondary">{lic.state}</td>
+                    <td className="py-2.5 pr-4">
+                      <span className={"px-2 py-0.5 text-xs rounded-full border " + licenseStatusClass[lic.status]}>
+                        {lic.status}
+                      </span>
+                    </td>
+                    <td className="py-2.5 text-text-secondary">
+                      {lic.expiresAt ? new Date(lic.expiresAt).toLocaleDateString() : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-text-muted">No licenses on file. Add licenses in Settings to enable expiry tracking.</p>
+        )}
+      </section>
+
+      {/* Filing calendar */}
+      <section className="rounded-2xl border border-border bg-surface-mid p-5">
+        <div className="mb-4 flex items-center gap-2">
+          <FileText className="w-5 h-5 text-brand" />
+          <h3 className="text-lg font-semibold text-text-primary">Filing Calendar</h3>
+        </div>
+        {sortedFilings.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs uppercase tracking-wider text-text-faint">
+                  <th className="pb-2 pr-4 font-semibold">Filing</th>
+                  <th className="pb-2 pr-4 font-semibold">Period</th>
+                  <th className="pb-2 pr-4 font-semibold">Due</th>
+                  <th className="pb-2 font-semibold">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedFilings.map((filing) => (
+                  <tr key={filing._id} className="border-b border-border/50 last:border-0">
+                    <td className="py-2.5 pr-4 text-text-secondary">{filing.filingType}</td>
+                    <td className="py-2.5 pr-4 text-text-secondary">{filing.periodLabel}</td>
+                    <td className="py-2.5 pr-4 text-text-secondary">{filing.dueDate}</td>
+                    <td className="py-2.5">
+                      <span className={"px-2 py-0.5 text-xs rounded-full border " + filingStatusClass[filing.status]}>
+                        {filing.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="text-sm text-text-muted">No tax filings tracked yet. Filings appear here once your tax profile is configured.</p>
+        )}
+      </section>
     </div>
   );
 }

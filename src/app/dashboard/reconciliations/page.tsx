@@ -106,6 +106,9 @@ export default function MetrcReconciliationPage() {
 
   return (
     <AppShell title="Metrc Reconciliation" description="Reconcile Metrc inventory with your books. Catch variances before auditors do.">
+      <div className="mb-6 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-300">
+        <strong>Preview</strong> — Sample package data for illustration. Connect Metrc in Settings to reconcile live inventory.
+      </div>
       <div className="space-y-6">
         {/* Sync status */}
         <div className="rounded-lg border border-border bg-surface-raised p-4 flex items-center justify-between">

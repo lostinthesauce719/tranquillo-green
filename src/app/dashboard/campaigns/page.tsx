@@ -226,7 +226,7 @@ export default function CampaignsPage() {
       <div className="space-y-6">
         {/* Demo banner */}
         <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-300">
-          <strong>Demo mode</strong> — Showing sample campaign data. Connect your ad accounts for live metrics.
+          <strong>Preview</strong> — Sample campaign data for illustration. Ad account integration is not yet available.
         </div>
 
         {/* Tabs */}

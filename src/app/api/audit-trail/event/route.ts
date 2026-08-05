@@ -27,6 +27,45 @@ function sanitizeNumber(value: unknown): number | undefined {
 }
 
 
+export const GET = withAuth(async (request) => {
+  try {
+    const { searchParams } = new URL(request.url);
+    const companyId = searchParams.get("companyId");
+    const limit = sanitizeNumber(searchParams.get("limit"));
+
+    if (!companyId) {
+      return securityHeaders(
+        NextResponse.json({ ok: false, message: "Missing companyId" }, { status: 400 }),
+      );
+    }
+
+    const { getAuthenticatedConvexClient } = await import("@/lib/data/convex-client");
+    const { anyApi } = await import("convex/server");
+    const client = await getAuthenticatedConvexClient();
+    if (!client) {
+      return securityHeaders(
+        NextResponse.json({ ok: false, message: "Convex not available" }, { status: 503 }),
+      );
+    }
+
+    const events = await client.query((anyApi as any).auditTrail.getRecentEvents, {
+      companyId,
+      limit: limit && limit > 0 ? Math.min(limit, 500) : 200,
+    });
+    return securityHeaders(NextResponse.json({ ok: true, events }));
+  } catch (error) {
+    return securityHeaders(
+      NextResponse.json(
+        {
+          ok: false,
+          message: error instanceof Error ? error.message : "Could not load audit events.",
+        },
+        { status: 500 },
+      ),
+    );
+  }
+});
+
 export const POST = withAuth(async (request) => {
   try {
     const payload = (await request.json()) as AuditTrailEventInput;

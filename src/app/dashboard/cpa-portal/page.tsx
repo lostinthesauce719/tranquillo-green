@@ -101,6 +101,9 @@ export default function CPAPartnerPortal() {
 
   return (
     <AppShell title="CPA Partner Portal" description="Manage all your cannabis clients from one dashboard.">
+      <div className="mb-6 rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-300">
+        <strong>Preview</strong> — Sample client data for illustration. Multi-client CPA workspaces are not yet available.
+      </div>
       <div className="space-y-6">
         {/* Partner banner */}
         <div className="rounded-lg border border-brand/20 bg-brand/5 px-4 py-3 flex items-center justify-between">

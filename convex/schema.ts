@@ -641,6 +641,22 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_company", ["companyId"]).index("by_company_provider", ["companyId", "provider"]),
 
+  // ─── EMPLOYEE ROSTER ──────────────────────────────────────────────
+  // Payroll roster with per-employee plant-touching allocation used by
+  // the 280E labor allocation workflow.
+  employees: defineTable({
+    companyId: v.id("cannabisCompanies"),
+    name: v.string(),
+    role: v.string(),
+    payRate: v.number(), // hourly rate
+    hoursPerPeriod: v.number(),
+    allocation: v.number(), // % plant-touching (0-100)
+    active: v.boolean(),
+    externalRef: v.optional(v.string()), // Gusto/payroll external ref
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_company", ["companyId"]),
+
   // ─── LABOR TIME TRACKING ──────────────────────────────────────────
   // Tracks employee time by activity classification for 280E allocation.
   // Production activities = capitalizable (COGS). Non-production = 280E limited.

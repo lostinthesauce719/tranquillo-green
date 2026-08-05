@@ -134,6 +134,7 @@ const DEMO_OPERATIONS: Operation[] = [
 function OperationsPanel() {
   const [operations, setOperations] = useState<Operation[]>(DEMO_OPERATIONS);
   const [showAdd, setShowAdd] = useState(false);
+  // Multi-operation management is preview-only until multi-company tenancy ships.
   const [saving, setSaving] = useState(false);
 
   // New operation form state
@@ -175,6 +176,9 @@ function OperationsPanel() {
 
   return (
     <section className="rounded-2xl border border-border bg-surface-mid p-5 md:col-span-2">
+      <div className="mb-4 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2 text-xs text-amber-300">
+        <strong>Preview</strong> — Multi-operation management is illustrative until multi-company tenancy ships. Changes here are not persisted.
+      </div>
       <div className="flex items-center justify-between">
         <div>
           <div className="text-xs uppercase tracking-[0.2em] text-accent">Operations</div>
@@ -373,11 +377,6 @@ export default function SettingsPage() {
       title="Settings"
       description="Company profile, locations, integrations, and your account details."
     >
-      {/* Demo mode banner */}
-      <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-300">
-        <strong>Demo mode</strong> — Showing sample data. Connect your live systems for real-time compliance tracking.
-      </div>
-
       <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
         {/* Company Profile */}
         <section className="rounded-2xl border border-border bg-surface-mid p-5">
