@@ -5,7 +5,7 @@
 // Recording it anonymously is both an access-control hole and an audit-trail
 // gap. authQuery/authMutation require a signed-in identity and enforce that the
 // caller belongs to the companyId being written.
-import { authMutation, authQuery } from "./lib/withAuth";
+import { authMutation, authQuery, requireRecordAccess, getOwnedRecord } from "./lib/withAuth";
 import { v } from "convex/values";
 import { grossReceiptsThreshold } from "./lib/taxConstants";
 
@@ -155,7 +155,10 @@ export const updateElectionNotes = authMutation({
     electionId: v.id("section471cElections"),
     notes: v.string(),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args, identity) => {
+    // The 471(c) election is the company's central tax position. Reached by
+    // election ID, so it needs its own check.
+    await getOwnedRecord(ctx, identity, args.electionId, "election");
     await ctx.db.patch(args.electionId, { notes: args.notes });
     return { updated: true };
   },

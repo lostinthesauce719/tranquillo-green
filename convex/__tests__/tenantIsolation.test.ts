@@ -25,6 +25,7 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { v } from "convex/values";
+import { TestDb, makeCtx, call, rejects } from "../../tests/convex/harness";
 
 import {
   authQuery,
@@ -328,5 +329,118 @@ describe("withAuth — enforcement does not depend on the handler", () => {
       companyId: ACME._id,
     });
     assert.equal(result.name, "Acme Cannabis");
+  });
+});
+
+/* ─── Records reached by their own ID ────────────────────────────────────── */
+
+describe("tenant isolation — functions reached by record ID", () => {
+  /**
+   * The structural guard in byIdTenantScope.test.ts proves a check is present.
+   * These prove the check actually refuses, which is a different claim: a
+   * scope call in the wrong place, or against the wrong company, would satisfy
+   * the structural test and still leak.
+   *
+   * The shape of the original hole: the withAuth wrapper scopes a request by
+   * reading companyId out of it. Give it only `{ policyId }` and it has nothing
+   * to check, so the call sailed through untouched.
+   */
+  const OWNER = "company_owner";
+  const OTHER = "company_other";
+
+  function seedTwoCompanies() {
+    return new TestDb({
+      cannabisCompanies: [
+        { _id: OWNER, name: "Verdant Hollow" },
+        { _id: OTHER, name: "Rival Cannabis Co" },
+      ],
+      users: [
+        { _id: "u_owner", clerkId: "clerk_owner", companyId: OWNER },
+        { _id: "u_rival", clerkId: "clerk_rival", companyId: OTHER },
+      ],
+      allocationPolicies: [
+        { _id: "pol_owner", companyId: OWNER, name: "Facility split", method: "square_footage", status: "active", effectiveFrom: "2026-01-01" },
+      ],
+      cogsAllocations: [
+        { _id: "alloc_owner", companyId: OWNER, basisType: "square_footage", deductibleAmount: 100, nondeductibleAmount: 50, reviewStatus: "needs_review" },
+      ],
+      taxFilings: [
+        { _id: "filing_owner", companyId: OWNER, taxProfileId: "tp1", filingType: "excise", periodLabel: "2026-03", dueDate: "2026-04-20", status: "pending" },
+      ],
+      section471cElections: [
+        { _id: "elec_owner", companyId: OWNER, elected: true, eligible: true, priorYear1: 2025, priorYear1Receipts: 1, priorYear2: 2024, priorYear2Receipts: 1, priorYear3: 2023, priorYear3Receipts: 1, averageGrossReceipts: 1 },
+      ],
+      complianceAlerts: [
+        { _id: "alert_owner", companyId: OWNER, category: "tax", severity: "warning", title: "x", body: "y" },
+      ],
+      inventoryBatches: [
+        { _id: "batch_owner", companyId: OWNER, productId: "p1", packageTag: "TAG1", quantityOnHand: 10, source: "manual" },
+      ],
+    });
+  }
+
+  const cases: Array<{ what: string; mod: string; fn: string; args: any }> = [
+    { what: "read another company's allocation policy", mod: "allocationPolicies", fn: "getById", args: { policyId: "pol_owner" } },
+    { what: "rewrite another company's allocation policy", mod: "allocationPolicies", fn: "update", args: { policyId: "pol_owner", name: "Hijacked" } },
+    { what: "delete another company's allocation policy", mod: "allocationPolicies", fn: "remove", args: { policyId: "pol_owner" } },
+    { what: "read another company's COGS allocation", mod: "cogsAllocations", fn: "getById", args: { allocationId: "alloc_owner" } },
+    { what: "approve another company's COGS allocation", mod: "cogsAllocations", fn: "approve", args: { allocationId: "alloc_owner" } },
+    { what: "reopen another company's COGS allocation", mod: "cogsAllocations", fn: "markNeedsReview", args: { allocationId: "alloc_owner" } },
+    { what: "read another company's tax filing", mod: "taxFilings", fn: "getTaxFiling", args: { filingId: "filing_owner" } },
+    { what: "delete another company's tax filing", mod: "taxFilings", fn: "deleteTaxFiling", args: { filingId: "filing_owner" } },
+    { what: "edit another company's 471(c) election notes", mod: "section471c", fn: "updateElectionNotes", args: { electionId: "elec_owner", notes: "tampered" } },
+    { what: "resolve another company's compliance alert", mod: "compliance", fn: "resolveAlert", args: { alertId: "alert_owner" } },
+    { what: "delete another company's inventory batch", mod: "inventory", fn: "deleteBatch", args: { batchId: "batch_owner" } },
+  ];
+
+  for (const c of cases) {
+    it(`refuses: ${c.what}`, async () => {
+      const db = seedTwoCompanies();
+      const rival = makeCtx(db, { clerkId: "clerk_rival" });
+      const mod: any = await import(`../${c.mod}`);
+      const fn = mod[c.fn];
+      assert.ok(fn, `${c.mod}.${c.fn} does not exist`);
+
+      await rejects(
+        () => call(fn, rival, c.args),
+        /unauthorized|not a member|access|denied/i,
+      );
+    });
+  }
+
+  it("the owner can still reach their own records", async () => {
+    // A guard that refuses everyone is not isolation, it is an outage.
+    const db = seedTwoCompanies();
+    const owner = makeCtx(db, { clerkId: "clerk_owner" });
+    const mod: any = await import("../allocationPolicies");
+    const policy: any = await call(mod.getById, owner, { policyId: "pol_owner" });
+    assert.equal(policy?.name, "Facility split");
+  });
+});
+
+describe("platform reference data", () => {
+  it("a tenant cannot rewrite the shared tax rate tables", async () => {
+    // These tables are shared by every company. A single bad write would alter
+    // other businesses' filings, and the wrong figure would look legitimate.
+    const db = new TestDb({
+      cannabisCompanies: [{ _id: "c1", name: "Any Co" }],
+      users: [{ _id: "u1", clerkId: "clerk_any", companyId: "c1" }],
+    });
+    const ctx = makeCtx(db, { clerkId: "clerk_any" });
+    const tax: any = await import("../tax");
+
+    await rejects(
+      () =>
+        call(tax.upsertTaxRate, ctx, {
+          data: {
+            jurisdictionId: "jur_co",
+            taxTypeId: "tt_excise",
+            rate: 0.0,
+            rateType: "percentage",
+            effectiveFrom: Date.now(),
+          },
+        }),
+      /not a tenant operation/i,
+    );
   });
 });

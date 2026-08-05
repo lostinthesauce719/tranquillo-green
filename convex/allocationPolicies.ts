@@ -1,11 +1,20 @@
 import { mutationGeneric, queryGeneric } from "convex/server";
-import { authQuery, authMutation } from "./lib/withAuth";
+import { authQuery, authMutation, requireCompanyAccessById } from "./lib/withAuth";
 import { v } from "convex/values";
 
+/*
+ * Every method the allocation engine implements must be selectable here.
+ *
+ * flat_percentage and flat_amount were added to computeAllocation but never to
+ * this validator, so a policy could not be created for either one. The engine
+ * supported them and the product could not reach them.
+ */
 const policyMethod = v.union(
   v.literal("square_footage"),
   v.literal("labor"),
-  v.literal("custom")
+  v.literal("custom"),
+  v.literal("flat_percentage"),
+  v.literal("flat_amount")
 );
 
 const policyStatus = v.union(v.literal("active"), v.literal("inactive"));
@@ -34,8 +43,12 @@ export const listByCompany = authQuery({
 
 export const getById = authQuery({
   args: { policyId: v.id("allocationPolicies") },
-  handler: async (ctx, args) => {
-    return await ctx.db.get(args.policyId);
+  handler: async (ctx, args, identity) => {
+    const policy = await ctx.db.get(args.policyId);
+    if (!policy) return null;
+    // Read path, same by-ID hole as update and remove.
+    await requireCompanyAccessById(ctx, identity, policy.companyId);
+    return policy;
   },
 });
 
@@ -98,11 +111,26 @@ export const update = authMutation({
     effectiveFrom: v.optional(v.string()),
     status: v.optional(policyStatus),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args, identity) => {
     const policy = await ctx.db.get(args.policyId);
     if (!policy) {
       throw new Error("Allocation policy not found.");
     }
+
+    /*
+     * Tenant check. This was missing.
+     *
+     * The withAuth wrapper enforces scope when a request carries a companyId,
+     * which covers create and listByCompany. update and remove take only a
+     * policyId, so nothing was enforced: any authenticated user who knew or
+     * guessed a policy ID could rewrite or delete another company's allocation
+     * policy — the document that governs how that company's costs split under
+     * 280E.
+     *
+     * The wrapper cannot infer the tenant from an opaque ID, so records reached
+     * by their own ID have to resolve the owner and check it here.
+     */
+    await requireCompanyAccessById(ctx, identity, policy.companyId);
 
     const { policyId, ...updates } = args;
 
@@ -129,11 +157,14 @@ export const update = authMutation({
 
 export const remove = authMutation({
   args: { policyId: v.id("allocationPolicies") },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args, identity) => {
     const policy = await ctx.db.get(args.policyId);
     if (!policy) {
       throw new Error("Allocation policy not found.");
     }
+
+    // Same hole as update: reached by policy ID, so the wrapper cannot scope it.
+    await requireCompanyAccessById(ctx, identity, policy.companyId);
 
     // Check for linked allocations
     const linkedAllocations = await ctx.db

@@ -7,7 +7,7 @@
 // exported functions, including the entire tax calculation path.
 //
 // Please do not reinstate @ts-nocheck here. This is tax code.
-import { authMutation, authQuery, requireCompanyAccessById } from "./lib/withAuth";
+import { authMutation, authQuery, requireCompanyAccessById, requirePlatformAdmin } from "./lib/withAuth";
 import { v } from "convex/values";
 import { applyRate, sumCents, fromCents, type Cents } from "./lib/money";
 
@@ -358,8 +358,8 @@ export const upsertTaxJurisdiction = authMutation({
       isActive: v.boolean(),
     }),
   },
-  handler: async (ctx, { jurisdictionId, data }) => {
-    // Require admin role (placeholder — implement role check in withAuth later)
+  handler: async (ctx, { jurisdictionId, data }, identity) => {
+    await requirePlatformAdmin(ctx, identity, "tax jurisdiction");
     if (jurisdictionId) {
       await ctx.db.update(jurisdictionId, { ...data, updatedAt: Date.now() });
       return { success: true, jurisdictionId };
@@ -392,7 +392,8 @@ export const upsertTaxRate = authMutation({
       notes: v.optional(v.string()),
     }),
   },
-  handler: async (ctx, { rateId, data }) => {
+  handler: async (ctx, { rateId, data }, identity) => {
+    await requirePlatformAdmin(ctx, identity, "tax rate");
     if (rateId) {
       await ctx.db.update(rateId, { ...data });
       return { success: true, rateId };

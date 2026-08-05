@@ -1,4 +1,4 @@
-import { authMutation, authQuery } from "./lib/withAuth";
+import { authMutation, authQuery, requireRecordAccess, getOwnedRecord } from "./lib/withAuth";
 import { v } from "convex/values";
 
 const licenseStatus = v.union(v.literal("active"), v.literal("pending"), v.literal("expired"));
@@ -106,7 +106,8 @@ export const updateFilingStatus = authMutation({
     filingId: v.id("taxFilings"),
     status: filingStatus,
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args, identity) => {
+    await getOwnedRecord(ctx, identity, args.filingId, "filing");
     await ctx.db.patch(args.filingId, { status: args.status });
     return await ctx.db.get(args.filingId);
   },
@@ -154,7 +155,8 @@ export const createAlert = authMutation({
 
 export const resolveAlert = authMutation({
   args: { alertId: v.id("complianceAlerts") },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args, identity) => {
+    await getOwnedRecord(ctx, identity, args.alertId, "alert");
     await ctx.db.patch(args.alertId, { resolvedAt: Date.now() });
     return await ctx.db.get(args.alertId);
   },

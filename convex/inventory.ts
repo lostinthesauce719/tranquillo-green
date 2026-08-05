@@ -1,4 +1,4 @@
-import { authMutation, authQuery } from "./lib/withAuth";
+import { authMutation, authQuery, requireRecordAccess, getOwnedRecord } from "./lib/withAuth";
 import { v } from "convex/values";
 
 // FIFO batch selection for sale
@@ -169,7 +169,8 @@ export const getMovements = authQuery({
 
 export const getMovementsByBatch = authQuery({
   args: { batchId: v.id("inventoryBatches") },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args, identity) => {
+    await getOwnedRecord(ctx, identity, args.batchId, "batch");
     return await ctx.db
       .query("inventoryMovements")
       .withIndex("by_batch", (q: any) => q.eq("batchId", args.batchId))
@@ -246,8 +247,9 @@ export const updateBatch = authMutation({
     locationId: v.optional(v.id("cannabisLocations")),
     costBasis: v.optional(v.number()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args, identity) => {
     const batch = await ctx.db.get(args.batchId);
+    await requireRecordAccess(ctx, identity, batch, "batch");
     if (!batch) throw new Error("Batch not found");
     await ctx.db.patch(args.batchId, {
       locationId: args.locationId,
@@ -318,8 +320,9 @@ export const deleteBatch = authMutation({
   args: {
     batchId: v.id("inventoryBatches"),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args, identity) => {
     const batch = await ctx.db.get(args.batchId);
+    await requireRecordAccess(ctx, identity, batch, "batch");
     if (!batch) throw new Error("Batch not found");
 
     // Zero out any remaining inventory via waste adjustment first

@@ -240,6 +240,95 @@ export async function requireCompanyAccessById(
 }
 
 /**
+ * Refuse an operation that maintains platform-wide reference data.
+ *
+ * Tax jurisdictions and rate tables are shared by every tenant. They were
+ * exposed as ordinary authMutations, with the comment "Require admin role
+ * (placeholder — implement role check in withAuth later)" standing in for the
+ * check. So any signed-in dispensary owner could rewrite the rate that every
+ * other company's filings are computed from. That is worse than a cross-tenant
+ * read: it is a single write that corrupts everyone's numbers, silently, with
+ * the wrong figure looking entirely legitimate afterwards.
+ *
+ * Every role in this product is tenant-scoped (owner, controller, accountant,
+ * viewer). None of them is a platform administrator, so there is currently no
+ * caller who should succeed here — and this refuses accordingly.
+ *
+ * Rate maintenance belongs in an internal, audited process, not in a mutation
+ * the customer application can reach. When that process exists, give it a real
+ * identity and let it through here explicitly.
+ */
+export async function requirePlatformAdmin(
+  ctx: AuthenticatedContext,
+  identity: Identity,
+  what = "platform record"
+): Promise<never> {
+  throw new Error(
+    `Editing ${what} data is not a tenant operation. These tables are shared by ` +
+      `every company on the platform, so a change here would alter other ` +
+      `businesses' tax calculations. Rate and jurisdiction maintenance is done ` +
+      `through an internal process against published state guidance. If a rate ` +
+      `looks wrong, report it rather than editing it.`
+  );
+}
+
+/**
+ * Verify access to a record reached by its own ID.
+ *
+ * WHY THIS EXISTS
+ *
+ * The authQuery/authMutation wrapper enforces tenant scope by inspecting the
+ * request for a companyId or slug. That covers most of the API, and it is why
+ * `listByCompany`-style functions are safe without writing anything.
+ *
+ * It cannot help a function whose only argument is an opaque record ID. There is
+ * nothing in `{ policyId }` for the wrapper to check, so it let the call through
+ * — and 21 functions were reached that way with no check of their own. Anyone
+ * signed in could read or rewrite another company's allocation policies, tax
+ * filings, inventory batches, COGS allocations and transaction lines, given an
+ * ID. Convex IDs are not secrets; they travel in URLs and API responses.
+ *
+ * The tenant isolation suite missed all of it because those tests passed a
+ * companyId, which is exactly the case the wrapper already handled.
+ *
+ * Pass the record's own owning company. Returns the record so callers do not
+ * fetch it twice.
+ */
+export async function requireRecordAccess<T extends { companyId?: string }>(
+  ctx: AuthenticatedContext,
+  identity: Identity,
+  record: T | null,
+  label = "record"
+): Promise<T> {
+  if (!record) {
+    throw new Error(`${label} not found.`);
+  }
+  if (!record.companyId) {
+    // A record with no owner cannot be scoped to a tenant. Refuse rather than
+    // assume it is public — silently allowing it is how this class of hole
+    // appears in the first place.
+    throw new Error(
+      `Unauthorized: this ${label} has no owning company and cannot be accessed this way.`
+    );
+  }
+  await requireCompanyAccessById(ctx, identity, record.companyId);
+  return record;
+}
+
+/**
+ * Fetch a record by ID and verify the caller owns it, in one step.
+ */
+export async function getOwnedRecord(
+  ctx: AuthenticatedContext,
+  identity: Identity,
+  id: string,
+  label = "record"
+): Promise<any> {
+  const record = await ctx.db.get(id);
+  return requireRecordAccess(ctx, identity, record, label);
+}
+
+/**
  * Verify access by company slug (looks up the company first).
  */
 export async function requireCompanyAccessBySlug(

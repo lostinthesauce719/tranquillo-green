@@ -1,5 +1,5 @@
 import { mutationGeneric, queryGeneric } from "convex/server";
-import { authQuery, authMutation } from "./lib/withAuth";
+import { authQuery, authMutation, requireRecordAccess, getOwnedRecord } from "./lib/withAuth";
 import { v } from "convex/values";
 
 const reviewStatus = v.union(
@@ -47,9 +47,11 @@ export const listByCompany = authQuery({
 
 export const getById = authQuery({
   args: { allocationId: v.id("cogsAllocations") },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args, identity) => {
     const allocation = await ctx.db.get(args.allocationId);
     if (!allocation) return null;
+    // Reached by allocation ID, so the wrapper cannot scope it. See withAuth.
+    await requireRecordAccess(ctx, identity, allocation, "allocation");
 
     const transaction = allocation.transactionId
       ? await ctx.db.get(allocation.transactionId)
@@ -150,8 +152,9 @@ export const approve = authMutation({
     overrideDeductible: v.optional(v.number()),
     overrideNondeductible: v.optional(v.number()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args, identity) => {
     const allocation = await ctx.db.get(args.allocationId);
+    await requireRecordAccess(ctx, identity, allocation, "allocation");
     if (!allocation) {
       throw new Error("Allocation not found.");
     }
@@ -180,8 +183,9 @@ export const markNeedsReview = authMutation({
     allocationId: v.id("cogsAllocations"),
     reason: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args, identity) => {
     const allocation = await ctx.db.get(args.allocationId);
+    await requireRecordAccess(ctx, identity, allocation, "allocation");
     if (!allocation) {
       throw new Error("Allocation not found.");
     }

@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { authMutation, authQuery } from "./lib/withAuth";
+import { authMutation, authQuery, requireRecordAccess, getOwnedRecord } from "./lib/withAuth";
 
 /**
  * Tax Filings — Generate and manage tax filings from calculations.
@@ -41,8 +41,8 @@ export const getTaxFiling = authQuery({
   args: {
     filingId: v.id("taxFilings"),
   },
-  handler: async (ctx, { filingId }) => {
-    return await ctx.db.get(filingId);
+  handler: async (ctx, { filingId }, identity) => {
+    return await getOwnedRecord(ctx, identity, filingId, "filing");
   },
 });
 
@@ -151,8 +151,9 @@ export const updateTaxFiling = authMutation({
       notes: v.optional(v.string()),
     }),
   },
-  handler: async (ctx, { filingId, updates }) => {
+  handler: async (ctx, { filingId, updates }, identity) => {
     const filing = await ctx.db.get(filingId);
+    await requireRecordAccess(ctx, identity, filing, "filing");
     if (!filing) throw new Error("Tax filing not found");
 
     await ctx.db.patch(filingId, {
@@ -170,8 +171,9 @@ export const updateTaxFiling = authMutation({
  */
 export const deleteTaxFiling = authMutation({
   args: { filingId: v.id("taxFilings") },
-  handler: async (ctx, { filingId }) => {
+  handler: async (ctx, { filingId }, identity) => {
     const filing = await ctx.db.get(filingId);
+    await requireRecordAccess(ctx, identity, filing, "filing");
     if (!filing) throw new Error("Tax filing not found");
 
     await ctx.db.delete(filingId);
