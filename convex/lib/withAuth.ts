@@ -240,6 +240,64 @@ export async function requireCompanyAccessById(
 }
 
 /**
+ * Verify that a secondary reference belongs to the same company.
+ *
+ * A different leak from the by-ID one, and harder to see, because every access
+ * check involved passes.
+ *
+ * The caller is authorised for their own company and the wrapper correctly lets
+ * them through. The problem is what they are allowed to point at: functions
+ * taking `{ companyId, transactionId, policyId }` stored those references
+ * without checking they belonged to the same company. The resulting record is
+ * correctly owned — it just points somewhere it should not.
+ *
+ * That becomes an exfiltration path when a list query resolves the reference
+ * with ctx.db.get() and returns the joined record. The allocation is yours; the
+ * transaction hanging off it is a competitor's, and it comes back in full.
+ *
+ * Returns the record, so callers can use it without a second fetch.
+ */
+export async function requireSameCompany(
+  ctx: AuthenticatedContext,
+  companyId: string,
+  id: string | undefined | null,
+  label = "record"
+): Promise<any | null> {
+  if (!id) return null;
+  const record: any = await ctx.db.get(id);
+  if (!record) {
+    throw new Error(`Referenced ${label} not found.`);
+  }
+  if (record.companyId !== companyId) {
+    // Deliberately does not say which company owns it. Confirming that an ID
+    // exists and belongs to someone else is itself a small disclosure.
+    throw new Error(
+      `Referenced ${label} does not belong to this company and cannot be used here.`
+    );
+  }
+  return record;
+}
+
+/**
+ * Resolve a reference for display, returning null when it is not ours.
+ *
+ * The read-side counterpart to requireSameCompany. Used where a query joins a
+ * reference into its response: a bad reference should render as absent rather
+ * than throw, so one malformed row cannot take out the whole list — but it must
+ * never serve the foreign record.
+ */
+export async function getIfSameCompany(
+  ctx: AuthenticatedContext,
+  companyId: string,
+  id: string | undefined | null
+): Promise<any | null> {
+  if (!id) return null;
+  const record: any = await ctx.db.get(id);
+  if (!record || record.companyId !== companyId) return null;
+  return record;
+}
+
+/**
  * Refuse an operation that maintains platform-wide reference data.
  *
  * Tax jurisdictions and rate tables are shared by every tenant. They were

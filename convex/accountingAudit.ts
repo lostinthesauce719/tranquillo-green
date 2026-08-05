@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { authMutation, authQuery, requireCompanyAccessById } from "./lib/withAuth";
+import { authMutation, authQuery, requireCompanyAccessById, requireSameCompany, getIfSameCompany } from "./lib/withAuth";
 
 const auditCategory = v.union(
   v.literal("reporting_period"),

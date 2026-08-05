@@ -1,4 +1,4 @@
-import { authMutation, authQuery, requireCompanyAccessById } from "./lib/withAuth";
+import { authMutation, authQuery, requireCompanyAccessById, requireSameCompany, getIfSameCompany } from "./lib/withAuth";
 import { v } from "convex/values";
 
 // ─── LABOR TIME TRACKING ──────────────────────────────────────────

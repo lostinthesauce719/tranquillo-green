@@ -1,4 +1,4 @@
-import { authMutation, authQuery, requireRecordAccess, getOwnedRecord } from "./lib/withAuth";
+import { authMutation, authQuery, requireRecordAccess, getOwnedRecord, requireSameCompany, getIfSameCompany } from "./lib/withAuth";
 import { v } from "convex/values";
 
 // FIFO batch selection for sale
@@ -194,13 +194,25 @@ export const recordMovement = authMutation({
     relatedTransactionId: v.optional(v.id("transactions")),
   },
   handler: async (ctx, args) => {
-    // Update batch quantity
-    const batch = await ctx.db.get(args.batchId);
-    if (batch) {
-      await ctx.db.patch(args.batchId, {
-        quantityOnHand: batch.quantityOnHand + args.quantity,
-      });
-    }
+    /*
+     * The batch has to be this company's.
+     *
+     * This fetched the batch by ID and patched its quantity with no ownership
+     * check at all, so a movement could add to or drain another company's
+     * inventory. That flows straight into their COGS, and it would surface as
+     * an unexplained inventory variance in their reconciliation rather than as
+     * anything resembling a security event.
+     *
+     * Note the old `if (batch)` — a missing batch silently skipped the update
+     * and still wrote the movement, leaving a movement record pointing at
+     * nothing. requireSameCompany refuses instead.
+     */
+    const batch = await requireSameCompany(ctx, args.companyId, args.batchId, "inventory batch");
+    await requireSameCompany(ctx, args.companyId, args.relatedTransactionId, "transaction");
+
+    await ctx.db.patch(args.batchId, {
+      quantityOnHand: batch.quantityOnHand + args.quantity,
+    });
 
     return await ctx.db.insert("inventoryMovements", args);
   },

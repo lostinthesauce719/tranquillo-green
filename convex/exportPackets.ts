@@ -3,7 +3,7 @@ import {
   gatherBlockingWarnings,
   requireAcknowledgement,
 } from "./lib/acknowledgement";
-import { authMutation, authQuery, requireCompanyAccessById } from "./lib/withAuth";
+import { authMutation, authQuery, requireCompanyAccessById, requireSameCompany, getIfSameCompany } from "./lib/withAuth";
 
 const exportPacketStatus = v.union(
   v.literal("draft"),
@@ -26,6 +26,11 @@ export const listRecentByCompany = authQuery(
   },
   async (ctx: any, args: any, identity: any) => {
     await requireCompanyAccessById(ctx, identity, args.companyId);
+
+    // An export packet is built for a reporting period. Pointing it at another
+    // company's period would put their date range on this company's filing
+    // support.
+    await requireSameCompany(ctx, args.companyId, args.periodId, "reporting period");
 
     const runs = args.periodLabel
       ? await ctx.db

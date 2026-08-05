@@ -1,4 +1,4 @@
-import { authMutation, authQuery, requireRecordAccess, getOwnedRecord } from "./lib/withAuth";
+import { authMutation, authQuery, requireRecordAccess, getOwnedRecord, requireSameCompany, getIfSameCompany } from "./lib/withAuth";
 import { v } from "convex/values";
 
 const licenseStatus = v.union(v.literal("active"), v.literal("pending"), v.literal("expired"));

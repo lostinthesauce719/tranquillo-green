@@ -1,5 +1,5 @@
 import { mutationGeneric, queryGeneric } from "convex/server";
-import { authQuery, authMutation, requireRecordAccess, getOwnedRecord } from "./lib/withAuth";
+import { authQuery, authMutation, requireRecordAccess, getOwnedRecord, requireSameCompany, getIfSameCompany } from "./lib/withAuth";
 import { v } from "convex/values";
 
 const reviewStatus = v.union(
@@ -25,12 +25,23 @@ export const listByCompany = authQuery({
     // Enrich with transaction and policy data
     const enriched = await Promise.all(
       allocations.map(async (alloc) => {
-        const transaction = alloc.transactionId
-          ? await ctx.db.get(alloc.transactionId)
-          : null;
-        const policy = alloc.policyId
-          ? await ctx.db.get(alloc.policyId)
-          : null;
+        /*
+         * Resolve joins only within this company.
+         *
+         * These were plain ctx.db.get() calls, which return whatever the ID
+         * points at. An allocation carrying a foreign transactionId would hand
+         * back a competitor's transaction in full — memo, reference, amount,
+         * dates — inside a response the caller is entirely authorised to
+         * receive. The access check on this query passes; the leak rides in the
+         * join.
+         *
+         * A leak like this needs both a bad reference and a permissive read.
+         * The write paths now refuse to create one, so this is defence in
+         * depth: rows written before that guard, or by an import path that
+         * bypasses it, still must not resolve.
+         */
+        const transaction = await getIfSameCompany(ctx, args.companyId, alloc.transactionId);
+        const policy = await getIfSameCompany(ctx, args.companyId, alloc.policyId);
         return { ...alloc, transaction, policy };
       })
     );
@@ -53,12 +64,11 @@ export const getById = authQuery({
     // Reached by allocation ID, so the wrapper cannot scope it. See withAuth.
     await requireRecordAccess(ctx, identity, allocation, "allocation");
 
-    const transaction = allocation.transactionId
-      ? await ctx.db.get(allocation.transactionId)
-      : null;
-    const policy = allocation.policyId
-      ? await ctx.db.get(allocation.policyId)
-      : null;
+    // Same join leak as listByCompany. Worth noting that the access check above
+    // is correct and does nothing to prevent this: the allocation really is
+    // yours, and these two lines decide what travels with it.
+    const transaction = await getIfSameCompany(ctx, allocation.companyId, allocation.transactionId);
+    const policy = await getIfSameCompany(ctx, allocation.companyId, allocation.policyId);
 
     return { ...allocation, transaction, policy };
   },
@@ -216,6 +226,31 @@ export const bulkCreate = authMutation({
     const company = await ctx.db.get(args.companyId);
     if (!company) {
       throw new Error("Company not found.");
+    }
+
+    /*
+     * Validate every reference before writing anything.
+     *
+     * `create` checks that a transaction or policy belongs to the same company.
+     * This did not — and being the bulk path it is the wider hole, because one
+     * foreign reference can ride along with a hundred legitimate rows.
+     *
+     * Checked up front rather than inside the insert loop so a bad row in the
+     * middle of a batch cannot leave half the allocations written. There is no
+     * transaction rollback to lean on here.
+     */
+    for (const [i, alloc] of args.allocations.entries()) {
+      try {
+        await requireSameCompany(ctx, args.companyId, alloc.transactionId, "transaction");
+        await requireSameCompany(ctx, args.companyId, alloc.policyId, "allocation policy");
+      } catch (e: any) {
+        throw new Error(`Allocation ${i + 1} of ${args.allocations.length}: ${e.message}`);
+      }
+      if (alloc.deductibleAmount < 0 || alloc.nondeductibleAmount < 0) {
+        throw new Error(
+          `Allocation ${i + 1} of ${args.allocations.length}: amounts cannot be negative.`,
+        );
+      }
     }
 
     const results: string[] = [];

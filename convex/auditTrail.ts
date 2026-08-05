@@ -1,4 +1,4 @@
-import { authMutation, authQuery } from "./lib/withAuth";
+import { authMutation, authQuery, requireSameCompany, getIfSameCompany } from "./lib/withAuth";
 import { v } from "convex/values";
 import { requireCurrentUserRecord } from "./lib/withAuth";
 
@@ -26,6 +26,12 @@ export const recordEvent = authMutation({
     metadata: v.optional(v.record(v.string(), v.string())),
   },
   handler: async (ctx: any, args: any) => {
+    // An override decision is evidence. Attaching one to another company's
+    // allocation writes into their audit trail — the record that exists
+    // precisely to be trustworthy.
+    await requireSameCompany(ctx, args.companyId, args.allocationId, "allocation");
+    await requireSameCompany(ctx, args.companyId, args.transactionId, "transaction");
+    await requireSameCompany(ctx, args.companyId, args.periodId, "reporting period");
     // Derive actor from authenticated user — ignore passed actor for security
     let actor = args.actor;
     try {
