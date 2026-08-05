@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { useTenant } from "@/lib/auth/tenant-context";
 import Link from "next/link";
 import {
   AlertCircle,
@@ -34,109 +35,6 @@ type Notification = {
   source: string;
 };
 
-const DEMO_NOTIFICATIONS: Notification[] = [
-  {
-    id: "n-1",
-    severity: "critical",
-    category: "compliance",
-    title: "280E allocation overdue for Q1 2026",
-    body: "Quarterly 280E COGS allocation has not been reviewed. Deadline was April 15. Review and approve allocation splits before filing.",
-    status: "unread",
-    createdAt: "2026-04-16T10:00:00Z",
-    dueAt: "2026-04-15T23:59:59Z",
-    linkHref: "/dashboard/allocations",
-    linkLabel: "Review Allocations",
-    source: "Compliance Engine",
-  },
-  {
-    id: "n-2",
-    severity: "warning",
-    category: "close",
-    title: "Month-end close: 3 blockers remaining",
-    body: "Reporting period checklist has 3 open blockers. Imports readiness and cash reconciliation need attention before lock.",
-    status: "unread",
-    createdAt: "2026-04-16T09:30:00Z",
-    dueAt: "2026-04-18T23:59:59Z",
-    linkHref: "/dashboard/accounting/close",
-    linkLabel: "Open Close Dashboard",
-    source: "Close Workflow",
-  },
-  {
-    id: "n-3",
-    severity: "warning",
-    category: "reconciliation",
-    title: "Metrc inventory variance: Package METC-001234",
-    body: "2.3g variance detected between Metrc and book inventory. Investigation opened 2 days ago.",
-    status: "unread",
-    createdAt: "2026-04-15T14:00:00Z",
-    dueAt: "2026-04-20T23:59:59Z",
-    linkHref: "/dashboard/reconciliations",
-    linkLabel: "Open Reconciliation",
-    source: "Metrc Sync",
-  },
-  {
-    id: "n-4",
-    severity: "warning",
-    category: "compliance",
-    title: "Cultivation license renewal in 45 days",
-    body: "Annual cultivation license renewal due. Submit application at least 30 days before expiration.",
-    status: "read",
-    createdAt: "2026-04-14T08:00:00Z",
-    dueAt: "2026-05-30T23:59:59Z",
-    linkHref: "/dashboard/compliance",
-    linkLabel: "View License Details",
-    source: "License Monitor",
-  },
-  {
-    id: "n-5",
-    severity: "info",
-    category: "tax",
-    title: "State excise tax filing due in 12 days",
-    body: "Monthly cannabis excise tax return (CDTFA-501) is due by the 15th of next month.",
-    status: "read",
-    createdAt: "2026-04-13T08:00:00Z",
-    dueAt: "2026-04-28T23:59:59Z",
-    linkHref: "/dashboard/compliance",
-    linkLabel: "View Filing Calendar",
-    source: "Tax Calendar",
-  },
-  {
-    id: "n-6",
-    severity: "info",
-    category: "allocation",
-    title: "471(c) election review recommended",
-    body: "Based on current revenue, your operation may benefit from a 471(c) small business inventory method election. Review with your CPA.",
-    status: "read",
-    createdAt: "2026-04-12T10:00:00Z",
-    linkHref: "/dashboard/allocations/policies",
-    linkLabel: "Review Policy",
-    source: "Allocation Engine",
-  },
-  {
-    id: "n-7",
-    severity: "success",
-    category: "close",
-    title: "Q4 2025 close packet generated",
-    body: "CPA handoff packet for Q4 2025 has been assembled and is ready for review. 8 sections included.",
-    status: "resolved",
-    createdAt: "2026-04-10T16:00:00Z",
-    linkHref: "/dashboard/exports",
-    linkLabel: "View Export Center",
-    source: "Packet Builder",
-  },
-  {
-    id: "n-8",
-    severity: "success",
-    category: "reconciliation",
-    title: "Bank reconciliation completed",
-    body: "April bank statement reconciled. All transactions matched. Variance: $0.00.",
-    status: "resolved",
-    createdAt: "2026-04-09T11:00:00Z",
-    linkHref: "/dashboard/reconciliations",
-    linkLabel: "View Reconciliation",
-    source: "Cash Reconciliation",
-  },
-];
 
 const severityConfig: Record<NotificationSeverity, { icon: React.ElementType; color: string; bg: string }> = {
   critical: { icon: AlertCircle, color: "text-red-400", bg: "bg-red-500/10 border-red-500/20" },
@@ -313,12 +211,49 @@ function NotificationRow({
 
 /* ─── Main Component ──────────────────────────────────────────────── */
 
+function feedItemToNotification(item: any): Notification {
+  return {
+    id: item.id,
+    severity: item.severity === "critical" ? "critical" : item.severity === "warning" ? "warning" : "info",
+    category: item.kind === "alert" ? "compliance" : "system",
+    title: item.title,
+    body: item.body,
+    status: item.readAt ? "read" : "unread",
+    createdAt: new Date(item.createdAt).toISOString(),
+    linkHref: item.href,
+    linkLabel: item.kind === "alert" ? "Review" : "View Audit Log",
+    source: item.kind === "alert" ? "Compliance Engine" : "Audit Trail",
+  };
+}
+
 export function NotificationInbox() {
-  const [notifications, setNotifications] = useState<Notification[]>(DEMO_NOTIFICATIONS);
+  const tenant = useTenant();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filterSeverity, setFilterSeverity] = useState<NotificationSeverity | "all">("all");
   const [filterStatus, setFilterStatus] = useState<NotificationStatus | "all">("all");
   const [showResolved, setShowResolved] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/notifications?companyId=${tenant.companyId}`);
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || "Failed to load notifications");
+      setNotifications((data.items ?? []).map(feedItemToNotification));
+    } catch (e: any) {
+      setError(e.message || "Failed to load notifications");
+    } finally {
+      setLoading(false);
+    }
+  }, [tenant.companyId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const filtered = useMemo(() => {
     return notifications.filter((n) => {
@@ -332,16 +267,35 @@ export function NotificationInbox() {
   const unreadCount = notifications.filter((n) => n.status === "unread").length;
   const criticalCount = notifications.filter((n) => n.severity === "critical" && n.status !== "resolved").length;
 
+  async function persistAction(payload: Record<string, unknown>) {
+    try {
+      const res = await fetch("/api/notifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || "Failed to update notification");
+    } catch (e: any) {
+      setError(e.message || "Failed to update notification");
+    }
+  }
+
   function markAsRead(id: string) {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, status: "read" as const } : n))
     );
+    void persistAction({ action: "markRead", sourceId: id });
   }
 
   function markAllRead() {
+    const unreadIds = notifications.filter((n) => n.status === "unread").map((n) => n.id);
     setNotifications((prev) =>
       prev.map((n) => (n.status === "unread" ? { ...n, status: "read" as const } : n))
     );
+    if (unreadIds.length > 0) {
+      void persistAction({ action: "markRead", sourceIds: unreadIds });
+    }
   }
 
   function resolveNotification(id: string) {
@@ -349,14 +303,23 @@ export function NotificationInbox() {
       prev.map((n) => (n.id === id ? { ...n, status: "resolved" as const } : n))
     );
     setExpandedId(null);
+    void persistAction({ action: "dismiss", sourceId: id });
   }
 
   return (
     <div className="space-y-6">
-      {/* Demo mode banner */}
-      <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-300">
-        <strong>Preview</strong> — Sample notifications for illustration. Live alerts appear on the Compliance page.
-      </div>
+      {error && (
+        <div className="rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300">
+          {error}
+        </div>
+      )}
+      {loading && (
+        <div className="space-y-2">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="h-16 animate-pulse rounded-lg border border-border/50 bg-surface-mid/50" />
+          ))}
+        </div>
+      )}
 
       {/* Summary bar */}
       <div className="flex flex-wrap items-center justify-between gap-4">
