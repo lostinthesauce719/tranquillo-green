@@ -4,14 +4,16 @@
 
 Tranquillo Green is envisioned as a cutting-edge **280E Defensibility Operating System (OS) for the Cannabis Industry**. Its core purpose is to provide a robust, compliance-focused platform that helps cannabis businesses manage their operations while ensuring adherence to the strict tax code 280E, mitigating risks, and optimizing financial processes. The platform aims to bring tranquility and clarity to complex regulatory environments, moving beyond merely decorative dashboards to offer actionable, defensible AI-powered operational insights.
 
-## 2. Current Development Status (as of April 13, 2026)
+## 2. Current Development Status (as of August 5, 2026)
 
 The project has achieved significant milestones:
 *   **Core Feature Complete:** All P0, P1, and P2 features are implemented.
-*   **Design Overhaul:** A complete design refresh has been executed.
-*   **Security Hardening:** Security measures have been thoroughly reviewed and strengthened.
+*   **Design Overhaul:** A complete design refresh has been executed (Folio design system: ink palette, teal/gold/lavender accents, Syne/DM Sans/DM Mono).
+*   **Security Hardening:** All CRITICAL and HIGH findings from the 2026-04-14 security review are remediated — Convex functions are auth-wrapped, API routes verify company ownership, and the QBO OAuth callback validates session + state.
+*   **Onboarding:** New signups are redirected to onboarding, which creates real Convex company records (company, user link, seeded chart of accounts).
 *   **Operator Types:** Supports 6 distinct operator types, including "delivery."
-*   **Demo Mode:** A fully functional demo mode is enabled for showcasing capabilities.
+*   **Demo Mode:** A fully functional sandbox demo mode with auto-provisioning and a guided product tour.
+*   **Quality Gates:** Production build, ESLint, TypeScript typecheck, and smoke tests all pass clean.
 
 ## 3. Key Features & Functionality
 

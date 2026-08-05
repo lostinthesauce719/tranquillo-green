@@ -1,21 +1,26 @@
 # Security Policy
 
-## Supported Versions
-
-Use this section to tell people about which versions of your project are
-currently being supported with security updates.
-
-| Version | Supported          |
-| ------- | ------------------ |
-| 5.1.x   | :white_check_mark: |
-| 5.0.x   | :x:                |
-| 4.0.x   | :white_check_mark: |
-| < 4.0   | :x:                |
-
 ## Reporting a Vulnerability
 
-Use this section to tell people how to report a vulnerability.
+If you discover a security vulnerability in Tranquillo Green, please report it privately rather than opening a public issue. Email the maintainer with a description of the issue, steps to reproduce, and the potential impact. You can expect an acknowledgment within a few business days.
 
-Tell them where to go, how often they can expect to get an update on a
-reported vulnerability, what to expect if the vulnerability is accepted or
-declined, etc.
+Please do not test vulnerabilities against production deployments or real tenant data.
+
+## Scope
+
+Reports are welcome for anything in this repository, in particular:
+
+- Authentication and authorization bypasses (Clerk, Convex function auth wrappers, API route ownership checks)
+- Cross-tenant data access (company-scoped queries and mutations)
+- Exposure of integration credentials (QuickBooks Online tokens, POS credentials)
+- Injection or XSS vectors in user-supplied data
+
+## Security posture
+
+- All Convex queries/mutations that touch tenant data are wrapped with `authQuery` / `authMutation` (`convex/lib/withAuth.ts`) and verify company membership.
+- API routes verify the authenticated user's access to the requested company before delegating to Convex.
+- Security headers (CSP, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`) are applied via `src/lib/api-helpers.ts`.
+- Secrets live only in environment variables; `.env*` files are gitignored and `src/lib/env.ts` is server-only.
+- Financial mutations write audit-trail records with actor, timestamp, and before/after state.
+
+Known accepted tradeoffs for the demo deployment (documented in `qa-security-review.md`): in-memory rate limiting and `unsafe-inline`/`unsafe-eval` in the CSP required by embedded auth components.

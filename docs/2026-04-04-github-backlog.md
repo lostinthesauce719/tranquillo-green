@@ -2,6 +2,8 @@
 
 This backlog translates the strategic roadmap into execution-ready issue themes and epics.
 
+> **Status (2026-08-05):** All P0 and P1 themes below have shipped — Convex-backed system of record, live close readiness and review queues, persisted import pipeline with lineage, export packet history and audit trails, automation run visibility, and the Clerk-authenticated tenant-aware app shell with role-aware permissions. P2 hardening is complete (build/lint/typecheck/tests green, shallow modules finished or hidden, docs refreshed). Item 19 (post-foundation decision intelligence) remains intentionally deferred per the roadmap guardrail.
+
 ## P0 — Defensible Decisions
 1. Finish Convex-backed system of record for accounting truth
 2. Remove remaining demo-state dependencies from accounting-critical workflows
