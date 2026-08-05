@@ -22,6 +22,12 @@ export const moduleLinks: NavLink[] = [
   { href: "/dashboard/accounting/transactions", label: "Transactions", section: "Workflows", tourId: "nav-transactions" },
   { href: "/dashboard/accounting/imports", label: "Imports", section: "Workflows" },
   { href: "/dashboard/allocations", label: "280E Allocations", section: "Workflows", tourId: "nav-allocations" },
+  // These two were reachable only by typing the URL. Both have working backends
+  // — the review queue and the policy editor — so they were orphaned by omission
+  // rather than by intent. The policy editor in particular governs every split
+  // the engine makes, which is not a page to leave unreachable.
+  { href: "/dashboard/allocations/cogs-review", label: "COGS Review", section: "Workflows" },
+  { href: "/dashboard/allocations/policies", label: "Allocation Policies", section: "Workflows" },
   { href: "/dashboard/allocations/history", label: "Allocation History", section: "Workflows" },
   { href: "/dashboard/allocations/support-schedule", label: "280E Support Schedule", section: "Workflows" },
 

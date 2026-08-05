@@ -6,6 +6,8 @@ import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import { moduleLinks, filterLinksByOperator, type NavLink } from "@/lib/navigation";
 import { useTenantMaybe } from "@/lib/auth/tenant-context";
+import { useQuery } from "convex/react";
+import { api } from "@/../convex/_generated/api";
 
 const SECTION_ORDER = ["Core", "Workflows", "Operations", "Handoff", "System"];
 
@@ -32,6 +34,8 @@ const navIcons: Record<string, string> = {
   "/dashboard/accounting/transactions": "⇅",
   "/dashboard/accounting/imports": "⊕",
   "/dashboard/allocations": "⊗",
+  "/dashboard/allocations/cogs-review": "⊙",
+  "/dashboard/allocations/policies": "⌥",
   "/dashboard/allocations/history": "◎",
   "/dashboard/allocations/support-schedule": "⊘",
   "/dashboard/inventory": "⊟",
@@ -42,12 +46,21 @@ const navIcons: Record<string, string> = {
   "/dashboard/settings": "⊙",
 };
 
-// Badge data for nav items (counts)
-const navBadges: Record<string, { text: string; variant: "r" | "g" | "a" } | null> = {
-  "/dashboard/allocations": { text: "3", variant: "r" },
-  "/dashboard/compliance": { text: "2", variant: "a" },
-  "/dashboard/automation": { text: "live", variant: "g" },
-};
+/*
+ * Nav badges were hardcoded: a red "3" on Allocations, an amber "2" on
+ * Compliance, a green "live" on Automation. They rendered on every page for
+ * every operator regardless of state.
+ *
+ * A red count in navigation is a claim that three specific things need you. An
+ * operator with an empty queue saw "3" and went looking; an operator with
+ * fourteen items waiting also saw "3". Either way the number was noise dressed
+ * as a signal, and "live" asserted a health status nothing was checking.
+ *
+ * Left empty rather than invented. Real counts need a per-tenant query in the
+ * shell, which is worth doing — the allocation queue already exposes
+ * needsReviewCount — but a wrong number is worse than none.
+ */
+const navBadges: Record<string, { text: string; variant: "r" | "g" | "a" } | null> = {};
 
 function TileIcon({ className }: { className?: string }) {
   return (
@@ -104,16 +117,72 @@ function Sidebar({ currentPath }: { currentPath: string }) {
         </div>
       ))}
 
-      <div className="sb-foot">
-        <div className="period-chip">
-          <div>
-            <div className="pc-label">Active Period</div>
-            <div className="pc-value">March 2026</div>
-          </div>
-          <div className="pc-badge">REVIEW</div>
-        </div>
-      </div>
+      <ActivePeriodChip />
     </nav>
+  );
+}
+
+/**
+ * The active period, read from the database.
+ *
+ * This was the string "March 2026" with a "REVIEW" badge, on every page, for
+ * every operator, forever. Someone closing April would have had March pinned to
+ * their sidebar telling them otherwise.
+ */
+function ActivePeriodChip() {
+  const tenant = useTenantMaybe();
+  const period = useQuery(
+    api.reportingPeriods.getCurrentPeriod,
+    tenant ? ({ companyId: tenant.companyId } as any) : "skip",
+  );
+
+  // Say nothing rather than guess. An empty footer is honest; a wrong period is
+  // the kind of thing an operator files against.
+  if (!tenant || period === undefined || period === null) return null;
+
+  return (
+    <div className="sb-foot">
+      <div className="period-chip">
+        <div>
+          <div className="pc-label">Active Period</div>
+          <div className="pc-value">{period.label}</div>
+        </div>
+        <div className="pc-badge">{String(period.status ?? "").toUpperCase()}</div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Unresolved compliance alerts, or nothing.
+ *
+ * Replaces a static "All agents healthy" claim. This reports one specific thing
+ * it can actually see — open alerts for this company — and stays silent
+ * otherwise. Silence is not a claim; a green dot is.
+ */
+function StatusBar() {
+  const tenant = useTenantMaybe();
+  const alerts = useQuery(
+    api.compliance.getUnresolvedAlerts,
+    tenant ? ({ companyId: tenant.companyId } as any) : "skip",
+  );
+
+  if (!tenant || alerts === undefined || alerts === null) return null;
+
+  const open = Array.isArray(alerts) ? alerts.filter((a: any) => !a.resolvedAt) : [];
+  if (open.length === 0) return null;
+
+  const critical = open.filter((a: any) => a.severity === "critical").length;
+
+  return (
+    <div className="status-bar">
+      <div className="sb-dot" style={{ background: critical > 0 ? "var(--danger)" : "var(--warning)" }} />
+      <span className="sb-txt">
+        {open.length} open compliance {open.length === 1 ? "alert" : "alerts"}
+      </span>
+      {critical > 0 && <span className="sb-detail">— {critical} critical</span>}
+      <Link href="/dashboard/compliance" className="sb-link">Review →</Link>
+    </div>
   );
 }
 
@@ -140,7 +209,9 @@ export function AppShell({
           <div className="tb-bc">
             <span className="tb-page">{title}</span>
             <span className="tb-sep">/</span>
-            <span className="tb-sub">{tenant?.companyName ?? "Demo Dispensary, LLC"}</span>
+            {/* Was "Demo Dispensary, LLC" — a fallback that would appear as the
+                operator's own company name if tenant context failed to load. */}
+            {tenant?.companyName && <span className="tb-sub">{tenant.companyName}</span>}
           </div>
           {/*
             These three were <button> elements with no handler — rendered on
@@ -171,13 +242,22 @@ export function AppShell({
           </div>
         </div>
 
-        {/* Status Bar */}
-        <div className="status-bar">
-          <div className="sb-dot" />
-          <span className="sb-txt">All agents healthy</span>
-          <span className="sb-detail">— no blockers detected</span>
-          <Link href="/dashboard/automation" className="sb-link">View agents →</Link>
-        </div>
+        {/*
+          The status bar read "All agents healthy — no blockers detected" with a
+          green dot, statically, on every page.
+
+          That is a safety claim, and nothing anywhere was checking it. An
+          operator with a failed sync, an unbalanced journal or an overdue filing
+          saw a green light telling them everything was fine — and this bar sits
+          above every screen in the product, so it was the most-seen sentence in
+          the application and one of the few that could never be true or false
+          for the right reasons.
+
+          Removed rather than faked green. When there is a real health check to
+          report, this is the place for it; until then the pages below say what
+          they actually know.
+        */}
+        <StatusBar />
 
         {/* Content */}
         <div className="cnt">{children}</div>
