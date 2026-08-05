@@ -182,3 +182,142 @@ describe("cross-tenant references — read side", () => {
     assert.equal(rows[0].policy, null, "foreign policy must resolve to null");
   });
 });
+
+/* ─── Optional tenant filters ────────────────────────────────────────────── */
+
+describe("optional companyId — a filter that defaults to everything", () => {
+  /**
+   * The widest hole found in this sweep, and the least like a hole.
+   *
+   * audit.queryAuditLogs declared companyId as v.optional(). The withAuth
+   * wrapper scopes a request by reading companyId out of it, so when the
+   * argument was absent there was nothing to scope — and the handler only
+   * filtered by company `if (companyId)`.
+   *
+   * queryAuditLogs({}) therefore returned the audit log for every company on
+   * the platform: who did what, to which records, when. Not a leak of one
+   * record through a join — the whole ledger of activity, for everyone.
+   *
+   * An optional tenant filter on a query that spans tenants is not a filter.
+   * It is a default of "everything".
+   */
+  it("queryAuditLogs cannot be called without a company", async () => {
+    const audit: any = await import("../audit");
+    const spec = JSON.parse(audit.queryAuditLogs.exportArgs());
+    const companyArg = spec.value.companyId;
+    assert.ok(companyArg, "companyId must still be an argument");
+    // Convex reports optionality as an `optional` boolean on the field, not as
+    // a union type. My first version of this assertion checked `.type` and so
+    // passed against the very code it was written to catch — verified by
+    // reverting the fix and watching it stay green.
+    assert.equal(
+      companyArg.optional,
+      false,
+      "companyId must be required — v.optional() here means the query spans every tenant",
+    );
+  });
+
+  it("queryAuditLogs refuses another company's log", async () => {
+    const audit: any = await import("../audit");
+    await db.insert("auditLogs", {
+      action: "transaction.posted",
+      entity: "transactions",
+      entityId: THEIR_TXN,
+      userId: "u_theirs",
+      companyId: THEIRS,
+      timestamp: Date.now(),
+      changes: [],
+      metadata: {},
+    });
+
+    await rejects(
+      () => call(audit.queryAuditLogs, ctx, { companyId: THEIRS }),
+      /unauthorized|not a member/i,
+    );
+  });
+
+  it("generateComplianceAlerts cannot sweep every company", async () => {
+    // Same shape on the write side: omitting companyId iterated all companies,
+    // reading their licences and filings and writing alerts into their
+    // accounts. A platform-wide sweep is a scheduled job, not something the
+    // customer application can trigger.
+    const compliance: any = await import("../compliance");
+    const spec = JSON.parse(compliance.generateComplianceAlerts.exportArgs());
+    const companyArg = spec.value.companyId;
+    assert.ok(companyArg, "companyId must still be an argument");
+    assert.equal(
+      companyArg.optional,
+      false,
+      "companyId must be required — optional meant 'every company'",
+    );
+  });
+});
+
+/* ─── Shared reference data ──────────────────────────────────────────────── */
+
+describe("shared reference data — shared, or ours, never theirs", () => {
+  /**
+   * Tax jurisdictions are the awkward case: a state-level jurisdiction has
+   * companyId null and every operator in that state legitimately uses it, while
+   * a company may also define its own. requireSameCompany is the wrong rule
+   * here — it would refuse the system records, which are the ordinary case.
+   */
+  it("accepts a system-wide jurisdiction", async () => {
+    const tax: any = await import("../tax");
+    await db.insert("taxJurisdictions", {
+      _id: "jur_system",
+      companyId: null,
+      stateCode: "CO",
+      jurisdictionName: "Colorado",
+      jurisdictionLevel: "state",
+      filingFrequency: "monthly",
+      isActive: true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    await db.insert("taxProfiles", { companyId: MINE, state: "CO", isPrimary: true });
+
+    // Should not throw on the jurisdiction check. It may fail later for other
+    // reasons; what matters is that the reference itself is accepted.
+    let refusedOnReference = false;
+    try {
+      await call(tax.updateCompanyTaxProfile, ctx, {
+        companyId: MINE,
+        primaryJurisdictionId: "jur_system",
+        nexusStates: ["CO"],
+        filingCalendar: {},
+        taxTypesEnabled: [],
+      });
+    } catch (e: any) {
+      if (/belongs to another company/i.test(e.message)) refusedOnReference = true;
+    }
+    assert.equal(refusedOnReference, false, "a shared jurisdiction must be usable");
+  });
+
+  it("refuses another company's private jurisdiction", async () => {
+    const tax: any = await import("../tax");
+    await db.insert("taxJurisdictions", {
+      _id: "jur_theirs",
+      companyId: THEIRS,
+      stateCode: "CO",
+      jurisdictionName: "Rival's local district",
+      jurisdictionLevel: "city",
+      filingFrequency: "monthly",
+      isActive: true,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    await rejects(
+      () =>
+        call(tax.updateCompanyTaxProfile, ctx, {
+          companyId: MINE,
+          primaryJurisdictionId: "jur_theirs",
+          nexusStates: ["CO"],
+          filingCalendar: {},
+          taxTypesEnabled: [],
+        }),
+      /belongs to another company/i,
+    );
+  });
+});

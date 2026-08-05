@@ -279,6 +279,39 @@ export async function requireSameCompany(
 }
 
 /**
+ * Verify a reference to data that may legitimately be shared.
+ *
+ * Some tables hold both platform reference records and tenant-specific ones.
+ * Tax jurisdictions are the case here: a state-level jurisdiction has
+ * `companyId: null` and is meant to be used by everyone, while a company may
+ * also define its own local jurisdiction.
+ *
+ * requireSameCompany is wrong for these — it would refuse the system records,
+ * which are the ordinary case. The rule is: shared, or ours. Never someone
+ * else's.
+ */
+export async function requireSharedOrOwnedReference(
+  ctx: AuthenticatedContext,
+  companyId: string,
+  id: string | undefined | null,
+  label = "record"
+): Promise<any | null> {
+  if (!id) return null;
+  const record: any = await ctx.db.get(id);
+  if (!record) {
+    throw new Error(`Referenced ${label} not found.`);
+  }
+  // null or undefined companyId means platform-wide reference data.
+  const owner = record.companyId ?? null;
+  if (owner !== null && owner !== companyId) {
+    throw new Error(
+      `Referenced ${label} belongs to another company and cannot be used here.`
+    );
+  }
+  return record;
+}
+
+/**
  * Resolve a reference for display, returning null when it is not ours.
  *
  * The read-side counterpart to requireSameCompany. Used where a query joins a

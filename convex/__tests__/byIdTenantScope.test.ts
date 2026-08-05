@@ -168,3 +168,82 @@ describe("tenant scope — functions reached by record ID", () => {
     }
   });
 });
+
+/* ─── Optional tenant filters ────────────────────────────────────────────── */
+
+/**
+ * A companyId declared v.optional() on a function that queries or writes across
+ * companies is not a filter — it is a default of "everything".
+ *
+ * audit.queryAuditLogs had exactly this, and it was the widest hole in the API:
+ * calling it with no arguments returned every tenant's audit log. The wrapper
+ * could not help, because the wrapper scopes by reading companyId out of the
+ * request and there was nothing there to read.
+ *
+ * Structural, for the same reason as the check above: this catches the next one
+ * without anyone having to think of it.
+ */
+const OPTIONAL_COMPANY_ALLOWED: Record<string, string> = {
+  // Onboarding runs before the caller has a company, so it cannot supply one.
+  "onboarding.ts::createCompany": "runs before the user belongs to a company",
+};
+
+function findOptionalCompanyIdFunctions(): Finding[] {
+  const findings: Finding[] = [];
+
+  for (const file of convexSourceFiles(CONVEX_DIR)) {
+    const src = readFileSync(file, "utf-8");
+    const rel = relative(CONVEX_DIR, file).replace(/\\/g, "/");
+
+    const re = /export const (\w+)\s*=\s*(authQuery|authMutation)\(/g;
+    let m: RegExpExecArray | null;
+
+    while ((m = re.exec(src)) !== null) {
+      const [, name, kind] = m;
+      let depth = 1;
+      let i = m.index + m[0].length;
+      while (i < src.length && depth > 0) {
+        if (src[i] === "(") depth++;
+        else if (src[i] === ")") depth--;
+        i++;
+      }
+      const body = src.slice(m.index + m[0].length, i);
+      const handlerAt = body.search(/handler\s*:|async \(ctx/);
+      const argsPart = handlerAt > 0 ? body.slice(0, handlerAt) : body;
+
+      if (!/companyId:\s*v\.optional\(\s*v\.id\("cannabisCompanies"\)\s*\)/.test(argsPart)) {
+        continue;
+      }
+
+      const key = `${rel}::${name}`;
+      if (key in OPTIONAL_COMPANY_ALLOWED) continue;
+
+      findings.push({ file: rel, name, kind, idArg: "cannabisCompanies (optional)" });
+    }
+  }
+
+  return findings;
+}
+
+describe("tenant scope — optional companyId", () => {
+  it("no auth function declares companyId as optional", () => {
+    const found = findOptionalCompanyIdFunctions();
+
+    const detail = found.map((f) => `  ${f.file}::${f.name} (${f.kind})`).join("\n");
+
+    assert.equal(
+      found.length,
+      0,
+      found.length === 0
+        ? ""
+        : `${found.length} auth function(s) declare companyId as v.optional().\n\n` +
+            `The wrapper scopes a request by reading companyId out of it. When the\n` +
+            `argument is absent there is nothing to scope, and the handler's own\n` +
+            `"if (companyId)" filter simply does not run — so the call returns or\n` +
+            `touches every company on the platform.\n\n` +
+            detail +
+            `\n\nFix: make companyId required. If the function genuinely runs before\n` +
+            `the caller has a company, add it to OPTIONAL_COMPANY_ALLOWED with a reason.`,
+    );
+  });
+});

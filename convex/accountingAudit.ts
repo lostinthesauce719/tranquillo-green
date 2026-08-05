@@ -57,6 +57,13 @@ export const createEvent = authMutation(
   async (ctx: any, args: any, identity: any) => {
     await requireCompanyAccessById(ctx, identity, args.companyId);
 
+    // An audit event is evidence about a period, a reconciliation or an export
+    // run. Attaching one to another company's record files evidence against
+    // their books — in the table whose entire value is being trustworthy.
+    await requireSameCompany(ctx, args.companyId, args.periodId, "reporting period");
+    await requireSameCompany(ctx, args.companyId, args.reconciliationId, "reconciliation");
+    await requireSameCompany(ctx, args.companyId, args.exportPacketRunId, "export packet run");
+
     return await ctx.db.insert("accountingAuditEvents", {
       ...args,
       occurredAt: args.occurredAt ?? Date.now(),

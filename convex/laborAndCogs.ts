@@ -23,6 +23,9 @@ export const recordTimeEntry = authMutation({
   },
 }, async (ctx, args, identity) => {
     await requireCompanyAccessById(ctx, identity, args.companyId);
+    // Hours booked against another company's location distort the production
+    // ratio that drives their labour reclassification.
+    await requireSameCompany(ctx, args.companyId, args.locationId, "location");
     const now = Date.now();
 
     // Calculate totals

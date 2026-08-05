@@ -1,4 +1,4 @@
-import { authMutation, authQuery, requireRecordAccess, getOwnedRecord, requireSameCompany, getIfSameCompany } from "./lib/withAuth";
+import { authMutation, authQuery, requireRecordAccess, getOwnedRecord, requireSameCompany, getIfSameCompany, requireCompanyAccessById } from "./lib/withAuth";
 import { v } from "convex/values";
 
 const licenseStatus = v.union(v.literal("active"), v.literal("pending"), v.literal("expired"));
@@ -30,6 +30,8 @@ export const upsertLicense = authMutation({
     expiresAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    // A licence pinned to another company's location.
+    await requireSameCompany(ctx, args.companyId, args.locationId, "location");
     const existing = (
       await ctx.db
         .query("cannabisLicenses")
@@ -84,6 +86,9 @@ export const upsertTaxFiling = authMutation({
     status: filingStatus,
   },
   handler: async (ctx, args) => {
+    // A filing pointing at another company's tax profile would compute against
+    // their jurisdiction and rates.
+    await requireSameCompany(ctx, args.companyId, args.taxProfileId, "tax profile");
     const existing = (
       await ctx.db
         .query("taxFilings")
@@ -194,12 +199,21 @@ async function findExistingAlert(
 
 export const generateComplianceAlerts = authMutation({
   args: {
-    companyId: v.optional(v.id("cannabisCompanies")),
+    /*
+     * REQUIRED. Was optional, and omitting it swept every company on the
+     * platform — reading their licences, filings and reconciliations and
+     * writing alerts into their accounts. The wrapper had nothing to scope
+     * against, so any signed-in user could trigger it.
+     *
+     * A platform-wide sweep is a legitimate thing to want, but it is a
+     * scheduled job running with its own identity, not a mutation the customer
+     * application can call.
+     */
+    companyId: v.id("cannabisCompanies"),
   },
-  handler: async (ctx, args) => {
-    const companies = args.companyId
-      ? [{ _id: args.companyId } as any]
-      : await ctx.db.query("cannabisCompanies").collect();
+  handler: async (ctx, args, identity) => {
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+    const companies = [{ _id: args.companyId } as any];
 
     let totalCreated = 0;
     let totalResolved = 0;

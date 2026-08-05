@@ -133,6 +133,10 @@ export const upsertBatch = authMutation({
     source: v.union(v.literal("csv_import"), v.literal("metrc_import"), v.literal("manual")),
   },
   handler: async (ctx, args) => {
+    // Product and location both have to be ours, or the batch describes stock
+    // of someone else's SKU sitting at someone else's site.
+    await requireSameCompany(ctx, args.companyId, args.productId, "product");
+    await requireSameCompany(ctx, args.companyId, args.locationId, "location");
     const existing = (
       await ctx.db
         .query("inventoryBatches")
@@ -456,6 +460,20 @@ export const sellInventoryItem = authMutation({
     relatedTransactionId: v.optional(v.id("transactions")),
   },
   handler: async (ctx, args) => {
+    /*
+     * selectFIFOBatches already scopes its query to this company, so a foreign
+     * productId cannot consume another company's stock — it simply matches
+     * nothing and throws "Insufficient inventory for product ...".
+     *
+     * That is safe and misleading. An operator who fat-fingers a product ID is
+     * told their warehouse is empty when the real answer is that the product
+     * is not theirs. Checking first turns a confusing stock error into an
+     * accurate one.
+     */
+    await requireSameCompany(ctx, args.companyId, args.productId, "product");
+    await requireSameCompany(ctx, args.companyId, args.locationId, "location");
+    await requireSameCompany(ctx, args.companyId, args.relatedTransactionId, "transaction");
+
     const consumed = await selectFIFOBatches(
       ctx,
       args.companyId,

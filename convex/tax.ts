@@ -7,7 +7,7 @@
 // exported functions, including the entire tax calculation path.
 //
 // Please do not reinstate @ts-nocheck here. This is tax code.
-import { authMutation, authQuery, requireCompanyAccessById, requirePlatformAdmin } from "./lib/withAuth";
+import { authMutation, authQuery, requireCompanyAccessById, requirePlatformAdmin, requireSharedOrOwnedReference } from "./lib/withAuth";
 import { v } from "convex/values";
 import { applyRate, sumCents, fromCents, type Cents } from "./lib/money";
 
@@ -105,6 +105,12 @@ export const calculateTax = authMutation({
   handler: async (ctx, payload) => {
     const { companyId, transactionAmount, productCategory, jurisdictionId, taxTypeCodes, transactionDate } = payload;
     const now = transactionDate ?? Date.now();
+
+    // An explicitly supplied jurisdiction has to be shared reference data or
+    // this company's own. Otherwise a sale could be taxed at another operator's
+    // private rate — and the resulting figure would look perfectly ordinary on
+    // the receipt and in the filing.
+    await requireSharedOrOwnedReference(ctx, companyId, jurisdictionId, "tax jurisdiction");
 
     // Resolve jurisdiction: use provided, else company's primary jurisdiction
     let targetJurisdiction: string | null = jurisdictionId;
@@ -415,7 +421,24 @@ export const updateCompanyTaxProfile = authMutation({
     filingCalendar: v.record(v.string(), v.string()),
     taxTypesEnabled: v.array(v.id("taxTypes")),
   },
-  handler: async (ctx, { companyId, primaryJurisdictionId, nexusStates, filingCalendar, taxTypesEnabled }) => {
+  handler: async (ctx, { companyId, primaryJurisdictionId, nexusStates, filingCalendar, taxTypesEnabled }, identity) => {
+    await requireCompanyAccessById(ctx, identity, companyId);
+
+    /*
+     * Jurisdictions are shared reference data OR company-specific, so the rule
+     * is "shared, or ours" rather than a strict same-company check — a
+     * state-level jurisdiction has companyId null and every operator in that
+     * state uses it.
+     *
+     * Pointing a tax profile at another company's private jurisdiction would
+     * compute this company's filings against rates they never chose, and the
+     * resulting numbers would look entirely ordinary.
+     *
+     * taxTypes are global reference data with no owner at all, so they need no
+     * check here.
+     */
+    await requireSharedOrOwnedReference(ctx, companyId, primaryJurisdictionId, "tax jurisdiction");
+
     const existing = await ctx.db
       .query("taxProfiles")
       .filter(q => q.eq(q.field("companyId"), companyId))

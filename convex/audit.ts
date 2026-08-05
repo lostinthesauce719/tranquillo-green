@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { authMutation, authQuery } from "./lib/withAuth";
+import { authMutation, authQuery, requireCompanyAccessById } from "./lib/withAuth";
 
 /**
  * Audit Trail — Log and query system events for compliance and debugging.
@@ -179,20 +179,36 @@ export const queryAuditLogs = authQuery({
     entityId: v.optional(v.string()),
     action: v.optional(v.string()),
     userId: v.optional(v.id("users")),
-    companyId: v.optional(v.id("cannabisCompanies")),
+    /*
+     * REQUIRED. This was optional, and that made it the widest hole in the API.
+     *
+     * The withAuth wrapper scopes a request by reading companyId out of it —
+     * so when companyId was absent there was nothing to scope, and the handler
+     * only filtered by company `if (companyId)`. Calling queryAuditLogs({})
+     * therefore returned the audit log for every company on the platform:
+     * who did what, to which records, when, across every tenant.
+     *
+     * An optional tenant filter on a query that spans tenants is not a filter.
+     * It is a default of "everything".
+     */
+    companyId: v.id("cannabisCompanies"),
     start: v.optional(v.number()),
     end: v.optional(v.number()),
     limit: v.optional(v.number()),
     offset: v.optional(v.number()),
   },
-  handler: async (ctx, { entity, entityId, action, userId, companyId, start, end, limit = 100, offset = 0 }) => {
-    let q = ctx.db.query("auditLogs");
+  handler: async (ctx, { entity, entityId, action, userId, companyId, start, end, limit = 100, offset = 0 }, identity) => {
+    await requireCompanyAccessById(ctx, identity, companyId);
+
+    // Applied first and unconditionally. Every other filter narrows within this
+    // company; none of them can widen past it.
+    let q = ctx.db.query("auditLogs").filter(q => q.eq(q.field("companyId"), companyId));
 
     if (entity) q = q.filter(q => q.eq(q.field("entity"), entity));
     if (entityId) q = q.filter(q => q.eq(q.field("entityId"), entityId));
     if (action) q = q.filter(q => q.eq(q.field("action"), action));
+    // userId narrows to one actor, but only among this company's own entries.
     if (userId) q = q.filter(q => q.eq(q.field("userId"), userId));
-    if (companyId) q = q.filter(q => q.eq(q.field("companyId"), companyId));
     if (start) q = q.filter(q => q.gte(q.field("timestamp"), start));
     if (end) q = q.filter(q => q.lt(q.field("timestamp"), end));
 
