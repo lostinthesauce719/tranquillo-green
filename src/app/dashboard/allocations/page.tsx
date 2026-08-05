@@ -1,273 +1,263 @@
 "use client";
 
-import { useState, useCallback } from "react";
-import Link from "next/link";
-import { AllocationReviewQueue } from "@/components/accounting/allocation-review-queue";
-import { Section471cDashboard } from "@/components/accounting/section-471c-dashboard";
-import { AppShell } from "@/components/shell/app-shell";
-import { MetricCard } from "@/components/ui/metric-card";
-import { Badge } from "@/components/ui/badge";
-import { demoAllocationReviewQueue, summarizeAllocationQueue } from "@/lib/demo/accounting-operations";
-import { useTenant } from "@/lib/auth/tenant-context";
-import { getOperatorProfile, getCogsCategories, getNondeductibleCategories, getDefaultAllocationMethod, getReclassifiable471cCosts } from "@/lib/operator-profiles";
+/**
+ * 280E Allocations — live.
+ *
+ * The page previously described itself, accurately: "All decisions are
+ * demo-data-backed so operators can walk a real review workflow without live
+ * backend dependencies." The backend dependencies exist and work.
+ *
+ * The queue was the least of it. Two things on this page were fabricated in a
+ * way that could change what an operator files:
+ *
+ *   grossRevenue={25000000} and three years of invented gross receipts
+ *   ($8.5M, $9.2M, $10.1M) were fed into the 471(c) eligibility test. That test
+ *   is a legal determination — whether a business may elect out of the normal
+ *   inventory rules under IRC 448(c). Every operator saw the same answer,
+ *   computed from someone else's revenue, and it always came back eligible
+ *   because $9.27M sits comfortably under the $32M threshold. An operator over
+ *   the threshold was told they qualified when they do not, on the page that
+ *   introduces the whole 471(c) position.
+ *
+ *   costDataFor471c invented $50k / $80k / $120k per cost category and showed
+ *   the resulting "reclassification opportunity" as though it were theirs.
+ *
+ * Eligibility is now read from the company's recorded election. Where no
+ * election exists, the page says so and links to where the real figures are
+ * entered, rather than computing an answer from numbers nobody supplied.
+ */
 
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-  maximumFractionDigits: 0,
-});
+import Link from "next/link";
+import { useQuery } from "convex/react";
+import { api } from "@/../convex/_generated/api";
+import { AppShell } from "@/components/shell/app-shell";
+import { LiveAllocationQueue } from "@/components/accounting/live-allocation-queue";
+import { useTenant } from "@/lib/auth/tenant-context";
+import {
+  getOperatorProfile,
+  getCogsCategories,
+  getNondeductibleCategories,
+  getDefaultAllocationMethod,
+} from "@/lib/operator-profiles";
+
+const usd = (n: number) =>
+  (n ?? 0).toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
+/**
+ * 471(c) status, from the company's own election record.
+ *
+ * Three honest states: no election on file, elected, or tested and ineligible.
+ * None of them is computed from placeholder revenue.
+ */
+function Section471cStatus({ companyId }: { companyId: any }) {
+  const election = useQuery(api.section471c.getElection, { companyId });
+
+  if (election === undefined) {
+    return <div className="h-32 animate-pulse rounded-2xl bg-white/5" />;
+  }
+
+  if (election === null) {
+    return (
+      <section className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5">
+        <div className="text-xs uppercase tracking-[0.2em] text-amber-300">IRC 471(c)</div>
+        <h3 className="mt-2 text-lg font-semibold text-amber-100">No election on file</h3>
+        <p className="mt-2 max-w-2xl text-sm text-amber-200/80">
+          Whether this business can elect out of the normal inventory rules
+          depends on its average gross receipts for the three prior tax years
+          against the IRC 448(c) threshold. Nobody has entered those figures, so
+          there is no eligibility answer to give — and until an election is
+          recorded, the engine will not reclassify indirect costs into COGS.
+        </p>
+        <Link
+          href="/dashboard/onboarding"
+          className="mt-4 inline-block rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-100 transition hover:bg-amber-500/20"
+        >
+          Enter gross receipts and test eligibility →
+        </Link>
+      </section>
+    );
+  }
+
+  const eligible = election.eligible;
+  const elected = election.elected;
+
+  return (
+    <section
+      className={`rounded-2xl border p-5 ${
+        elected && eligible
+          ? "border-violet-500/20 bg-violet-500/5"
+          : "border-rose-500/25 bg-rose-500/5"
+      }`}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs uppercase tracking-[0.2em] text-violet-300">IRC 471(c)</span>
+        <span
+          className={`rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wider ${
+            elected ? "bg-violet-500/10 text-violet-300" : "bg-rose-500/10 text-rose-300"
+          }`}
+        >
+          {elected ? "Elected" : "Not elected"}
+        </span>
+        <span
+          className={`rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wider ${
+            eligible ? "bg-emerald-500/10 text-emerald-300" : "bg-rose-500/10 text-rose-300"
+          }`}
+        >
+          {eligible ? "Eligible" : "Not eligible"}
+        </span>
+      </div>
+
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-border bg-surface p-3">
+          <div className="text-xs uppercase tracking-wider text-text-muted">
+            Average gross receipts
+          </div>
+          <div className="mt-1 text-lg font-semibold text-text-primary">
+            {usd(election.averageGrossReceipts)}
+          </div>
+          <div className="text-xs text-text-muted">
+            {election.priorYear3}–{election.priorYear1}
+          </div>
+        </div>
+        <div className="rounded-xl border border-border bg-surface p-3">
+          <div className="text-xs uppercase tracking-wider text-text-muted">Election date</div>
+          <div className="mt-1 text-lg font-semibold text-text-primary">
+            {election.electionDate ?? "—"}
+          </div>
+          <div className="text-xs text-text-muted">Tax year {election.taxYear ?? "—"}</div>
+        </div>
+        <div className="rounded-xl border border-border bg-surface p-3">
+          <div className="text-xs uppercase tracking-wider text-text-muted">Recorded by</div>
+          <div className="mt-1 truncate text-sm text-text-primary">
+            {election.electedBy ?? "—"}
+          </div>
+        </div>
+      </div>
+
+      {!eligible && (
+        <p className="mt-3 text-sm text-rose-200/90">
+          Average gross receipts exceed the IRC 448(c) threshold for this
+          election year, so the small-business inventory method is not available.
+          Indirect costs cannot be reclassified into COGS on this basis.
+        </p>
+      )}
+
+      {elected && eligible && (
+        <p className="mt-3 text-xs text-violet-200/80">
+          Reclassifying indirect costs under 471(c) is a contested position. The
+          IRS view in CCA 201504011 is that a 280E taxpayer must apply the
+          1.471 regulations as they stood in 1982. Allocations taken on this
+          basis carry that warning and require acknowledgement before a CPA
+          handoff.
+        </p>
+      )}
+    </section>
+  );
+}
 
 export default function AllocationsPage() {
-  const summary = summarizeAllocationQueue(demoAllocationReviewQueue);
   const tenant = useTenant();
-  const profile = getOperatorProfile(tenant.operatorType ?? "vertical");
+  const companyId = tenant.companyId as any;
+  const operatorType = tenant.operatorType ?? "vertical";
 
-  // COGS automation state
-  const [autoApproving, setAutoApproving] = useState(false);
-  const [runningAll, setRunningAll] = useState(false);
-  const [automationResult, setAutomationResult] = useState<{
-    action: string;
-    message: string;
-    details: string[];
-    source: string;
-  } | null>(null);
-
-  const handleAutoApprove = useCallback(async () => {
-    setAutoApproving(true);
-    try {
-      const res = await fetch("/api/automation/cogs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "auto_approve", confidenceThreshold: 0.9 }),
-      });
-      const data = await res.json();
-      setAutomationResult({
-        action: "Auto-approval",
-        message: `Approved ${data.approvedCount} allocations`,
-        details: data.details ?? [],
-        source: data.source ?? "demo",
-      });
-    } catch (e) {
-      setAutomationResult({
-        action: "Auto-approval",
-        message: "Failed — check console",
-        details: [String(e)],
-        source: "error",
-      });
-    } finally {
-      setAutoApproving(false);
-    }
-  }, []);
-
-  const handleRunAll = useCallback(async () => {
-    setRunningAll(true);
-    try {
-      const res = await fetch("/api/automation/cogs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "run_all", confidenceThreshold: 0.9 }),
-      });
-      const data = await res.json();
-      const agentDetails = (data.results ?? []).flatMap((r: any) => r.details ?? []);
-      setAutomationResult({
-        action: "Full automation",
-        message: `${data.agentsRun} agents ran, ${data.totalAlerts} alerts`,
-        details: agentDetails,
-        source: data.source ?? "demo",
-      });
-    } catch (e) {
-      setAutomationResult({
-        action: "Full automation",
-        message: "Failed — check console",
-        details: [String(e)],
-        source: "error",
-      });
-    } finally {
-      setRunningAll(false);
-    }
-  }, []);
-  const cogsCategories = getCogsCategories(tenant.operatorType ?? "vertical");
-  const nondeductibleCategories = getNondeductibleCategories(tenant.operatorType ?? "vertical");
-  const reclassifiable471c = getReclassifiable471cCosts(tenant.operatorType ?? "vertical");
-  const defaultMethod = getDefaultAllocationMethod(tenant.operatorType ?? "vertical");
-
-  // Build cost data for 471(c) engine
-  const costDataFor471c = [
-    ...cogsCategories.map((c) => ({ code: c.code, name: c.name, amount: 50000, taxTreatment: c.taxTreatment })),
-    ...nondeductibleCategories.map((c) => ({ code: c.code, name: c.name, amount: 80000, taxTreatment: c.taxTreatment })),
-    ...reclassifiable471c.map((c) => ({ code: c.code, name: c.name, amount: 120000, taxTreatment: c.taxTreatment })),
-  ];
-
-  // Demo prior years gross receipts (would come from company settings in production)
-  const priorYearsGrossReceipts = [
-    { taxYear: 2023, grossReceipts: 8500000 },
-    { taxYear: 2024, grossReceipts: 9200000 },
-    { taxYear: 2025, grossReceipts: 10100000 },
-  ];
+  const profile = getOperatorProfile(operatorType);
+  const cogsCategories = getCogsCategories(operatorType);
+  const nondeductibleCategories = getNondeductibleCategories(operatorType);
+  const defaultMethod = getDefaultAllocationMethod(operatorType);
 
   return (
     <AppShell
       title="280E Allocations"
-      description="Deterministic 280E review queue for shared occupancy, labor absorption, and policy-based overrides. All decisions are demo-data-backed so operators can walk a real review workflow without live backend dependencies."
+      description="Every cost split between COGS and nondeductible, the measurement behind each split, and what still needs a decision. Built from your posted transactions."
     >
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Queue items" value={String(summary.total)} detail={`${summary.ready} ready, ${summary.needsSupport} waiting on support`} />
-        <MetricCard label="Controller escalations" value={String(summary.pendingController)} detail="Items exceeding policy variance thresholds" />
-        <MetricCard label="Recommended deductible" value={currencyFormatter.format(summary.deductible)} detail="Capitalizable or deductible share from current queue" />
-        <MetricCard label="280E-limited" value={currencyFormatter.format(summary.nondeductible)} detail={`${summary.approved} items already approved`} />
-      </div>
+      <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+        <Section471cStatus companyId={companyId} />
 
-      {/* Operator profile banner */}
-      <div className="mt-6 rounded-2xl border border-border bg-surface-mid p-5">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl">{profile.icon}</span>
-          <div>
-            <div className="text-sm font-semibold text-text-primary">{profile.label} — 280E Allocation Profile</div>
-            <div className="text-xs text-text-muted">{profile.tagline}</div>
+        {/* Reference material for this operator type. Guidance, not figures. */}
+        <section className="rounded-2xl border border-border bg-surface-mid p-5">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">{profile.icon}</span>
+            <div>
+              <div className="text-sm font-semibold text-text-primary">
+                {profile.label} — allocation profile
+              </div>
+              <div className="text-xs text-text-muted">{profile.tagline}</div>
+            </div>
           </div>
-        </div>
-        <div className="mt-4 grid gap-3 md:grid-cols-3 text-sm">
-          <div className="rounded-xl border border-border bg-surface p-3">
-            <div className="text-xs text-text-muted uppercase tracking-wider">Default method</div>
+          <div className="mt-4 rounded-xl border border-border bg-surface p-3">
+            <div className="text-xs uppercase tracking-wider text-text-muted">
+              Typical method for this operator type
+            </div>
             <div className="mt-1 font-medium text-text-primary">{defaultMethod.name}</div>
             <div className="text-xs text-text-muted">{defaultMethod.description}</div>
           </div>
-          <div className="rounded-xl border border-border bg-surface p-3">
-            <div className="text-xs text-text-muted uppercase tracking-wider">COGS categories ({cogsCategories.length})</div>
-            <ul className="mt-1 space-y-0.5">
-              {cogsCategories.map((c) => (
-                <li key={c.code} className="text-xs text-text-muted"><span className="font-mono text-accent">{c.code}</span> {c.name}</li>
-              ))}
-            </ul>
-          </div>
-          <div className="rounded-xl border border-border bg-surface p-3">
-            <div className="text-xs text-text-muted uppercase tracking-wider">Nondeductible ({nondeductibleCategories.length})</div>
-            <ul className="mt-1 space-y-0.5">
-              {nondeductibleCategories.map((c) => (
-                <li key={c.code} className="text-xs text-text-muted"><span className="font-mono text-accent">{c.code}</span> {c.name}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-6 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
-        <section className="rounded-2xl border border-border bg-surface-mid p-5">
-          <div className="text-xs uppercase tracking-[0.2em] text-accent">Queue rules</div>
-          <div className="mt-4 grid gap-3 grid-cols-1 md:grid-cols-3">
-            {profile.allocationMethods.map((method) => (
-              <div key={method.id} className={`rounded-2xl border bg-surface p-4 text-sm text-text-muted ${method.default ? "border-violet-500/30" : "border-border"}`}>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-text-primary">{method.name}</span>
-                  {method.default && <span className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-violet-300">Default</span>}
-                </div>
-                <p className="mt-1">{method.description}</p>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2 text-sm">
+            <div className="rounded-xl border border-border bg-surface p-3">
+              <div className="text-xs uppercase tracking-wider text-emerald-400">
+                Usually COGS ({cogsCategories.length})
               </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="rounded-2xl border border-border bg-surface-mid p-5">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <div className="text-xs uppercase tracking-[0.2em] text-accent">Operator workflow</div>
-              <ol className="mt-4 space-y-3 text-sm text-text-muted">
-                <li>1. Review confidence, driver basis, and supporting policy before accepting the recommended split.</li>
-                <li>2. Check evidence completeness. Missing support downgrades the item into a hold state instead of silent posting.</li>
-                <li>3. Approve, request support, override the basis, or escalate to controller depending on threshold and policy memo.</li>
-                <li>4. Carry approved splits into close workpapers and preserve reviewer attribution for audit support.</li>
-              </ol>
+              <ul className="mt-1 space-y-0.5">
+                {cogsCategories.map((c) => (
+                  <li key={c.code} className="text-xs text-text-muted">
+                    <span className="font-mono text-accent">{c.code}</span> {c.name}
+                  </li>
+                ))}
+              </ul>
             </div>
-            <div className="grid gap-3">
-              <Link href="/dashboard/allocations/support-schedule" className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-4 py-3 text-sm text-violet-100 transition hover:bg-violet-500/20">
-                Open support schedule
-              </Link>
-              <Link href="/dashboard/allocations/history" className="rounded-xl border border-border bg-surface px-4 py-3 text-sm text-text-primary transition hover:bg-surface/70">
-                Open override history
-              </Link>
+            <div className="rounded-xl border border-border bg-surface p-3">
+              <div className="text-xs uppercase tracking-wider text-rose-400">
+                Usually nondeductible ({nondeductibleCategories.length})
+              </div>
+              <ul className="mt-1 space-y-0.5">
+                {nondeductibleCategories.map((c) => (
+                  <li key={c.code} className="text-xs text-text-muted">
+                    <span className="font-mono text-accent">{c.code}</span> {c.name}
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
+          <p className="mt-3 text-xs text-text-muted">
+            Orientation for a typical {profile.label.toLowerCase()}, not a
+            classification of your accounts. What actually happened to each cost
+            is in the queue below.
+          </p>
         </section>
       </div>
 
-      <div className="mt-6">
-        {/* COGS Automation Controls */}
-        <div className="mb-6 rounded-2xl border border-brand/20 bg-brand/5 p-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm">⚡</span>
-                <span className="text-sm font-medium text-text-primary">COGS Automation</span>
-                <Badge variant="info" size="sm">Beta</Badge>
-              </div>
-              <p className="mt-1 text-xs text-text-muted">
-                Auto-approve high-confidence allocations (≥90%) and run the full automation suite.
-                All actions are logged to the audit trail.
-              </p>
-            </div>
-            <div className="flex gap-2 shrink-0">
-              <button
-                onClick={handleAutoApprove}
-                disabled={autoApproving || runningAll}
-                className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2.5 text-sm font-medium text-emerald-100 hover:bg-emerald-500/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {autoApproving ? "Auto-approving..." : "⚡ Auto-approve ≥90%"}
-              </button>
-              <button
-                onClick={handleRunAll}
-                disabled={autoApproving || runningAll}
-                className="rounded-xl border border-brand/30 bg-brand/10 px-4 py-2.5 text-sm font-medium text-brand hover:bg-brand/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {runningAll ? "Running..." : "▶ Run all agents"}
-              </button>
-            </div>
-          </div>
-
-          {/* Result banner */}
-          {automationResult && (
-            <div className="mt-4 rounded-xl border border-border bg-surface p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-medium text-text-primary">
-                    {automationResult.action}: {automationResult.message}
-                  </span>
-                  <Badge variant="neutral" size="sm" className="ml-2">
-                    {automationResult.source}
-                  </Badge>
-                </div>
-                <button
-                  onClick={() => setAutomationResult(null)}
-                  className="text-xs text-text-faint hover:text-text-muted"
-                >
-                  Dismiss
-                </button>
-              </div>
-              {automationResult.details.length > 0 && (
-                <ul className="mt-2 space-y-1">
-                  {automationResult.details.map((d, i) => (
-                    <li key={i} className="text-xs text-text-muted">
-                      · {d}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </div>
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Link
+          href="/dashboard/allocations/policies"
+          className="rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text-primary transition hover:bg-surface/70"
+        >
+          Allocation policies
+        </Link>
+        <Link
+          href="/dashboard/allocations/support-schedule"
+          className="rounded-xl border border-violet-500/20 bg-violet-500/10 px-4 py-2.5 text-sm text-violet-100 transition hover:bg-violet-500/20"
+        >
+          280E support schedule
+        </Link>
+        <Link
+          href="/dashboard/allocations/history"
+          className="rounded-xl border border-border bg-surface px-4 py-2.5 text-sm text-text-primary transition hover:bg-surface/70"
+        >
+          Override history
+        </Link>
       </div>
 
-      <div className="mt-6">
-        {/* 471(c) Dual-Path Analysis */}
-        <div className="mb-6">
-          <Section471cDashboard
-            operatorType={tenant.operatorType ?? "vertical"}
-            grossRevenue={25000000}
-            costCategories={costDataFor471c}
-            priorYearsGrossReceipts={priorYearsGrossReceipts}
-          />
-        </div>
+      {/*
+        The "COGS Automation" panel is gone. Its two buttons posted to
+        /api/automation/cogs, which falls back to a demo company slug and
+        returns source: "demo" — so "Auto-approve ≥90%" reported approving
+        allocations that were not the operator's own, and nothing in their books
+        changed. Bulk-approving 280E positions is a reasonable feature and worth
+        building against the real queue; a button that says it approved things
+        and did not is not a feature.
+      */}
 
-        <AllocationReviewQueue items={demoAllocationReviewQueue} />
+      <div className="mt-6">
+        <LiveAllocationQueue />
       </div>
     </AppShell>
   );
