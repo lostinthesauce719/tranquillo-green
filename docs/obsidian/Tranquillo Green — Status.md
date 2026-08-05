@@ -43,6 +43,8 @@ tags:
 
 `employees` · `notificationStates` · `campaigns` · `contentItems` · `cpaClientLinks` · `metrcPackages` · `userCompanyLinks`
 
+Plus `convex/financialStatements.ts`, which computes the three financial statements from the ledger (no new table — it aggregates existing `transactions`, `transactionLines`, and `chartOfAccounts`).
+
 ## Modules moved from demo → live
 
 | Module | What's real now |
@@ -57,6 +59,7 @@ tags:
 | CPA portal | Email-keyed client links, live alert/period stats per client |
 | Metrc reconciliation | Package variance computation, book correction, resolve-with-audit-note |
 | Multi-operation | Create company (seeds CoA), switch active tenant |
+| **P&L / Trial Balance / Balance Sheet** | **Computed from posted transaction lines against the chart of accounts, with 280E add-back view and CSV export** |
 
 ## Critical bugs found and fixed
 
@@ -64,13 +67,14 @@ tags:
 2. **Cross-tenant access gaps** — auth wrappers checked authentication but not company membership; now enforced everywhere via `requireCompanyAccessById`.
 3. **Production build broken** — duplicate CommonJS `postcss.config.js` under `"type": "module"`.
 4. **Leaked Clerk secret key** in README on a public repo.
+5. **Financial statements were hardcoded** — the P&L, trial balance, and balance sheet displayed fabricated figures rather than the company's own ledger.
 
 ## Verified quality gates
 
 - `npm run lint` — clean
 - `npx tsc --noEmit` — clean
 - `npm test` — pass
-- `npm run build` — 137/137 pages
+- `npm run build` — 138/138 pages
 - GitHub Actions CI added (lint → typecheck → test → build)
 
 ## Open items to 100%
