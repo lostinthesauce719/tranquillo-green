@@ -6,7 +6,7 @@
 
 import { queryGeneric, mutationGeneric } from "convex/server";
 import { v } from "convex/values";
-import { authQuery, authMutation, requireIdentity } from "./lib/withAuth";
+import { authQuery, authMutation, requireIdentity, requirePlatformAdmin } from "./lib/withAuth";
 
 // ─── Queries ───────────────────────────────────────────────────────────────
 
@@ -36,9 +36,25 @@ export const getSandboxStatus = authQuery({
   },
 });
 
+/**
+ * Every live sandbox on the platform.
+ *
+ * This was an ordinary authQuery with no arguments, so any signed-in user could
+ * enumerate every sandbox tenant: company names, slugs and operator types for
+ * every prospect currently evaluating the product. That is a customer list.
+ *
+ * It takes no companyId, so the wrapper had nothing to scope and the by-ID
+ * structural guard does not see it either — a gap in that guard worth noting:
+ * it looks for functions taking a record ID, and this one takes nothing at all.
+ *
+ * Refused outright. It is an internal operations view, and there is no platform
+ * administrator role for it to belong to yet.
+ */
 export const listActiveSandboxes = authQuery({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx, _args, identity) => {
+    await requirePlatformAdmin(ctx, identity, "sandbox tenant list");
+
     const now = Date.now();
     const companies = await ctx.db
       .query("cannabisCompanies")
@@ -68,7 +84,14 @@ export const listActiveSandboxes = authQuery({
 
 export const createSandboxTenant = authMutation({
   args: {
-    userId: v.string(),
+    /*
+     * userId was an argument. The caller supplied it, and the seed attached the
+     * new sandbox tenant — and an admin user row — to whatever Clerk ID was
+     * passed in. Anyone signed in could create a company owned by someone else,
+     * or attach themselves as admin to an ID they chose.
+     *
+     * It now comes from the verified identity and cannot be supplied.
+     */
     organizationId: v.optional(v.string()),
     businessType: v.optional(v.union(
       v.literal("dispensary"),
@@ -76,17 +99,31 @@ export const createSandboxTenant = authMutation({
       v.literal("manufacturer"),
     )),
   },
-  handler: async (ctx, args) => {
-    // Dynamic import of seed module (lazy)
+  handler: async (ctx, args, identity) => {
+    // One sandbox per user. Without this, refreshing the page or double
+    // clicking mints a second tenant and the first is orphaned — with a full
+    // set of seeded books attached to it.
+    const existing = await ctx.db
+      .query("users")
+      .filter((q: any) => q.eq(q.field("clerkId"), identity.subject))
+      .first();
+
+    if (existing?.companyId) {
+      const company = await ctx.db.get(existing.companyId);
+      if (company) {
+        return { companyId: existing.companyId, alreadyExisted: true };
+      }
+    }
+
     const { createSandboxTenant: seedFn } = await import("./seed/sandboxSeed");
 
     const result = await seedFn(ctx, {
-      userId: args.userId,
+      userId: identity.subject,
       organizationId: args.organizationId,
       businessType: args.businessType ?? "dispensary",
     });
 
-    return { companyId: result.companyId };
+    return { companyId: result.companyId, alreadyExisted: false };
   },
 });
 
