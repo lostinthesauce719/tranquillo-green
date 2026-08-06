@@ -84,5 +84,6 @@ Plus `convex/financialStatements.ts`, which computes the three financial stateme
 - [ ] Close superseded PRs #11, #12, #13
 - [ ] External API sync: Metrc package pull, ad-platform metric pull (manual entry works today)
 - [ ] Email invitations for team members (Clerk invitation API)
-- [ ] Production ops: Redis-backed rate limiting, tightened CSP, remove Clerk issuer fallback in `convex/auth.config.ts`
+- [ ] Production ops: Redis-backed rate limiting, tightened CSP
+- [x] ~~Remove Clerk issuer fallback in `convex/auth.config.ts`~~ — done; the env var is now required with no stale hardcoded default
 - [ ] Pillar 7 (forecasting / anomaly detection) when foundation is proven with pilots
