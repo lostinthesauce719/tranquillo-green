@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { withAuth, securityHeaders, rateLimit } from "@/lib/api-helpers";
+import { withAuth, securityHeaders } from "@/lib/api-helpers";
+import { rateLimitDurable } from "@/lib/rate-limit";
 import { getAuthenticatedConvexClient } from "@/lib/data/convex-client";
 import { anyApi } from "convex/server";
 
@@ -14,7 +15,7 @@ function sanitizeString(value: unknown, maxLen: number): string | undefined {
 
 export const GET = withAuth(async (request, auth) => {
   try {
-    const rl = rateLimit(auth.userId ?? "anonymous", 60, 60_000);
+    const rl = await rateLimitDurable(auth.userId ?? "anonymous", 60, 60_000);
     if (!rl.allowed) {
       return securityHeaders(
         NextResponse.json(
@@ -58,7 +59,7 @@ export const GET = withAuth(async (request, auth) => {
 
 export const POST = withAuth(async (request, auth) => {
   try {
-    const rl = rateLimit(auth.userId ?? "anonymous", 30, 60_000);
+    const rl = await rateLimitDurable(auth.userId ?? "anonymous", 30, 60_000);
     if (!rl.allowed) {
       return securityHeaders(
         NextResponse.json(
@@ -138,7 +139,7 @@ export const POST = withAuth(async (request, auth) => {
 
 export const DELETE = withAuth(async (request, auth) => {
   try {
-    const rl = rateLimit(auth.userId ?? "anonymous", 30, 60_000);
+    const rl = await rateLimitDurable(auth.userId ?? "anonymous", 30, 60_000);
     if (!rl.allowed) {
       return securityHeaders(
         NextResponse.json(

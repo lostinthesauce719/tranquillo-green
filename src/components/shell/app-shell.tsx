@@ -44,8 +44,6 @@ const navIcons: Record<string, string> = {
 
 // Badge data for nav items (counts)
 const navBadges: Record<string, { text: string; variant: "r" | "g" | "a" } | null> = {
-  "/dashboard/allocations": { text: "3", variant: "r" },
-  "/dashboard/compliance": { text: "2", variant: "a" },
   "/dashboard/automation": { text: "live", variant: "g" },
 };
 

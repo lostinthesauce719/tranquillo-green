@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   Check,
   Shield,
-  CreditCard,
   Calendar,
   Play,
   BarChart3,
@@ -23,7 +22,7 @@ import {
   Sparkles,
 } from "lucide-react";
 
-type Step = "info" | "payment" | "schedule" | "confirmed";
+type Step = "info" | "schedule" | "confirmed";
 
 /* ─── Calendar Picker ─────────────────────────────────────────────── */
 
@@ -182,57 +181,6 @@ function StepInfo({ onNext }: { onNext: (data: Record<string, string>) => void }
   );
 }
 
-/* ─── Step: Payment ───────────────────────────────────────────────── */
-
-function StepPayment({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
-  const [form, setForm] = useState({ cardNumber: "", expiry: "", cvc: "", name: "", zip: "" });
-  const update = (key: string, value: string) => setForm((f) => ({ ...f, [key]: value }));
-  const isValid = form.cardNumber.length >= 15 && form.expiry.length >= 4 && form.cvc.length >= 3 && form.name && form.zip;
-
-  return (
-    <div>
-      <button onClick={onBack} className="flex items-center gap-1 text-sm text-text-muted hover:text-text-secondary mb-4 transition-colors"><ArrowLeft className="h-4 w-4" /> Back</button>
-      <h2 className="text-xl font-bold text-text-primary mb-1">Secure Payment</h2>
-      <p className="text-sm text-text-muted mb-6">A valid card is required to book your demo. You won&apos;t be charged until your demo is complete. Cancel anytime within 30 days.</p>
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-text-primary mb-1.5">Card Number</label>
-          <div className="relative">
-            <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-faint" />
-            <input type="text" value={form.cardNumber} onChange={(e) => update("cardNumber", e.target.value.replace(/\D/g, "").slice(0, 16))} className="w-full h-10 rounded-lg border border-border bg-surface pl-10 pr-3 text-sm text-text-primary placeholder:text-text-faint focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand" placeholder="4242 4242 4242 4242" />
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-1.5">Expiry</label>
-            <input type="text" value={form.expiry} onChange={(e) => update("expiry", e.target.value.slice(0, 5))} className="w-full h-10 rounded-lg border border-border bg-surface px-3 text-sm text-text-primary placeholder:text-text-faint focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand" placeholder="MM/YY" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-1.5">CVC</label>
-            <input type="text" value={form.cvc} onChange={(e) => update("cvc", e.target.value.replace(/\D/g, "").slice(0, 4))} className="w-full h-10 rounded-lg border border-border bg-surface px-3 text-sm text-text-primary placeholder:text-text-faint focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand" placeholder="123" />
-          </div>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-text-primary mb-1.5">Name on Card</label>
-          <input type="text" value={form.name} onChange={(e) => update("name", e.target.value)} className="w-full h-10 rounded-lg border border-border bg-surface px-3 text-sm text-text-primary placeholder:text-text-faint focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-text-primary mb-1.5">ZIP Code</label>
-          <input type="text" value={form.zip} onChange={(e) => update("zip", e.target.value.slice(0, 10))} className="w-full h-10 rounded-lg border border-border bg-surface px-3 text-sm text-text-primary placeholder:text-text-faint focus:border-brand focus:outline-none focus:ring-1 focus:ring-brand" />
-        </div>
-      </div>
-      <div className="mt-6 flex items-start gap-2 rounded-lg border border-border bg-surface/50 p-3">
-        <Shield className="h-4 w-4 text-brand shrink-0 mt-0.5" />
-        <p className="text-xs text-text-muted">Payment is processed securely via Stripe. Your card details never touch our servers.</p>
-      </div>
-      <button disabled={!isValid} onClick={onNext}
-        className="mt-6 w-full inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-brand px-8 text-sm font-semibold text-white shadow-sm hover:bg-brand/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
-        Continue to Schedule <ArrowRight className="h-4 w-4" />
-      </button>
-    </div>
-  );
-}
-
 /* ─── Step: Schedule ──────────────────────────────────────────────── */
 
 function StepSchedule({ onNext, onBack }: { onNext: (date: string, time: string) => void; onBack: () => void }) {
@@ -269,7 +217,7 @@ function StepConfirmed({ date, time, companyName }: { date: string; time: string
           </div>
           <div className="flex-1">
             <h3 className="text-base font-semibold text-text-primary">Sandbox Demo Ready</h3>
-            <p className="mt-1 text-sm text-text-muted">Explore the full platform with pre-loaded sample data. No credit card charged until you decide to subscribe.</p>
+            <p className="mt-1 text-sm text-text-muted">Explore the full platform with pre-loaded sample data. No payment details required — subscribe only when you decide to.</p>
             <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-text-secondary">
               <span className="flex items-center gap-1.5"><Check className="h-3 w-3 text-brand" /> 3 locations, 2 entities</span>
               <span className="flex items-center gap-1.5"><Check className="h-3 w-3 text-brand" /> 100+ sample transactions</span>
@@ -342,7 +290,6 @@ export default function DemoPage() {
 
   const steps: { key: Step; label: string; icon: typeof Check }[] = [
     { key: "info", label: "Verify Company", icon: Check },
-    { key: "payment", label: "Payment", icon: CreditCard },
     { key: "schedule", label: "Schedule", icon: Calendar },
   ];
 
@@ -353,8 +300,9 @@ export default function DemoPage() {
       <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(ellipse 80% 60% at 20% 0%, rgba(34, 133, 90, 0.06), transparent 70%), radial-gradient(ellipse 60% 50% at 80% 100%, rgba(212, 146, 42, 0.03), transparent 60%)" }} />
       <div className="relative z-10 mx-auto max-w-2xl px-6 py-16 lg:py-24">
         <section className="text-center mb-10">
-          <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">Schedule Your Demo</h1>
-          <p className="mx-auto mt-3 max-w-lg text-base text-text-secondary">Get sandbox access immediately + a 30-minute guided walkthrough with a product specialist.</p>
+          <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">Book a walkthrough</h1>
+          <p className="mx-auto mt-3 max-w-lg text-base text-text-secondary">Thirty minutes with someone who knows 280E, walking your operation&rsquo;s numbers rather than a slide deck.</p>
+          <p className="mx-auto mt-3 max-w-lg text-sm text-text-muted">Want to look around first? <a href="/try" className="font-medium text-brand hover:underline">Open the sandbox</a> — free account, no card, no call required.</p>
         </section>
 
         {step !== "confirmed" && (
@@ -372,9 +320,8 @@ export default function DemoPage() {
         )}
 
         <div className="rounded-2xl border border-border bg-surface/60 p-6 sm:p-8 backdrop-blur-sm">
-          {step === "info" && (<StepInfo onNext={(data) => { setFormData(data); setStep("payment"); }} />)}
-          {step === "payment" && (<StepPayment onNext={() => setStep("schedule")} onBack={() => setStep("info")} />)}
-          {step === "schedule" && (<StepSchedule onNext={(date, time) => { setScheduledDate(date); setScheduledTime(time); setStep("confirmed"); }} onBack={() => setStep("payment")} />)}
+          {step === "info" && (<StepInfo onNext={(data) => { setFormData(data); setStep("schedule"); }} />)}
+          {step === "schedule" && (<StepSchedule onNext={(date, time) => { setScheduledDate(date); setScheduledTime(time); setStep("confirmed"); }} onBack={() => setStep("info")} />)}
           {step === "confirmed" && (<StepConfirmed date={scheduledDate} time={scheduledTime} companyName={formData.company || "Your Company"} />)}
         </div>
 

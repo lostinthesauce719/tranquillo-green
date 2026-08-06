@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { useTenant } from "@/lib/auth/tenant-context";
 import {
   Users,
   DollarSign,
@@ -11,6 +12,7 @@ import {
   AlertTriangle,
   Download,
   Info,
+  RefreshCw,
 } from "lucide-react";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -31,17 +33,6 @@ type PayrollSummary = {
   plantTouchingPercent: number;
   employeeCount: number;
 };
-
-// ─── Demo Data ──────────────────────────────────────────────────────────────
-
-const DEMO_EMPLOYEES: Employee[] = [
-  { id: "e1", name: "Maria Garcia", role: "Budtender", payRate: 22, hoursPerPeriod: 160, allocation: 100 },
-  { id: "e2", name: "James Chen", role: "Trimmer", payRate: 20, hoursPerPeriod: 160, allocation: 100 },
-  { id: "e3", name: "Sarah Johnson", role: "Store Manager", payRate: 28, hoursPerPeriod: 160, allocation: 40 },
-  { id: "e4", name: "Mike Williams", role: "Security", payRate: 18, hoursPerPeriod: 120, allocation: 0 },
-  { id: "e5", name: "Lisa Park", role: "Cashier", payRate: 19, hoursPerPeriod: 140, allocation: 100 },
-  { id: "e6", name: "David Brown", role: "Assistant Manager", payRate: 25, hoursPerPeriod: 160, allocation: 30 },
-];
 
 const ROLE_SUGGESTIONS = [
   { role: "Budtender", defaultAllocation: 100 },
@@ -71,7 +62,13 @@ const fmt = new Intl.NumberFormat("en-US", {
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export function PayrollModule() {
-  const [employees, setEmployees] = useState<Employee[]>(DEMO_EMPLOYEES);
+  const tenant = useTenant();
+  const companyId = tenant.companyId;
+
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [showAddForm, setShowAddForm] = useState(false);
   const [newName, setNewName] = useState("");
   const [newRole, setNewRole] = useState("");
@@ -79,6 +76,34 @@ export function PayrollModule() {
   const [newHours, setNewHours] = useState("160");
   const [newAllocation, setNewAllocation] = useState(100);
   const [activeStep, setActiveStep] = useState(1);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/payroll/employees?companyId=${companyId}`);
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || "Failed to load employees");
+      setEmployees(
+        (data.employees ?? []).map((e: any) => ({
+          id: e._id,
+          name: e.name,
+          role: e.role,
+          payRate: e.payRate,
+          hoursPerPeriod: e.hoursPerPeriod,
+          allocation: e.allocation,
+        }))
+      );
+    } catch (e: any) {
+      setError(e.message || "Failed to load employees");
+    } finally {
+      setLoading(false);
+    }
+  }, [companyId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const summary: PayrollSummary = useMemo(() => {
     const totalLaborCost = employees.reduce((sum, e) => sum + e.payRate * e.hoursPerPeriod, 0);
@@ -97,33 +122,87 @@ export function PayrollModule() {
     };
   }, [employees]);
 
-  function handleAddEmployee() {
+  async function handleAddEmployee() {
     if (!newName.trim() || !newRole.trim() || !newRate) return;
-    const emp: Employee = {
-      id: `e_${Date.now()}`,
-      name: newName.trim(),
-      role: newRole.trim(),
-      payRate: parseFloat(newRate) || 0,
-      hoursPerPeriod: parseFloat(newHours) || 160,
-      allocation: newAllocation,
-    };
-    setEmployees((prev) => [...prev, emp]);
-    setNewName("");
-    setNewRole("");
-    setNewRate("");
-    setNewHours("160");
-    setNewAllocation(100);
-    setShowAddForm(false);
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/payroll/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "add",
+          companyId,
+          name: newName.trim(),
+          role: newRole.trim(),
+          payRate: parseFloat(newRate) || 0,
+          hoursPerPeriod: parseFloat(newHours) || 160,
+          allocation: newAllocation,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || "Failed to add employee");
+      setEmployees((prev) => [
+        ...prev,
+        {
+          id: data.employeeId,
+          name: newName.trim(),
+          role: newRole.trim(),
+          payRate: parseFloat(newRate) || 0,
+          hoursPerPeriod: parseFloat(newHours) || 160,
+          allocation: newAllocation,
+        },
+      ]);
+      setNewName("");
+      setNewRole("");
+      setNewRate("");
+      setNewHours("160");
+      setNewAllocation(100);
+      setShowAddForm(false);
+    } catch (e: any) {
+      setError(e.message || "Failed to add employee");
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function handleRemoveEmployee(id: string) {
+  async function handleRemoveEmployee(id: string) {
+    const previous = employees;
     setEmployees((prev) => prev.filter((e) => e.id !== id));
+    try {
+      const res = await fetch("/api/payroll/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "remove", employeeId: id }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || "Failed to remove employee");
+    } catch (e: any) {
+      setEmployees(previous);
+      setError(e.message || "Failed to remove employee");
+    }
   }
 
   function handleUpdateAllocation(id: string, allocation: number) {
     setEmployees((prev) =>
       prev.map((e) => (e.id === id ? { ...e, allocation } : e))
     );
+  }
+
+  async function persistAllocation(id: string) {
+    const employee = employees.find((e) => e.id === id);
+    if (!employee) return;
+    try {
+      const res = await fetch("/api/payroll/employees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "update", employeeId: id, allocation: employee.allocation }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || "Failed to save allocation");
+    } catch (e: any) {
+      setError(e.message || "Failed to save allocation");
+    }
   }
 
   function handleExportPayroll() {
@@ -165,10 +244,18 @@ export function PayrollModule() {
         <span className="text-xs text-text-muted">Cultivator plan and above</span>
       </div>
 
-      {/* Demo mode banner */}
-      <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-300">
-        <strong>Demo mode</strong> — Showing sample payroll data. Connect your live payroll system for automated 280E labor allocation.
-      </div>
+      {error && (
+        <div className="flex items-center justify-between rounded-lg border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300">
+          <span>{error}</span>
+          <button
+            onClick={load}
+            className="inline-flex items-center gap-1.5 rounded-md border border-red-500/30 px-3 py-1 text-xs font-medium hover:bg-red-500/10"
+          >
+            <RefreshCw className="w-3 h-3" />
+            Retry
+          </button>
+        </div>
+      )}
 
       {/* Step indicator */}
       <div className="flex items-center gap-3">
@@ -286,16 +373,30 @@ export function PayrollModule() {
                 </div>
                 <button
                   onClick={handleAddEmployee}
-                  disabled={!newName.trim() || !newRole.trim() || !newRate}
+                  disabled={!newName.trim() || !newRole.trim() || !newRate || saving}
                   className="mt-4 rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-brand/90 disabled:opacity-50"
                 >
-                  Add
+                  {saving ? "Adding…" : "Add"}
                 </button>
               </div>
             </div>
           )}
 
           {/* Employee table */}
+          {loading ? (
+            <div className="space-y-2">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="h-12 animate-pulse rounded-lg border border-border/50 bg-surface/50" />
+              ))}
+            </div>
+          ) : employees.length === 0 ? (
+            <div className="rounded-xl border border-border bg-surface py-12 text-center">
+              <Users className="mx-auto mb-3 h-10 w-10 text-text-faint" />
+              <p className="text-sm text-text-muted">
+                No employees yet. Add your team to start allocating labor for 280E.
+              </p>
+            </div>
+          ) : (
           <div className="rounded-xl border border-border overflow-hidden">
             <table className="w-full text-sm">
               <thead>
@@ -346,11 +447,13 @@ export function PayrollModule() {
               </tbody>
             </table>
           </div>
+          )}
 
           <div className="flex justify-end">
             <button
               onClick={() => setActiveStep(2)}
-              className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-brand/90"
+              disabled={employees.length === 0}
+              className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:bg-brand/90 disabled:opacity-50"
             >
               Next: Set Allocation →
             </button>
@@ -405,6 +508,8 @@ export function PayrollModule() {
                     step="10"
                     value={emp.allocation}
                     onChange={(e) => handleUpdateAllocation(emp.id, parseInt(e.target.value))}
+                    onPointerUp={() => persistAllocation(emp.id)}
+                    onKeyUp={() => persistAllocation(emp.id)}
                     className="w-full accent-brand"
                   />
                   <div className="mt-2 flex justify-between text-xs">

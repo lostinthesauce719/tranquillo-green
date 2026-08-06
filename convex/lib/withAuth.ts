@@ -112,31 +112,52 @@ export async function createEnrichedContext(baseCtx: AuthenticatedContext): Prom
 
 /* ─── AUTH HELPERS ────────────────────────────────────────────────────────── */
 
+type AuthHandler = (
+  ctx: AuthenticatedContext,
+  args: any,
+  identity: Identity,
+) => Promise<any>;
+
 /**
- * Wraps a mutation to enforce authentication.
- * Handler signature: (ctx, args) => result
- * The wrapper will ensure the user is authenticated before calling the handler.
+ * Wraps a mutation to enforce authentication. Two call forms are supported:
+ *   authMutation({ args, handler })            — handler(ctx, args, identity)
+ *   authMutation({ args }, handler)            — handler(ctx, args, identity)
+ * The wrapper ensures the user is authenticated before calling the handler.
  */
-export function authMutation(spec: { args: any; handler: (ctx: AuthenticatedContext, args: any) => Promise<any> }) {
+export function authMutation(
+  spec: { args?: any; handler?: AuthHandler },
+  handlerFn?: AuthHandler,
+) {
+  const handler = handlerFn ?? spec.handler;
+  if (!handler) {
+    throw new Error("authMutation requires a handler.");
+  }
   return mutationGeneric({
-    args: spec.args,
+    args: spec.args ?? {},
     handler: async (ctx: AuthenticatedContext, args: any) => {
-      await requireIdentity(ctx);
-      return await spec.handler(ctx, args);
+      const identity = await requireIdentity(ctx);
+      return await handler(ctx, args, identity);
     },
   });
 }
 
 /**
- * Wraps a query to enforce authentication.
- * Handler signature: (ctx, args) => result
+ * Wraps a query to enforce authentication. Supports the same two call forms
+ * as authMutation.
  */
-export function authQuery(spec: { args: any; handler: (ctx: AuthenticatedContext, args: any) => Promise<any> }) {
+export function authQuery(
+  spec: { args?: any; handler?: AuthHandler },
+  handlerFn?: AuthHandler,
+) {
+  const handler = handlerFn ?? spec.handler;
+  if (!handler) {
+    throw new Error("authQuery requires a handler.");
+  }
   return queryGeneric({
-    args: spec.args,
+    args: spec.args ?? {},
     handler: async (ctx: AuthenticatedContext, args: any) => {
-      await requireIdentity(ctx);
-      return await spec.handler(ctx, args);
+      const identity = await requireIdentity(ctx);
+      return await handler(ctx, args, identity);
     },
   });
 }

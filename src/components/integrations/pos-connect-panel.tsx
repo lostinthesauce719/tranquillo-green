@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTenant } from "@/lib/auth/tenant-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +24,7 @@ export function POSConnectPanel({ provider, onSuccess, onDisconnect }: POSConnec
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
 
   // Check connection status on mount
-  const loadStatus = async () => {
+  const loadStatus = useCallback(async () => {
     setLoading(true);
     try {
       const endpoint = `/api/pos/${provider}`;
@@ -37,7 +37,7 @@ export function POSConnectPanel({ provider, onSuccess, onDisconnect }: POSConnec
     } finally {
       setLoading(false);
     }
-  };
+  }, [provider, tenant.companyId]);
 
   const showMessage = (text: string, isError = false) => {
     setMessage({ text, error: isError });
@@ -136,7 +136,7 @@ export function POSConnectPanel({ provider, onSuccess, onDisconnect }: POSConnec
   };
 
   // Load status on mount
-  useEffect(() => { loadStatus(); }, []);
+  useEffect(() => { loadStatus(); }, [loadStatus]);
 
   // Local form state
   const [form, setForm] = useState<Record<string, string>>({

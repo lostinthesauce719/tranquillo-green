@@ -87,6 +87,7 @@ const TIERS = [
 export function BillingPage() {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>("annually");
   const [loading, setLoading] = useState<string | null>(null);
+  const [billingMessage, setBillingMessage] = useState<string | null>(null);
 
   function calculatePrice(monthly: number, discount: number): number {
     if (billingCycle === "annually") {
@@ -95,22 +96,38 @@ export function BillingPage() {
     return monthly * 12;
   }
 
-  function handleSubscribe(tierId: string, priceId: string) {
+  async function handleSubscribe(tierId: string, _priceId: string) {
     setLoading(tierId);
-    // In production: call Stripe checkout API
-    // For demo: show alert
-    setTimeout(() => {
-      alert(`Demo: Would start Stripe checkout for ${priceId} (${billingCycle})`);
+    setBillingMessage(null);
+    try {
+      const res = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ billingCycle }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.message || "Could not start checkout.");
+
+      if (data.kind === "redirect" && data.url) {
+        window.location.href = data.url;
+        return;
+      }
+      // Invoice rail: no redirect, so confirm in place with the reference.
+      setBillingMessage(data.message ?? "Request received — we'll be in touch.");
+    } catch (error: any) {
+      setBillingMessage(error.message || "Could not start checkout.");
+    } finally {
       setLoading(null);
-    }, 500);
+    }
   }
 
   return (
     <div className="space-y-8">
-      {/* Demo mode banner */}
-      <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-300">
-        <strong>Demo mode</strong> — Stripe checkout is configured but requires live API keys to process real payments.
-      </div>
+      {billingMessage && (
+        <div className="rounded-lg border border-brand/20 bg-brand/5 px-4 py-3 text-sm text-text-secondary">
+          {billingMessage}
+        </div>
+      )}
 
       {/* Billing cycle toggle */}
       <div className="flex items-center justify-center gap-4">
@@ -224,7 +241,7 @@ export function BillingPage() {
           <div>
             <div className="text-sm font-medium text-text-primary">What payment methods do you accept?</div>
             <p className="mt-1 text-sm text-text-muted">
-              All major credit and debit cards via Stripe. ACH bank transfer available for annual Enterprise plans.
+              Invoice with ACH or wire transfer. Card payment is available where our processor supports your license type — ask us and we'll confirm for your state.
             </p>
           </div>
           <div>

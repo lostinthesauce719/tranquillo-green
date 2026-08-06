@@ -80,13 +80,13 @@ export function TaxSettingsPanel({ className }: TaxSettingsPanelProps) {
             setTaxTypesEnabled(data.profile.taxTypesEnabled ?? []);
             setFilingCalendar(data.profile.filingCalendar ?? {});
           } else {
-            // Demo mode: pre-populate CA
+            // No tax profile saved yet — default to California.
             setPrimaryJurisdictionId("j-ca");
             setNexusStates(["CA"]);
             setTaxTypesEnabled(["tt-excise", "tt-sales"]);
           }
         } else {
-          // API failed — use demo defaults
+          // API failed — fall back to California defaults.
           setPrimaryJurisdictionId("j-ca");
           setNexusStates(["CA"]);
           setTaxTypesEnabled(["tt-excise", "tt-sales"]);

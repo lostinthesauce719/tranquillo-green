@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useTenant } from "@/lib/auth/tenant-context";
 
 interface TaxLiabilityDashboardProps {
@@ -26,7 +26,7 @@ export function TaxLiabilityDashboard({ className }: TaxLiabilityDashboardProps)
   });
   const [liability, setLiability] = useState<any>(null);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(`/api/tax/liability?companyId=${companyId}&periodStart=${periodStart}&periodEnd=${periodEnd}`);
@@ -37,11 +37,11 @@ export function TaxLiabilityDashboard({ className }: TaxLiabilityDashboardProps)
     } finally {
       setLoading(false);
     }
-  }
+  }, [companyId, periodStart, periodEnd]);
 
   useEffect(() => {
     load();
-  }, [companyId, periodStart, periodEnd]);
+  }, [load]);
 
   function formatCurrency(amount: number) {
     return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(amount);

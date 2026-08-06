@@ -1,62 +1,60 @@
-import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@clerk/nextjs/server";
+import { NextResponse } from "next/server";
+import { withAuth, securityHeaders } from "@/lib/api-helpers";
+import { getBillingProvider, type BillingCycle } from "@/lib/billing";
 
-async function getStripe(): Promise<any> {
-  const key = process.env.STRIPE_SECRET_KEY;
-  if (!key) return null;
-  const { default: Stripe } = await import("stripe");
-  return new Stripe(key, { apiVersion: "2026-04-22.dahlia" });
-}
+export const runtime = "nodejs";
 
-export async function POST(req: NextRequest) {
-  const { userId } = auth();
-  if (!userId) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+const CYCLES: BillingCycle[] = ["monthly", "quarterly", "annually"];
 
+/**
+ * Legacy checkout path. Delegates to the active billing provider so this route
+ * is not tied to Stripe; prefer /api/billing/checkout in new code.
+ */
+export const POST = withAuth(async (request) => {
   try {
-    const stripe = await getStripe();
-    if (!stripe) {
-      return NextResponse.json({ error: "Stripe is not configured" }, { status: 503 });
-    }
-    const { customerId, billingCycle, customerEmail, companyName } = await req.json();
+    const body = await request.json();
+    const { billingCycle, customerId, customerEmail, companyName } = body ?? {};
 
-    const priceIds: Record<string, string> = {
-      monthly: process.env.STRIPE_PRICE_MONTHLY ?? "",
-      quarterly: process.env.STRIPE_PRICE_QUARTERLY ?? "",
-      annually: process.env.STRIPE_PRICE_ANNUALLY ?? "",
-    };
-
-    const priceId = priceIds[billingCycle];
-    if (!priceId) throw new Error("Invalid billing cycle");
-
-    let stripeCustomerId: string;
-    if (customerId) {
-      stripeCustomerId = customerId;
-    } else {
-      const customer = await stripe.customers.create({
-        email: customerEmail,
-        name: companyName,
-      });
-      stripeCustomerId = customer.id;
+    if (!CYCLES.includes(billingCycle)) {
+      return securityHeaders(
+        NextResponse.json(
+          { ok: false, message: `billingCycle must be one of: ${CYCLES.join(", ")}` },
+          { status: 400 },
+        ),
+      );
     }
 
-    const session = await stripe.checkout.sessions.create({
-      customer: stripeCustomerId,
-      mode: "subscription",
-      payment_method_types: ["card"],
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing`,
-      client_reference_id: customerId,
+    const provider = getBillingProvider();
+    if (!provider.isConfigured()) {
+      return securityHeaders(
+        NextResponse.json(
+          { ok: false, message: `Billing provider "${provider.id}" is not configured.` },
+          { status: 503 },
+        ),
+      );
+    }
+
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin;
+    const result = await provider.createCheckout({
+      billingCycle,
+      customerId,
+      customerEmail,
+      companyName,
+      successUrl: `${appUrl}/dashboard/billing?status=success`,
+      cancelUrl: `${appUrl}/dashboard/billing?status=cancelled`,
     });
 
-    if (!session.url) {
-      throw new Error("Failed to create checkout session");
+    // Preserve the original response shape for any existing caller.
+    if (result.kind === "redirect") {
+      return securityHeaders(NextResponse.json({ ok: true, url: result.url }));
     }
-    return NextResponse.json({ url: session.url });
-  } catch (error: any) {
-    console.error("Stripe checkout error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return securityHeaders(NextResponse.json({ ok: true, provider: provider.id, ...result }));
+  } catch (error) {
+    return securityHeaders(
+      NextResponse.json(
+        { ok: false, message: error instanceof Error ? error.message : "Checkout failed." },
+        { status: 500 },
+      ),
+    );
   }
-}
+});

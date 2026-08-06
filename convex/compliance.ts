@@ -1,4 +1,4 @@
-import { authMutation, authQuery } from "./lib/withAuth";
+import { authMutation, authQuery, requireIdentity, requireCompanyAccessById } from "./lib/withAuth";
 import { v } from "convex/values";
 
 const licenseStatus = v.union(v.literal("active"), v.literal("pending"), v.literal("expired"));
@@ -11,6 +11,8 @@ const alertSeverity = v.union(v.literal("info"), v.literal("warning"), v.literal
 export const getLicenses = authQuery({
   args: { companyId: v.id("cannabisCompanies") },
   handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx);
+    await requireCompanyAccessById(ctx, identity, args.companyId);
     return await ctx.db
       .query("cannabisLicenses")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
@@ -30,6 +32,8 @@ export const upsertLicense = authMutation({
     expiresAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx);
+    await requireCompanyAccessById(ctx, identity, args.companyId);
     const existing = (
       await ctx.db
         .query("cannabisLicenses")
@@ -50,6 +54,8 @@ export const upsertLicense = authMutation({
 export const getTaxFilings = authQuery({
   args: { companyId: v.id("cannabisCompanies") },
   handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx);
+    await requireCompanyAccessById(ctx, identity, args.companyId);
     return await ctx.db
       .query("taxFilings")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
@@ -60,6 +66,8 @@ export const getTaxFilings = authQuery({
 export const getUpcomingFilings = authQuery({
   args: { companyId: v.id("cannabisCompanies"), limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx);
+    await requireCompanyAccessById(ctx, identity, args.companyId);
     const all = await ctx.db
       .query("taxFilings")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
@@ -84,6 +92,8 @@ export const upsertTaxFiling = authMutation({
     status: filingStatus,
   },
   handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx);
+    await requireCompanyAccessById(ctx, identity, args.companyId);
     const existing = (
       await ctx.db
         .query("taxFilings")
@@ -107,6 +117,10 @@ export const updateFilingStatus = authMutation({
     status: filingStatus,
   },
   handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx);
+    const filing = await ctx.db.get(args.filingId);
+    if (!filing) throw new Error("Filing not found.");
+    await requireCompanyAccessById(ctx, identity, filing.companyId);
     await ctx.db.patch(args.filingId, { status: args.status });
     return await ctx.db.get(args.filingId);
   },
@@ -117,6 +131,8 @@ export const updateFilingStatus = authMutation({
 export const getAlerts = authQuery({
   args: { companyId: v.id("cannabisCompanies") },
   handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx);
+    await requireCompanyAccessById(ctx, identity, args.companyId);
     return await ctx.db
       .query("complianceAlerts")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
@@ -127,6 +143,8 @@ export const getAlerts = authQuery({
 export const getUnresolvedAlerts = authQuery({
   args: { companyId: v.id("cannabisCompanies") },
   handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx);
+    await requireCompanyAccessById(ctx, identity, args.companyId);
     return (
       await ctx.db
         .query("complianceAlerts")
@@ -145,6 +163,8 @@ export const createAlert = authMutation({
     body: v.string(),
   },
   handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx);
+    await requireCompanyAccessById(ctx, identity, args.companyId);
     return await ctx.db.insert("complianceAlerts", {
       ...args,
       resolvedAt: undefined,
@@ -155,6 +175,10 @@ export const createAlert = authMutation({
 export const resolveAlert = authMutation({
   args: { alertId: v.id("complianceAlerts") },
   handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx);
+    const alert = await ctx.db.get(args.alertId);
+    if (!alert) throw new Error("Alert not found.");
+    await requireCompanyAccessById(ctx, identity, alert.companyId);
     await ctx.db.patch(args.alertId, { resolvedAt: Date.now() });
     return await ctx.db.get(args.alertId);
   },
@@ -165,6 +189,8 @@ export const resolveAlert = authMutation({
 export const getDocuments = authQuery({
   args: { companyId: v.id("cannabisCompanies") },
   handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx);
+    await requireCompanyAccessById(ctx, identity, args.companyId);
     return await ctx.db
       .query("complianceDocuments")
       .withIndex("by_company", (q) => q.eq("companyId", args.companyId))
@@ -195,9 +221,12 @@ export const generateComplianceAlerts = authMutation({
     companyId: v.optional(v.id("cannabisCompanies")),
   },
   handler: async (ctx, args) => {
-    const companies = args.companyId
-      ? [{ _id: args.companyId } as any]
-      : await ctx.db.query("cannabisCompanies").collect();
+    const identity = await requireIdentity(ctx);
+    if (!args.companyId) {
+      throw new Error("companyId is required.");
+    }
+    await requireCompanyAccessById(ctx, identity, args.companyId);
+    const companies = [{ _id: args.companyId } as any];
 
     let totalCreated = 0;
     let totalResolved = 0;
@@ -365,6 +394,8 @@ export const generateComplianceAlerts = authMutation({
 export const getAlertStats = authQuery({
   args: { companyId: v.id("cannabisCompanies") },
   handler: async (ctx, args) => {
+    const identity = await requireIdentity(ctx);
+    await requireCompanyAccessById(ctx, identity, args.companyId);
     const alerts = await ctx.db
       .query("complianceAlerts")
       .withIndex("by_company", (q: any) => q.eq("companyId", args.companyId))
