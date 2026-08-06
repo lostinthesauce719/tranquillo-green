@@ -481,8 +481,9 @@ export default function AuditLogPage() {
 
       {/* Footer note */}
       <div className="mt-6 rounded-lg border border-border-subtle bg-surface px-4 py-3 text-xs text-text-faint">
-        Audit events are retained for 7 years to meet cannabis compliance requirements.
-        All changes are immutable and cryptographically chained.
+        Every event records the actor, timestamp, reason, and before/after state at the moment of
+        the change. Events are append-only — the application exposes no path to edit or delete
+        them. Export your trail periodically to meet your own record-retention requirements.
       </div>
     </AppShell>
   );
