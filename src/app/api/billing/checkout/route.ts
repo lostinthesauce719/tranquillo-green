@@ -6,10 +6,6 @@ export const runtime = "nodejs";
 
 const CYCLES: BillingCycle[] = ["monthly", "quarterly", "annually"];
 
-/**
- * Legacy checkout path. Delegates to the active billing provider so this route
- * is not tied to Stripe; prefer /api/billing/checkout in new code.
- */
 export const POST = withAuth(async (request) => {
   try {
     const body = await request.json();
@@ -44,10 +40,6 @@ export const POST = withAuth(async (request) => {
       cancelUrl: `${appUrl}/dashboard/billing?status=cancelled`,
     });
 
-    // Preserve the original response shape for any existing caller.
-    if (result.kind === "redirect") {
-      return securityHeaders(NextResponse.json({ ok: true, url: result.url }));
-    }
     return securityHeaders(NextResponse.json({ ok: true, provider: provider.id, ...result }));
   } catch (error) {
     return securityHeaders(
