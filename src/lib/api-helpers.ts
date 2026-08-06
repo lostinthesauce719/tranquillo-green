@@ -59,16 +59,31 @@ export function securityHeaders(response: NextResponse): NextResponse {
 
 /**
  * Adds CORS headers to a NextResponse.
- * Defaults to allowing the request Origin if provided, otherwise uses wildcard.
+ *
+ * Only origins on the allowlist are echoed back. Previously this reflected
+ * whatever Origin the caller sent (falling back to "*"), which let any website
+ * make cross-origin requests to these APIs on behalf of a signed-in user.
+ * Set ALLOWED_ORIGINS to a comma-separated list to permit specific sites;
+ * with it unset, no cross-origin access is granted.
  */
+function isAllowedOrigin(origin: string): boolean {
+  const configured = process.env.ALLOWED_ORIGINS?.trim();
+  if (!configured) return false;
+  return configured
+    .split(",")
+    .map((value) => value.trim().replace(/\/$/, ""))
+    .filter(Boolean)
+    .includes(origin.replace(/\/$/, ""));
+}
+
 export function corsHeaders(
   response: NextResponse,
   origin?: string,
 ): NextResponse {
-  response.headers.set(
-    "Access-Control-Allow-Origin",
-    origin ?? "*",
-  );
+  if (origin && isAllowedOrigin(origin)) {
+    response.headers.set("Access-Control-Allow-Origin", origin);
+    response.headers.set("Vary", "Origin");
+  }
   response.headers.set(
     "Access-Control-Allow-Methods",
     "GET, POST, PUT, DELETE, OPTIONS",
@@ -81,7 +96,12 @@ export function corsHeaders(
 }
 
 // ---------------------------------------------------------------------------
-// In-memory rate limiter (suitable for development / single-instance deploys)
+// Rate limiting
+//
+// `rateLimit` below is per-instance and resets on cold start, so on serverless
+// it under-counts across concurrent instances. Use `rateLimitDurable` from
+// ./rate-limit for anything abuse-sensitive; it counts in Convex and is shared
+// across every instance.
 // ---------------------------------------------------------------------------
 
 interface RateLimitEntry {

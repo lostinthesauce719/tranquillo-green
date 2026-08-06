@@ -641,6 +641,15 @@ export default defineSchema({
     updatedAt: v.number(),
   }).index("by_company", ["companyId"]).index("by_company_provider", ["companyId", "provider"]),
 
+  // ─── RATE LIMIT COUNTERS ──────────────────────────────────────────
+  // Shared across every serverless instance, unlike an in-process map.
+  // Rows are disposable: a stale row is reclaimed on next use.
+  rateLimits: defineTable({
+    key: v.string(),
+    count: v.number(),
+    resetAt: v.number(),
+  }).index("by_key", ["key"]),
+
   // ─── NOTIFICATION READ STATE ──────────────────────────────────────
   // Per-user read/dismiss state over derived notification sources
   // (compliance alerts, audit events). The feed itself is composed live.

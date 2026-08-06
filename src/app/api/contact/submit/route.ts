@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedConvexClient } from "@/lib/data/convex-client";
-import { rateLimit } from "@/lib/api-helpers";
+import { rateLimitDurable } from "@/lib/rate-limit";
 import { anyApi } from "convex/server";
 
 function sanitizeString(value: unknown, maxLen: number = 256): string | undefined {
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
 
     // Rate limit: 5 submissions per minute per IP
     const ip = req.headers.get("x-forwarded-for") || "unknown";
-    const rl = rateLimit(`contact:${ip}`, 5, 60_000);
+    const rl = await rateLimitDurable(`contact:${ip}`, 5, 60_000);
     if (!rl.allowed) {
       return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
     }
