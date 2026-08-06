@@ -353,8 +353,9 @@ export default function DemoPage() {
       <div className="pointer-events-none absolute inset-0" style={{ background: "radial-gradient(ellipse 80% 60% at 20% 0%, rgba(34, 133, 90, 0.06), transparent 70%), radial-gradient(ellipse 60% 50% at 80% 100%, rgba(212, 146, 42, 0.03), transparent 60%)" }} />
       <div className="relative z-10 mx-auto max-w-2xl px-6 py-16 lg:py-24">
         <section className="text-center mb-10">
-          <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">Schedule Your Demo</h1>
-          <p className="mx-auto mt-3 max-w-lg text-base text-text-secondary">Get sandbox access immediately + a 30-minute guided walkthrough with a product specialist.</p>
+          <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-4xl">Book a walkthrough</h1>
+          <p className="mx-auto mt-3 max-w-lg text-base text-text-secondary">Thirty minutes with someone who knows 280E, walking your operation&rsquo;s numbers rather than a slide deck.</p>
+          <p className="mx-auto mt-3 max-w-lg text-sm text-text-muted">Want to look around first? <a href="/try" className="font-medium text-brand hover:underline">Open the sandbox</a> — free account, no card, no call required.</p>
         </section>
 
         {step !== "confirmed" && (

@@ -54,8 +54,8 @@ function InlineCalculator() {
           <CalculatorIcon className="h-5 w-5 text-brand" />
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-text-primary">280E Savings Calculator</h3>
-          <p className="text-xs text-text-muted">See how much you could save — no email required</p>
+          <h3 className="text-lg font-semibold text-text-primary">What 280E is costing you</h3>
+          <p className="text-xs text-text-muted">Move the sliders — no account, no email</p>
         </div>
       </div>
 
@@ -100,62 +100,51 @@ function InlineCalculator() {
       {/* Results */}
       <div className="mt-6 rounded-xl border border-brand/20 bg-surface-raised p-5">
         <div className="text-center">
-          <div className="text-xs font-semibold uppercase tracking-wider text-text-muted">Estimated Annual Tax Savings</div>
+          <div className="text-xs font-semibold uppercase tracking-wider text-text-muted">Deductions you may be leaving behind</div>
           <div className="mt-2 text-4xl font-bold text-brand sm:text-5xl">{fmt(taxSavings)}</div>
           <div className="mt-2 text-sm text-text-muted">
-            from {fmt(additionalDeductions)} in additional COGS deductions
+            in annual tax, from {fmt(additionalDeductions)} of COGS you could be defending
           </div>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3 text-center">
           <div className="rounded-lg border border-border bg-surface p-3">
-            <div className="text-xs text-text-faint">Current COGS</div>
+            <div className="text-xs text-text-faint">COGS you claim now</div>
             <div className="text-sm font-semibold text-text-secondary">{fmt(currentCogs)}</div>
           </div>
           <div className="rounded-lg border border-brand/20 bg-brand/5 p-3">
-            <div className="text-xs text-text-faint">Optimized COGS</div>
+            <div className="text-xs text-text-faint">COGS you could defend</div>
             <div className="text-sm font-semibold text-brand">{fmt(optimizedCogs)}</div>
           </div>
         </div>
-      </div>
-
-      <div className="mt-6 flex flex-col gap-3">
-        <Link href="/demo"
-          className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-brand px-8 text-sm font-semibold text-white shadow-sm transition-all duration-200 hover:bg-brand/90 hover:shadow-md">
-          Schedule a Demo <ArrowRight className="h-4 w-4" />
-        </Link>
-        <Link href="/pricing"
-          className="inline-flex h-12 items-center justify-center rounded-xl border border-border px-8 text-sm font-semibold text-text-secondary transition-all duration-200 hover:border-brand/30 hover:text-brand">
-          View Pricing
-        </Link>
+        <p className="mt-4 text-center text-[11px] leading-relaxed text-text-faint">
+          Illustrative estimate from your inputs, using common allocation ratios for facility and
+          inventory labor. Your defensible number depends on your books — that&rsquo;s what the platform computes.
+        </p>
       </div>
     </div>
   );
 }
 
-/* ─── Testimonials ──────────────────────────────────────────────── */
+/* ─── Page ──────────────────────────────────────────────────────── */
 
-const testimonials = [
+const capabilities = [
   {
-    quote: "We were doing 280E allocations in spreadsheets — 16 hours every month. Tranquillo cut that to under 30 minutes and found $94K in deductions we'd been missing on rent and labor allocation alone.",
-    author: "Marcus Whitfield",
-    title: "CFO, Greenleaf Dispensaries — Michigan",
-    stat: "$94K found",
+    title: "280E COGS allocation you can defend",
+    body: "Facility, labor, and shipping allocated by policy — every split carries the actor, timestamp, and reason behind it.",
   },
   {
-    quote: "Our cultivator client was claiming 28% COGS. After running their data through Tranquillo, we identified 41% — a $210K difference in deductible expenses.",
-    author: "Tomoko Arakawa",
-    title: "Controller, Cascade Grow Co. — Oregon",
-    stat: "$210K difference",
+    title: "Metrc reconciled against your books",
+    body: "Package-level variance detection, with resolutions written to an audit trail instead of a spreadsheet comment.",
   },
   {
-    quote: "We switched from Flourish + QuickBooks to Tranquillo for our multi-state operation. The Metrc reconciliation alone saves us 10 hours a week across 4 states.",
-    author: "Derek Okafor",
-    title: "VP Finance, Standard Wellness — Ohio & Arizona",
-    stat: "10 hrs/week saved",
+    title: "Financial statements from your ledger",
+    body: "P&L, trial balance, and balance sheet computed from posted transactions — with the 280E add-back shown explicitly.",
+  },
+  {
+    title: "CPA handoff without the email thread",
+    body: "Grant your accountant scoped access; they see close status, open exceptions, and support schedules directly.",
   },
 ];
-
-/* ─── Page ──────────────────────────────────────────────────────── */
 
 export default function HomePage() {
   return (
@@ -172,41 +161,50 @@ export default function HomePage() {
           </div>
 
           <h1 className="mt-8 text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl lg:text-6xl">
-            Stop Overpaying on{" "}
-            <span className="text-accent">280E.</span>
+            Audit-ready from{" "}
+            <span className="text-accent">day one.</span>
           </h1>
-          <p className="mt-4 text-2xl font-bold leading-tight text-brand sm:text-3xl">
-            Most operators leave $75K+ on the table every year.
+          <p className="mt-5 text-xl font-semibold leading-tight text-brand sm:text-2xl">
+            280E doesn&rsquo;t punish you for what you spend. It punishes you for what you can&rsquo;t defend.
           </p>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-text-secondary">
-            Tranquillo Green automates 280E COGS allocation, finds missed deductions, and generates audit-ready workpapers — in minutes, not hours.
+            Tranquillo Green is the financial operating layer between your POS and your CPA. It
+            allocates COGS under 280E, reconciles Metrc to your books, and produces the workpapers
+            that stand behind every number — so the deduction survives the exam, not just the filing.
           </p>
 
           <div className="mt-8 flex flex-wrap justify-center gap-4">
-            <Link href="/auth" className="inline-flex h-12 items-center gap-2 rounded-xl bg-brand px-8 text-sm font-semibold text-ink shadow-sm hover:bg-brand/90 transition-all">
-              Get Started <ArrowRight className="h-4 w-4" />
+            <Link href="/try" className="inline-flex h-12 items-center gap-2 rounded-xl bg-brand px-8 text-sm font-semibold text-ink shadow-sm hover:bg-brand/90 transition-all">
+              Explore the live sandbox <ArrowRight className="h-4 w-4" />
             </Link>
-            <Link href="/auth" className="inline-flex h-12 items-center rounded-xl border border-border px-8 text-sm font-semibold text-text-secondary hover:border-brand/30 hover:text-brand transition-all">
-              Sign In
+            <Link href="/demo" className="inline-flex h-12 items-center rounded-xl border border-border px-8 text-sm font-semibold text-text-secondary hover:border-brand/30 hover:text-brand transition-all">
+              Book a walkthrough
             </Link>
           </div>
+          <p className="mt-3 text-xs text-text-faint">
+            Free account required · No credit card · Pre-loaded with six months of operator data
+          </p>
         </section>
 
-        {/* ── CALCULATOR + CTA ──────────────────────────── */}
-        <section className="mt-12 grid gap-8 lg:grid-cols-5">
+        {/* ── CALCULATOR + WHY ──────────────────────────── */}
+        <section className="mt-14 grid gap-8 lg:grid-cols-5">
           <div className="lg:col-span-3">
             <InlineCalculator />
           </div>
           <div className="lg:col-span-2 flex flex-col justify-center space-y-6">
             <div>
-              <h2 className="text-xl font-bold text-text-primary">Why Operators Switch</h2>
+              <h2 className="text-xl font-bold text-text-primary">The gap nobody fills</h2>
+              <p className="mt-3 text-sm leading-relaxed text-text-secondary">
+                General ledgers know accounting but nothing about 280E. Seed-to-sale and POS platforms
+                know cannabis but treat accounting as an afterthought. Operators end up bridging the
+                two by hand, in spreadsheets, every month.
+              </p>
               <ul className="mt-4 space-y-3">
                 {[
-                  "Automated 280E + 471(c) COGS allocation",
-                  "Metrc-integrated inventory reconciliation",
-                  "Multi-entity consolidation",
-                  "CPA-ready audit packets",
-                  "Month-end close in days, not weeks",
+                  "Works alongside QuickBooks — no ledger migration",
+                  "Allocation policies, not one-off spreadsheet math",
+                  "Every override captures who, when, and why",
+                  "Support schedules tie back to source records",
                 ].map((f) => (
                   <li key={f} className="flex items-start gap-2">
                     <CheckIcon className="mt-0.5 h-4 w-4 shrink-0 text-brand" />
@@ -215,71 +213,114 @@ export default function HomePage() {
                 ))}
               </ul>
             </div>
-            <div className="rounded-xl border border-accent/20 bg-accent/5 p-4">
-              <div className="text-xs font-semibold uppercase tracking-wider text-accent">CPA Firms</div>
-              <p className="mt-1 text-sm text-text-secondary">
-                Serve 3x more clients with multi-client tools, white-label exports, and 20% revenue share.
-              </p>
-              <Link href="/partner" className="mt-2 inline-flex items-center gap-1 text-sm font-medium text-accent hover:text-accent/80">
-                Learn more <ArrowRight className="h-3 w-3" />
-              </Link>
-            </div>
           </div>
         </section>
 
-        {/* ── STATS BAR ────────────────────────────────── */}
-        <section className="mt-16 rounded-2xl border border-border bg-surface/60 p-6 backdrop-blur-sm">
-          <div className="grid gap-6 sm:grid-cols-4">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-accent">$75K+</div>
-              <div className="mt-1 text-xs text-text-muted">Average annual savings identified</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-brand">16hrs → 3min</div>
-              <div className="mt-1 text-xs text-text-muted">280E allocation time</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-accent">45K+</div>
-              <div className="mt-1 text-xs text-text-muted">Licensed cannabis operators in the US</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-brand">30-day</div>
-              <div className="mt-1 text-xs text-text-muted">Money-back guarantee</div>
-            </div>
-          </div>
-        </section>
-
-        {/* ── TESTIMONIALS ─────────────────────────────── */}
+        {/* ── CAPABILITIES ─────────────────────────────── */}
         <section className="mt-16">
           <h2 className="text-center text-sm font-semibold uppercase tracking-[0.2em] text-text-muted">
-            What operators are saying
+            What the platform actually does
           </h2>
-          <div className="mt-8 grid gap-6 sm:grid-cols-3">
-            {testimonials.map((t) => (
-              <div key={t.author} className="rounded-2xl border border-border bg-surface/40 p-5 backdrop-blur-sm">
-                <div className="mb-2 inline-block rounded-full bg-brand/10 px-2.5 py-0.5 text-xs font-semibold text-brand">{t.stat}</div>
-                <p className="text-sm leading-relaxed text-text-secondary">&ldquo;{t.quote}&rdquo;</p>
-                <div className="mt-3 border-t border-border pt-2">
-                  <div className="text-sm font-medium text-text-primary">{t.author}</div>
-                  <div className="text-xs text-text-muted">{t.title}</div>
-                </div>
+          <div className="mt-8 grid gap-5 sm:grid-cols-2">
+            {capabilities.map((c) => (
+              <div key={c.title} className="rounded-2xl border border-border bg-surface/40 p-5 backdrop-blur-sm">
+                <h3 className="text-sm font-semibold text-text-primary">{c.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-text-secondary">{c.body}</p>
               </div>
             ))}
           </div>
         </section>
 
-        {/* ── FINAL CTA ────────────────────────────────── */}
-        <section className="mt-16 text-center rounded-2xl border border-brand/20 bg-gradient-to-br from-brand/5 to-surface p-8">
-          <h2 className="text-2xl font-bold text-text-primary">Find Your Missed Deductions</h2>
-          <p className="mx-auto mt-3 max-w-lg text-sm text-text-muted">
-            Use the calculator above to estimate your savings, then schedule a demo to see the full picture for your operation.
-          </p>
-          <div className="mt-6 flex flex-wrap justify-center gap-4">
-            <Link href="/demo" className="inline-flex h-12 items-center gap-2 rounded-xl bg-brand px-8 text-sm font-semibold text-white shadow-sm hover:bg-brand/90 transition-all">
-              Schedule a Demo <ArrowRight className="h-4 w-4" />
+        {/* ── DEMO PATH ────────────────────────────────── */}
+        <section className="mt-16 rounded-2xl border border-brand/20 bg-gradient-to-br from-brand/5 to-surface p-8">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-text-primary">See it on real books, not screenshots</h2>
+            <p className="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-text-muted">
+              Create an account and you land in a working sandbox — a seeded operator with six months
+              of transactions, three locations, live Metrc variances, and an open close. Every number
+              on screen is computed, not mocked. Bring your own data whenever you&rsquo;re ready.
+            </p>
+          </div>
+          <div className="mt-7 grid gap-4 sm:grid-cols-3">
+            {[
+              { n: "1", t: "Create your account", d: "Email and password. About thirty seconds." },
+              { n: "2", t: "Land in a seeded operation", d: "Pre-loaded books, allocations, and exceptions waiting for review." },
+              { n: "3", t: "Walk the close", d: "A guided tour runs the workflow end to end — or skip it and poke around." },
+            ].map((s) => (
+              <div key={s.n} className="rounded-xl border border-border bg-surface p-4">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-brand/10 text-xs font-bold text-brand">{s.n}</div>
+                <div className="mt-3 text-sm font-semibold text-text-primary">{s.t}</div>
+                <div className="mt-1 text-xs leading-relaxed text-text-muted">{s.d}</div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-7 flex flex-wrap justify-center gap-4">
+            <Link href="/try" className="inline-flex h-12 items-center gap-2 rounded-xl bg-brand px-8 text-sm font-semibold text-ink shadow-sm hover:bg-brand/90 transition-all">
+              Start exploring <ArrowRight className="h-4 w-4" />
             </Link>
             <Link href="/pricing" className="inline-flex h-12 items-center rounded-xl border border-border px-8 text-sm font-semibold text-text-secondary hover:border-brand/30 hover:text-brand transition-all">
-              View Pricing
+              View pricing
+            </Link>
+          </div>
+        </section>
+
+        {/* ── CPA TRACK ────────────────────────────────── */}
+        <section className="mt-16 rounded-2xl border border-accent/20 bg-accent/5 p-8">
+          <div className="grid gap-6 md:grid-cols-5 md:items-center">
+            <div className="md:col-span-3">
+              <div className="text-xs font-semibold uppercase tracking-[0.2em] text-accent">For CPA firms</div>
+              <h2 className="mt-2 text-2xl font-bold text-text-primary">
+                Every cannabis client in one place
+              </h2>
+              <p className="mt-3 text-sm leading-relaxed text-text-secondary">
+                Your clients grant you scoped access from their own account. You see close status,
+                open exceptions, and support schedules per engagement — without chasing a bookkeeper
+                for a trial balance export. The allocation work that eats a day per client per month
+                is already done and documented when you open it.
+              </p>
+            </div>
+            <div className="md:col-span-2 flex flex-col gap-3">
+              <Link href="/partner" className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-accent px-6 text-sm font-semibold text-ink transition-all hover:bg-accent/90">
+                CPA partner program <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link href="/cpa-partners" className="inline-flex h-12 items-center justify-center rounded-xl border border-border px-6 text-sm font-semibold text-text-secondary transition-all hover:border-accent/40 hover:text-accent">
+                How the portal works
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        {/* ── MARKET CONTEXT ───────────────────────────── */}
+        <section className="mt-16 rounded-2xl border border-border bg-surface/60 p-6 backdrop-blur-sm">
+          <div className="grid gap-6 sm:grid-cols-3">
+            <div className="text-center">
+              <div className="text-3xl font-bold text-accent">§280E</div>
+              <div className="mt-1 text-xs text-text-muted">Disallows ordinary business deductions — COGS is the only lawful path</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-brand">§471(c)</div>
+              <div className="mt-1 text-xs text-text-muted">Inventory method election modeled directly in the platform</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold text-accent">Metrc</div>
+              <div className="mt-1 text-xs text-text-muted">Package-level reconciliation against your posted ledger</div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── FINAL CTA ────────────────────────────────── */}
+        <section className="mt-16 text-center">
+          <h2 className="text-2xl font-bold text-text-primary">Find out what your books can defend</h2>
+          <p className="mx-auto mt-3 max-w-lg text-sm text-text-muted">
+            Estimate with the calculator above, then open the sandbox and see the workpapers the
+            platform produces behind a real allocation.
+          </p>
+          <div className="mt-6 flex flex-wrap justify-center gap-4">
+            <Link href="/try" className="inline-flex h-12 items-center gap-2 rounded-xl bg-brand px-8 text-sm font-semibold text-ink shadow-sm hover:bg-brand/90 transition-all">
+              Explore the sandbox <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link href="/contact" className="inline-flex h-12 items-center rounded-xl border border-border px-8 text-sm font-semibold text-text-secondary hover:border-brand/30 hover:text-brand transition-all">
+              Talk to us
             </Link>
           </div>
         </section>
@@ -290,10 +331,17 @@ export default function HomePage() {
           <div className="mt-8 flex flex-wrap justify-center gap-8 text-xs text-text-faint">
             <Link href="/pricing" className="hover:text-text-muted transition-colors">Pricing</Link>
             <Link href="/partner" className="hover:text-text-muted transition-colors">CPA Partners</Link>
-            <Link href="/contact" className="hover:text-text-muted transition-colors">Contact</Link>
+            <Link href="/280e-guide" className="hover:text-text-muted transition-colors">280E Guide</Link>
             <Link href="/calculator" className="hover:text-text-muted transition-colors">280E Calculator</Link>
+            <Link href="/contact" className="hover:text-text-muted transition-colors">Contact</Link>
           </div>
-          <p className="mt-6 text-center text-xs text-text-faint">Tranquillo Green — Cannabis Financial Operations Platform</p>
+          <p className="mt-6 text-center text-xs text-text-faint">
+            Tranquillo Green — Cannabis Financial Operations Platform
+          </p>
+          <p className="mx-auto mt-3 max-w-2xl text-center text-[11px] leading-relaxed text-text-faint">
+            Tranquillo Green produces accounting records and workpapers. It is not tax advice, and
+            allocation outcomes depend on your facts and your CPA&rsquo;s judgment.
+          </p>
         </footer>
       </div>
     </main>
