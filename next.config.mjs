@@ -2,6 +2,10 @@
 
 const isProd = process.env.NODE_ENV === "production";
 
+// CSP_MODE=enforce turns the policy on. Anything else (including unset) keeps
+// it in report-only, which is the safe default for a policy that gates auth.
+const cspEnforced = process.env.CSP_MODE?.trim().toLowerCase() === "enforce";
+
 // Clerk serves its frontend SDK from the instance domain; Convex is reached
 // over HTTPS and WebSocket. Everything else is same-origin: next/font
 // self-hosts at build time, and there are no third-party script tags.
@@ -35,11 +39,14 @@ const securityHeaders = [
     key: "Permissions-Policy",
     value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
   },
-  // Report-Only first: this policy has never run against live Clerk traffic,
-  // and a wrong directive here would break sign-in for every user. Watch the
-  // browser console on the auth and dashboard routes, then promote the header
-  // name to "Content-Security-Policy" once it reports clean.
-  { key: "Content-Security-Policy-Report-Only", value: csp },
+  // Enforcement is a config flip, not a code change, because the failure mode
+  // is severe and asymmetric: a wrong directive breaks sign-in for every user,
+  // while report-only silently protects nothing. Validate with the default,
+  // then set CSP_MODE=enforce. See docs/security-and-vendors.md for the drill.
+  {
+    key: cspEnforced ? "Content-Security-Policy" : "Content-Security-Policy-Report-Only",
+    value: csp,
+  },
 ];
 
 if (isProd) {

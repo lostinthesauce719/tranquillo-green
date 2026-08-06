@@ -10,7 +10,8 @@
     "lint": "next lint",
     "env:check": "npx tsx scripts/env-check.ts",
     "test": "node --import tsx --experimental-test-module-mocks --test",
-    "backup:verify": "npx tsx scripts/verify-backup.ts"
+    "backup:verify": "npx tsx scripts/verify-backup.ts",
+    "backup:restore": "npx tsx scripts/restore-backup.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^5.7.6",
