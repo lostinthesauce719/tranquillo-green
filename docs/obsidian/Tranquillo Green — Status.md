@@ -3,7 +3,7 @@ title: Tranquillo Green — Status
 project: tranquillo-green
 type: project-status
 status: complete
-completion: 97
+completion: 98
 updated: 2026-08-05
 repo: https://github.com/lostinthesauce719/tranquillo-green
 pr: https://github.com/lostinthesauce719/tranquillo-green/pull/15
@@ -16,7 +16,7 @@ tags:
 
 # Tranquillo Green — Status
 
-> [!summary] Overall completion: **~97%** — shipped and deployed
+> [!summary] Overall completion: **~98%** — shipped, deployed, and hardened
 > Every dashboard module now runs on persisted Convex data — no surface ships hardcoded demo data. Core accounting, compliance, payroll, imports, close, exports, notifications, campaigns, content, CPA portal, Metrc reconciliation, and multi-operation management are all live. The leaked Clerk key has been rotated and the Convex schema and functions are deployed to prod (`intent-condor-492`). Remaining work is optional enhancement: external API auto-sync (Metrc, ad platforms), email invitations, and production ops hardening.
 
 ## Completion by workstream
@@ -68,6 +68,17 @@ Plus `convex/financialStatements.ts`, which computes the three financial stateme
 3. **Production build broken** — duplicate CommonJS `postcss.config.js` under `"type": "module"`.
 4. **Leaked Clerk secret key** in README on a public repo — removed from the README and **rotated in the Clerk dashboard on 2026-08-05**, so the string remaining in git history is inert.
 5. **Financial statements were hardcoded** — the P&L, trial balance, and balance sheet displayed fabricated figures rather than the company's own ledger.
+6. **Security headers never reached browser pages** — `securityHeaders()` was only called from API routes, so every HTML document shipped with no CSP, no clickjacking protection, and no nosniff.
+7. **CORS reflected any origin** the caller sent, falling back to `*`.
+8. **Fabricated testimonials** on the landing page, attributed to named people at named companies (one a real operator) with invented dollar figures.
+9. **Unimplemented compliance claims** — the audit log promised 7-year retention and cryptographic chaining; neither existed.
+
+## Infrastructure added
+
+- **Off-site backups** — nightly NDJSON snapshot of all 45 tables to storage you own, credentials redacted, with a verifier (`npm run backup:verify`) and tests covering truncation, count mismatch, and missing IDs.
+- **Swappable billing** — `BillingProvider` interface; `invoice` (default, no card rail) and `stripe`. Changing processors is one file, no route or UI changes.
+- **Durable rate limiting** — Convex-backed, transactional, shared across serverless instances.
+- **`docs/security-and-vendors.md`** — architecture, backup runbook, vendor DPA/SOC 2 checklist, processor-selection questions, and an explicit known-gaps list.
 
 ## Verified quality gates
 
@@ -84,6 +95,10 @@ Plus `convex/financialStatements.ts`, which computes the three financial stateme
 - [ ] Close superseded PRs #11, #12, #13
 - [ ] External API sync: Metrc package pull, ad-platform metric pull (manual entry works today)
 - [ ] Email invitations for team members (Clerk invitation API)
-- [ ] Production ops: Redis-backed rate limiting, tightened CSP
+- [x] ~~Production ops: durable rate limiting, security headers~~ — rate limiting moved to Convex (transactional, shared across instances); security headers now applied to HTML pages via `next.config.mjs`, not just API routes; CORS restricted to an allowlist
+- [ ] **Promote CSP from Report-Only to enforcing** once validated against live Clerk traffic (`next.config.mjs`)
+- [ ] Configure the backup bucket (`BACKUP_SECRET` + `BACKUP_S3_*`) and rehearse a restore
+- [ ] Vendor DPAs and SOC 2 verification — see `docs/security-and-vendors.md`
+- [ ] Confirm in writing whether Stripe will underwrite cannabis-adjacent SaaS; billing defaults to invoice/ACH until then
 - [x] ~~Remove Clerk issuer fallback in `convex/auth.config.ts`~~ — done; the env var is now required with no stale hardcoded default
 - [ ] Pillar 7 (forecasting / anomaly detection) when foundation is proven with pilots
