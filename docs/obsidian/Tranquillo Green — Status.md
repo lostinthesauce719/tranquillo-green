@@ -17,7 +17,7 @@ tags:
 # Tranquillo Green — Status
 
 > [!summary] Overall completion: **~95%**
-> Every dashboard module now runs on persisted Convex data — no surface ships hardcoded demo data. Core accounting, compliance, payroll, imports, close, exports, notifications, campaigns, content, CPA portal, Metrc reconciliation, and multi-operation management are all live. Remaining work is external API integrations (Metrc/ad-platform auto-sync), email invitations, and production ops hardening. One manual action outstanding: **rotate the Clerk secret key**.
+> Every dashboard module now runs on persisted Convex data — no surface ships hardcoded demo data. Core accounting, compliance, payroll, imports, close, exports, notifications, campaigns, content, CPA portal, Metrc reconciliation, and multi-operation management are all live. The leaked Clerk key has been rotated. Remaining work is external API integrations (Metrc/ad-platform auto-sync), email invitations, and production ops hardening; the only deploy step left is pushing the new Convex schema.
 
 ## Completion by workstream
 
@@ -66,7 +66,7 @@ Plus `convex/financialStatements.ts`, which computes the three financial stateme
 1. **18 Convex functions broken at runtime** — two-arg call form unsupported by `authQuery`/`authMutation`, including `getOrCreateUser` / `getCurrentTenant` used by the dashboard layout on every load.
 2. **Cross-tenant access gaps** — auth wrappers checked authentication but not company membership; now enforced everywhere via `requireCompanyAccessById`.
 3. **Production build broken** — duplicate CommonJS `postcss.config.js` under `"type": "module"`.
-4. **Leaked Clerk secret key** in README on a public repo.
+4. **Leaked Clerk secret key** in README on a public repo — removed from the README and **rotated in the Clerk dashboard on 2026-08-05**, so the string remaining in git history is inert.
 5. **Financial statements were hardcoded** — the P&L, trial balance, and balance sheet displayed fabricated figures rather than the company's own ledger.
 
 ## Verified quality gates
@@ -79,7 +79,7 @@ Plus `convex/financialStatements.ts`, which computes the three financial stateme
 
 ## Open items to 100%
 
-- [ ] **Rotate the leaked Clerk `sk_test_…` key** (still in git history) — manual, Clerk dashboard
+- [x] ~~Rotate the leaked Clerk `sk_test_…` key~~ — done 2026-08-05; old key revoked, `.env.local` updated
 - [ ] Run `npx convex deploy` to push the new schema + functions
 - [ ] Close superseded PRs #11, #12, #13
 - [ ] External API sync: Metrc package pull, ad-platform metric pull (manual entry works today)
