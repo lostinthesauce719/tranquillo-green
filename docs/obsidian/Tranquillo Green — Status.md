@@ -3,7 +3,7 @@ title: Tranquillo Green — Status
 project: tranquillo-green
 type: project-status
 status: complete
-completion: 95
+completion: 97
 updated: 2026-08-05
 repo: https://github.com/lostinthesauce719/tranquillo-green
 pr: https://github.com/lostinthesauce719/tranquillo-green/pull/15
@@ -16,8 +16,8 @@ tags:
 
 # Tranquillo Green — Status
 
-> [!summary] Overall completion: **~95%**
-> Every dashboard module now runs on persisted Convex data — no surface ships hardcoded demo data. Core accounting, compliance, payroll, imports, close, exports, notifications, campaigns, content, CPA portal, Metrc reconciliation, and multi-operation management are all live. The leaked Clerk key has been rotated. Remaining work is external API integrations (Metrc/ad-platform auto-sync), email invitations, and production ops hardening; the only deploy step left is pushing the new Convex schema.
+> [!summary] Overall completion: **~97%** — shipped and deployed
+> Every dashboard module now runs on persisted Convex data — no surface ships hardcoded demo data. Core accounting, compliance, payroll, imports, close, exports, notifications, campaigns, content, CPA portal, Metrc reconciliation, and multi-operation management are all live. The leaked Clerk key has been rotated and the Convex schema and functions are deployed to prod (`intent-condor-492`). Remaining work is optional enhancement: external API auto-sync (Metrc, ad platforms), email invitations, and production ops hardening.
 
 ## Completion by workstream
 
@@ -80,7 +80,7 @@ Plus `convex/financialStatements.ts`, which computes the three financial stateme
 ## Open items to 100%
 
 - [x] ~~Rotate the leaked Clerk `sk_test_…` key~~ — done 2026-08-05; old key revoked, `.env.local` updated
-- [ ] Run `npx convex deploy` to push the new schema + functions
+- [x] ~~Run `npx convex deploy` to push the new schema + functions~~ — done 2026-08-05; `CLERK_JWT_ISSUER_DOMAIN` set on the prod deployment
 - [ ] Close superseded PRs #11, #12, #13
 - [ ] External API sync: Metrc package pull, ad-platform metric pull (manual entry works today)
 - [ ] Email invitations for team members (Clerk invitation API)
