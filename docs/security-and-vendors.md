@@ -133,21 +133,36 @@ the lines that used them, debits still equal credits, and no snapshot id
 survives anywhere. Cycles, dangling references, arrays of ids, and truncated
 files are all covered.
 
-That rehearses the logic. Rehearse the **operation** too, at least once and
-after any large schema change:
+That rehearses the logic. Rehearsing the **operation** against a real Convex
+deployment is one command:
 
-1. Create a scratch Convex deployment (`npx convex deploy` to a new project).
-2. Set `BACKUP_SECRET` on it.
-3. Download a real snapshot from `/api/backup`.
-4. `npm run backup:verify -- snapshot.ndjson`.
-5. Dry-run the restore against the scratch deployment; read the plan.
-6. Apply with `--yes`.
-7. Point a local app instance at the scratch deployment and confirm the
-   dashboard, a period close, and a trial balance all render.
-8. Delete the scratch deployment.
+```bash
+export CONVEX_DEPLOY_KEY='dev:<throwaway-deployment>|...'
+export DRILL_URL='https://<throwaway-deployment>.convex.cloud'
+npm run drill
+```
 
-Record the date you last completed this. A backup nobody has restored is a
-guess.
+It deploys the schema to the throwaway deployment, restores a synthetic
+fixture (31 documents, 12 tables, no real data), exports it back, and compares
+the graphs — printing PASS or FAIL and exiting accordingly. It refuses to run
+against the production deployment, and prompts before accepting any `prod:`
+deploy key.
+
+The comparison is what makes this a test rather than a demonstration. Ids
+legitimately change during a restore, so each document is reduced to a
+canonical form with references resolved to the canonical form of their target,
+recursively; the graphs must be isomorphic with identical field values. A
+restore that silently repointed one transaction line at the wrong account
+fails this check — verified deliberately during development.
+
+> **Status: not yet run against a live deployment.** The logic is covered by
+> tests and the tooling is verified offline, but no one has executed
+> `npm run drill` against real Convex. Until someone does, treat recovery as
+> designed-and-tested rather than proven. Record the date here when it passes:
+>
+> Last successful live drill: _never_
+
+Afterwards: delete the throwaway project and revoke its deploy key.
 
 **Redaction.** Integration credentials (`integrationConfigs` OAuth tokens, POS
 keys) are replaced with `[redacted-in-backup]`. A leaked snapshot should not
@@ -212,8 +227,8 @@ that stays.
 Tracked honestly so nobody mistakes intent for implementation:
 
 - CSP defaults to Report-Only; set `CSP_MODE=enforce` after validating (§2).
-- Restore is scripted and its logic is rehearsed in tests; the live drill
-  against a scratch deployment is still owed.
+- Restore is scripted, its logic is covered by tests, and the drill is a
+  single command — but it has never been run against a live deployment.
 - No deletion path for data held in backup snapshots — see the tracker.
 - Audit trail is append-only by application design, not by storage guarantee.
 - Team invitations require the invitee to self-register first.
