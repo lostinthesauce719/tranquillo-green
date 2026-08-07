@@ -15,7 +15,8 @@
     "backup:export": "npx tsx scripts/backup-export.ts",
     "drill:fixture": "npx tsx scripts/drill-fixture.ts",
     "backup:compare": "npx tsx scripts/compare-snapshots.ts",
-    "drill": "bash scripts/run-drill.sh"
+    "drill": "bash scripts/run-drill.sh",
+    "backup:preflight": "npx tsx scripts/backup-preflight.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^5.7.6",
