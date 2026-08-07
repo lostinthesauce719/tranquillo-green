@@ -1,5 +1,6 @@
-import "server-only";
-
+// Intentionally not marked `server-only`: also imported by scripts/backup-export.ts
+// so a snapshot can be taken without the web app running — which is exactly
+// when you need one most.
 import { ConvexHttpClient } from "convex/browser";
 import { anyApi } from "convex/server";
 import { putObject, readS3TargetFromEnv } from "./s3";

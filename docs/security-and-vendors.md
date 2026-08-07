@@ -78,7 +78,22 @@ account-closure away from total loss. Nightly snapshots run to storage you own.
    ```
 4. Set `BACKUP_S3_ENDPOINT`, `BACKUP_S3_BUCKET`, `BACKUP_S3_REGION`,
    `BACKUP_S3_ACCESS_KEY_ID`, `BACKUP_S3_SECRET_ACCESS_KEY` in Vercel.
-5. `vercel.json` runs `/api/backup` daily at 07:00 UTC.
+5. **Prove the destination works before trusting it:**
+   ```bash
+   npm run backup:preflight
+   ```
+   Writes a test object, reads it back, checks the bytes match, and deletes it.
+   Run it again after rotating storage keys.
+6. `vercel.json` runs `/api/backup` daily at 07:00 UTC.
+7. Trigger one real backup and confirm `uploaded: true`:
+   ```bash
+   curl -X POST -H "Authorization: Bearer $BACKUP_SECRET" https://<your-app>/api/backup
+   ```
+
+> A misconfigured bucket does not announce itself. The nightly job fails into a
+> log nobody reads, and the first sign of trouble is finding no snapshots on the
+> day you need one. Preflight exists so that failure is loud and immediate
+> instead.
 
 **Manual snapshot**
 

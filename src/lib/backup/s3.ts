@@ -1,5 +1,7 @@
-import "server-only";
-
+// Intentionally not marked `server-only`: this module is shared by the
+// Next.js API route and by the CLI scripts (export, preflight, drill), and
+// `server-only` throws outside a Next build. Client bundling is prevented
+// naturally by the node:crypto import below.
 import { createHash, createHmac } from "node:crypto";
 
 /**
@@ -59,31 +61,37 @@ export function readS3TargetFromEnv(): S3Target | null {
  * Throws with the provider's response body when the request is rejected, so
  * a misconfigured bucket surfaces a real error rather than a silent no-op.
  */
-export async function putObject(
+async function signedRequest(
   target: S3Target,
+  method: "PUT" | "GET" | "DELETE",
   key: string,
-  body: string,
+  body?: string,
   contentType = "application/x-ndjson",
-): Promise<string> {
+): Promise<{ ok: boolean; status: number; statusText: string; text: string; url: string }> {
   const url = new URL(`${target.endpoint.replace(/\/$/, "")}/${target.bucket}/${encodeKey(key)}`);
   const host = url.host;
 
-  const payload = Buffer.from(body, "utf8");
+  const payload = body === undefined ? Buffer.alloc(0) : Buffer.from(body, "utf8");
   const payloadHash = sha256Hex(payload);
 
   const now = new Date();
   const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, ""); // YYYYMMDDTHHMMSSZ
   const dateStamp = amzDate.slice(0, 8);
 
-  const signedHeaders = "content-type;host;x-amz-content-sha256;x-amz-date";
+  // Content-Type is only signed when a body is sent; signing a header that is
+  // not transmitted produces a signature mismatch.
+  const hasBody = body !== undefined;
+  const signedHeaders = hasBody
+    ? "content-type;host;x-amz-content-sha256;x-amz-date"
+    : "host;x-amz-content-sha256;x-amz-date";
   const canonicalHeaders =
-    `content-type:${contentType}\n` +
+    (hasBody ? `content-type:${contentType}\n` : "") +
     `host:${host}\n` +
     `x-amz-content-sha256:${payloadHash}\n` +
     `x-amz-date:${amzDate}\n`;
 
   const canonicalRequest = [
-    "PUT",
+    method,
     url.pathname,
     "", // no query string
     canonicalHeaders,
@@ -105,28 +113,73 @@ export async function putObject(
   );
   const signature = createHmac("sha256", signingKey).update(stringToSign, "utf8").digest("hex");
 
-  const authorization =
-    `AWS4-HMAC-SHA256 Credential=${target.accessKeyId}/${scope}, ` +
-    `SignedHeaders=${signedHeaders}, Signature=${signature}`;
-
-  const response = await fetch(url.toString(), {
-    method: "PUT",
-    headers: {
-      "Content-Type": contentType,
-      "x-amz-content-sha256": payloadHash,
-      "x-amz-date": amzDate,
-      Authorization: authorization,
-      "Content-Length": String(payload.byteLength),
-    },
-    body: payload,
-  });
-
-  if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    throw new Error(
-      `Backup upload failed (${response.status} ${response.statusText}): ${detail.slice(0, 500)}`,
-    );
+  const headers: Record<string, string> = {
+    "x-amz-content-sha256": payloadHash,
+    "x-amz-date": amzDate,
+    Authorization:
+      `AWS4-HMAC-SHA256 Credential=${target.accessKeyId}/${scope}, ` +
+      `SignedHeaders=${signedHeaders}, Signature=${signature}`,
+  };
+  if (hasBody) {
+    headers["Content-Type"] = contentType;
+    headers["Content-Length"] = String(payload.byteLength);
   }
 
-  return url.toString();
+  const response = await fetch(url.toString(), {
+    method,
+    headers,
+    ...(hasBody ? { body: payload } : {}),
+  });
+
+  const text = await response.text().catch(() => "");
+  return {
+    ok: response.ok,
+    status: response.status,
+    statusText: response.statusText,
+    text,
+    url: url.toString(),
+  };
+}
+
+/**
+ * Uploads a single object. Returns the URL it was written to.
+ * Throws with the provider's response body when the request is rejected, so
+ * a misconfigured bucket surfaces a real error rather than a silent no-op.
+ */
+export async function putObject(
+  target: S3Target,
+  key: string,
+  body: string,
+  contentType = "application/x-ndjson",
+): Promise<string> {
+  const result = await signedRequest(target, "PUT", key, body, contentType);
+  if (!result.ok) {
+    throw new Error(
+      `Backup upload failed (${result.status} ${result.statusText}): ${result.text.slice(0, 500)}`,
+    );
+  }
+  return result.url;
+}
+
+/** Reads an object back. Returns null when it does not exist. */
+export async function getObject(target: S3Target, key: string): Promise<string | null> {
+  const result = await signedRequest(target, "GET", key);
+  if (result.status === 404) return null;
+  if (!result.ok) {
+    throw new Error(
+      `Backup read failed (${result.status} ${result.statusText}): ${result.text.slice(0, 500)}`,
+    );
+  }
+  return result.text;
+}
+
+/** Deletes an object. Succeeds whether or not it existed. */
+export async function deleteObject(target: S3Target, key: string): Promise<void> {
+  const result = await signedRequest(target, "DELETE", key);
+  // S3 returns 204 for a successful delete, and 404 is equally fine here.
+  if (!result.ok && result.status !== 404) {
+    throw new Error(
+      `Backup delete failed (${result.status} ${result.statusText}): ${result.text.slice(0, 500)}`,
+    );
+  }
 }
