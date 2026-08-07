@@ -39,9 +39,27 @@ edit or delete these rows.
 `next.config.mjs` and apply to every response including HTML documents. CSP
 currently ships as `Content-Security-Policy-Report-Only`.
 
-> Action: watch the browser console on `/auth` and `/dashboard` under real
-> Clerk traffic, then rename the header to `Content-Security-Policy` to
-> enforce. It is not protecting anything until you do.
+Enforcement is controlled by `CSP_MODE`, so turning it on is a config change
+rather than a deploy of new code — and turning it back off is equally quick if
+sign-in breaks.
+
+**To enforce:**
+
+1. Deploy with the default (report-only) and exercise the real flows: sign up,
+   sign in, load the dashboard, open a report, start a checkout.
+2. Watch the browser console for `Content-Security-Policy-Report-Only`
+   violations. Anything reported would have been *blocked* under enforcement.
+3. Add any legitimate origin the reports surface to the relevant directive in
+   `next.config.mjs`. Clerk in particular may load from a domain not in the
+   current list depending on your instance configuration.
+4. When the console is clean across those flows, set `CSP_MODE=enforce` and
+   redeploy.
+5. Verify sign-in immediately. If anything breaks, unset `CSP_MODE` — that
+   reverts to report-only without a code change.
+
+> Until step 4 the policy reports but does not block. That is deliberate: a
+> wrong directive locks every user out of the product, while report-only fails
+> safe. Do not treat the header's presence as protection.
 
 ## 3. Backups
 
@@ -80,16 +98,71 @@ npm run backup:verify -- snapshot.ndjson
 Checks the header, that every line parses, that every document has an `_id`,
 and that per-table counts match. A backup nobody has read is a guess.
 
-**Restore.** The format is NDJSON: line 1 is a header, every later line is one
-document tagged with `_table`. Restore by reading lines and inserting per
-table, parents before children (`cannabisCompanies` → `chartOfAccounts` →
-`transactions` → `transactionLines`). Convex `_id` values are not reusable
-across deployments, so a restore into a fresh deployment must remap references.
+**Restore**
 
-> Not implemented: an automated restore script, and restore has never been
-> rehearsed. Schedule a drill into a scratch Convex deployment before you have
-> customers depending on it. Backups are only as good as the last restore you
-> actually performed.
+```bash
+# Always dry-run first. Plans the restore and validates every reference
+# without writing anything.
+BACKUP_SECRET=<value> npm run backup:restore -- snapshot.ndjson \
+  --url https://<scratch-deployment>.convex.cloud
+
+# Apply, once the plan looks right.
+BACKUP_SECRET=<value> npm run backup:restore -- snapshot.ndjson \
+  --url https://<scratch-deployment>.convex.cloud --yes
+```
+
+Convex `_id` values cannot be reused across deployments, so the script rebuilds
+every cross-document reference: it inserts in dependency order and rewrites
+each reference to the id the target assigned. References are found by matching
+values against ids present in the snapshot rather than a hard-coded list of
+foreign keys, so the restore does not rot when the schema changes.
+
+Guards, because restoring into the wrong place is the expensive mistake:
+
+- Refuses to restore onto the deployment the snapshot came from.
+- Refuses a target that already holds data unless `--allow-non-empty`.
+- Refuses to write at all if any reference cannot be resolved.
+- Dry run is the default; writing requires `--yes`.
+
+**Restore drill**
+
+The remapping logic is covered by `tests/restore-plan.test.ts`, which performs
+a full restore against an in-memory deployment and then walks the restored
+graph — confirming lines still point at their transaction, accounts still match
+the lines that used them, debits still equal credits, and no snapshot id
+survives anywhere. Cycles, dangling references, arrays of ids, and truncated
+files are all covered.
+
+That rehearses the logic. Rehearsing the **operation** against a real Convex
+deployment is one command:
+
+```bash
+export CONVEX_DEPLOY_KEY='dev:<throwaway-deployment>|...'
+export DRILL_URL='https://<throwaway-deployment>.convex.cloud'
+npm run drill
+```
+
+It deploys the schema to the throwaway deployment, restores a synthetic
+fixture (31 documents, 12 tables, no real data), exports it back, and compares
+the graphs — printing PASS or FAIL and exiting accordingly. It refuses to run
+against the production deployment, and prompts before accepting any `prod:`
+deploy key.
+
+The comparison is what makes this a test rather than a demonstration. Ids
+legitimately change during a restore, so each document is reduced to a
+canonical form with references resolved to the canonical form of their target,
+recursively; the graphs must be isomorphic with identical field values. A
+restore that silently repointed one transaction line at the wrong account
+fails this check — verified deliberately during development.
+
+> **Status: not yet run against a live deployment.** The logic is covered by
+> tests and the tooling is verified offline, but no one has executed
+> `npm run drill` against real Convex. Until someone does, treat recovery as
+> designed-and-tested rather than proven. Record the date here when it passes:
+>
+> Last successful live drill: _never_
+
+Afterwards: delete the throwaway project and revoke its deploy key.
 
 **Redaction.** Integration credentials (`integrationConfigs` OAuth tokens, POS
 keys) are replaced with `[redacted-in-backup]`. A leaked snapshot should not
@@ -98,7 +171,9 @@ be re-authorized after a restore.
 
 ## 4. Vendor procurement checklist
 
-Do this before the first customer's real books land in the system.
+Tracked in **`docs/vendor-compliance-tracker.md`**, which carries the
+subprocessor table, per-vendor status, and the commitments you can and cannot
+yet make publicly. Summary of what it covers:
 
 - [ ] **Signed DPA with each vendor** — Convex, Clerk, Vercel, and your backup
       storage provider. You are a processor for your customers' financial data;
@@ -151,8 +226,10 @@ that stays.
 
 Tracked honestly so nobody mistakes intent for implementation:
 
-- CSP is Report-Only; not enforcing until validated against live auth traffic.
-- Restore is documented but unrehearsed and unautomated.
+- CSP defaults to Report-Only; set `CSP_MODE=enforce` after validating (§2).
+- Restore is scripted, its logic is covered by tests, and the drill is a
+  single command — but it has never been run against a live deployment.
+- No deletion path for data held in backup snapshots — see the tracker.
 - Audit trail is append-only by application design, not by storage guarantee.
 - Team invitations require the invitee to self-register first.
 - Metrc and ad-platform data is entered manually; no API sync yet.

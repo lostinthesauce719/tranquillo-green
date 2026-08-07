@@ -10,7 +10,12 @@
     "lint": "next lint",
     "env:check": "npx tsx scripts/env-check.ts",
     "test": "node --import tsx --experimental-test-module-mocks --test",
-    "backup:verify": "npx tsx scripts/verify-backup.ts"
+    "backup:verify": "npx tsx scripts/verify-backup.ts",
+    "backup:restore": "npx tsx scripts/restore-backup.ts",
+    "backup:export": "npx tsx scripts/backup-export.ts",
+    "drill:fixture": "npx tsx scripts/drill-fixture.ts",
+    "backup:compare": "npx tsx scripts/compare-snapshots.ts",
+    "drill": "bash scripts/run-drill.sh"
   },
   "dependencies": {
     "@clerk/nextjs": "^5.7.6",
