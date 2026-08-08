@@ -21,5 +21,8 @@ skills-lock.json
 
 # Test scratch files
 convex/test_hello.ts
+
+# Media assets (11MB+ of brand film plates/renders — not repo material)
+brand-film/
 .vercel
 .env*.local

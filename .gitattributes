@@ -1,0 +1,17 @@
+# Normalize all text files to LF in the repo; working copy per-platform.
+# Kills the CRLF/LF "everything modified" noise between Windows and Linux agents.
+* text=auto
+
+# Binaries — never touch line endings
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.mp4 binary
+*.mov binary
+*.webm binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
