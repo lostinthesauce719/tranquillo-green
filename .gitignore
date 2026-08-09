@@ -26,5 +26,6 @@ convex/test_hello.ts
 brand-film/
 .vercel
 .env*.local
-"_origin-schema.txt" 
-"_tables-to-add.txt" 
+_origin-schema.txt 
+_tables-to-add.txt 
+build.log
