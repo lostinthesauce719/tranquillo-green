@@ -161,8 +161,8 @@ Send this as a Google Form or Typeform to filter:
 
 **Pilot phase (0–90 days):** $1/mo
 
-**Post-pilot founding customer:**
-- 50% off for life: Essentials = $149.50/mo, Growth = $299.50/mo
+**Post-pilot founding customer:** (based on shipped tiers — Essential $347/mo, Premium $897/mo)
+- 50% off for life: Essential = $173.50/mo, Premium = $448.50/mo
 - Must provide monthly feedback (1–2 bugs/feature ideas)
 - Must agree to be reference customer
 
