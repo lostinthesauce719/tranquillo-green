@@ -1,0 +1,180 @@
+
+> tranquillo-green@0.1.0 build
+> next build
+
+  ▲ Next.js 14.2.35
+  - Environments: .env.local
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Linting and checking validity of types ...
+
+./src/components/accounting/tax-liability-dashboard.tsx
+45:6  Warning: React Hook useEffect has a missing dependency: 'load'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./src/components/integrations/pos-connect-panel.tsx
+139:38  Warning: React Hook useEffect has a missing dependency: 'loadStatus'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/basic-features/eslint#disabling-rules
+   Collecting page data ...
+   Generating static pages (0/140) ...
+   Generating static pages (35/140) 
+   Generating static pages (70/140) 
+   Generating static pages (105/140) 
+ ✓ Generating static pages (140/140)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                       Size     First Load JS
+┌ ƒ /                                             3.73 kB        99.9 kB
+├ ƒ /_not-found                                   880 B          88.4 kB
+├ ƒ /280e-guide                                   238 B          96.5 kB
+├ ƒ /about                                        236 B          96.5 kB
+├ ƒ /ads/landing                                  3.48 kB        99.7 kB
+├ ƒ /api/accounting/export-packets                0 B                0 B
+├ ƒ /api/accounting/import-jobs                   0 B                0 B
+├ ƒ /api/accounting/manual-journal                0 B                0 B
+├ ƒ /api/accounting/reconciliations               0 B                0 B
+├ ƒ /api/accounting/reporting-periods             0 B                0 B
+├ ƒ /api/accounting/reports                       0 B                0 B
+├ ƒ /api/accounting/seed                          0 B                0 B
+├ ƒ /api/audit-trail/event                        0 B                0 B
+├ ƒ /api/audit-trail/override                     0 B                0 B
+├ ƒ /api/audit-trail/packet                       0 B                0 B
+├ ƒ /api/automation/cogs                          0 B                0 B
+├ ƒ /api/automation/run                           0 B                0 B
+├ ƒ /api/backend-status                           0 B                0 B
+├ ƒ /api/backup                                   0 B                0 B
+├ ƒ /api/billing/checkout                         0 B                0 B
+├ ƒ /api/billing/webhook                          0 B                0 B
+├ ƒ /api/campaigns                                0 B                0 B
+├ ƒ /api/compliance                               0 B                0 B
+├ ƒ /api/contact/submit                           0 B                0 B
+├ ƒ /api/content                                  0 B                0 B
+├ ƒ /api/cpa-portal                               0 B                0 B
+├ ƒ /api/diagnose-jwt                             0 B                0 B
+├ ƒ /api/emails/sequence                          0 B                0 B
+├ ƒ /api/integrations/quickbooks/callback         0 B                0 B
+├ ƒ /api/integrations/quickbooks/connect          0 B                0 B
+├ ƒ /api/integrations/quickbooks/disconnect       0 B                0 B
+├ ƒ /api/integrations/quickbooks/status           0 B                0 B
+├ ƒ /api/leads/capture                            0 B                0 B
+├ ƒ /api/metrc                                    0 B                0 B
+├ ƒ /api/metrc/packages                           0 B                0 B
+├ ƒ /api/notifications                            0 B                0 B
+├ ƒ /api/onboarding                               0 B                0 B
+├ ƒ /api/payroll/employees                        0 B                0 B
+├ ƒ /api/plan-b/optimize                          0 B                0 B
+├ ƒ /api/pos/square                               0 B                0 B
+├ ƒ /api/pos/toast                                0 B                0 B
+├ ƒ /api/pos/treez                                0 B                0 B
+├ ƒ /api/sandbox/create                           0 B                0 B
+├ ƒ /api/sandbox/status                           0 B                0 B
+├ ƒ /api/sandbox/upgrade                          0 B                0 B
+├ ƒ /api/seed                                     0 B                0 B
+├ ƒ /api/settings/company                         0 B                0 B
+├ ƒ /api/settings/locations                       0 B                0 B
+├ ƒ /api/settings/operations                      0 B                0 B
+├ ƒ /api/settings/team                            0 B                0 B
+├ ƒ /api/stripe/create-checkout                   0 B                0 B
+├ ƒ /api/stripe/webhook                           0 B                0 B
+├ ƒ /api/tax                                      0 B                0 B
+├ ƒ /api/tax/calculate                            0 B                0 B
+├ ƒ /api/tax/liability                            0 B                0 B
+├ ƒ /api/tax/rates                                0 B                0 B
+├ ƒ /auth                                         3.11 kB         121 kB
+├ ƒ /blog                                         236 B          96.5 kB
+├ ƒ /blog/280e-rescheduling-2026                  236 B          96.5 kB
+├ ƒ /blog/280e-vs-471c-cannabis                   236 B          96.5 kB
+├ ƒ /blog/cannabis-audit-preparation-guide        236 B          96.5 kB
+├ ƒ /blog/cannabis-cogs-allocation-guide          236 B          96.5 kB
+├ ƒ /blog/cannabis-cpa-firm-growth                236 B          96.5 kB
+├ ƒ /blog/cannabis-month-end-close-checklist      238 B          96.5 kB
+├ ƒ /blog/metrc-reconciliation-guide              236 B          96.5 kB
+├ ƒ /blog/white-label-cannabis-accounting         236 B          96.5 kB
+├ ƒ /calculator                                   4.15 kB         100 kB
+├ ƒ /cannabis-accounting                          236 B          96.5 kB
+├ ƒ /card-demo                                    4.56 kB        92.1 kB
+├ ƒ /case-studies                                 236 B          96.5 kB
+├ ƒ /compare/cannabis-accounting-software         236 B          96.5 kB
+├ ƒ /compare/quickbooks-vs-tranquillo-green       238 B          96.5 kB
+├ ƒ /contact                                      3.63 kB        99.8 kB
+├ ƒ /cpa-partners                                 3.14 kB        99.4 kB
+├ ƒ /dashboard                                    4.6 kB          127 kB
+├ ƒ /dashboard/accounting                         2.23 kB         125 kB
+├ ƒ /dashboard/accounting/close                   1.9 kB          135 kB
+├ ƒ /dashboard/accounting/imports                 11.4 kB         171 kB
+├ ƒ /dashboard/accounting/periods                 5.75 kB         135 kB
+├ ƒ /dashboard/accounting/pipeline                207 B           123 kB
+├ ƒ /dashboard/accounting/reports                 3.83 kB         127 kB
+├ ƒ /dashboard/accounting/reports/balance-sheet   2.78 kB         126 kB
+├ ƒ /dashboard/accounting/reports/trial-balance   3.41 kB         126 kB
+├ ƒ /dashboard/accounting/transactions            7.85 kB         138 kB
+├ ● /dashboard/accounting/transactions/[id]       210 B           123 kB
+├   ├ /dashboard/accounting/transactions/txn_001
+├   ├ /dashboard/accounting/transactions/txn_002
+├   ├ /dashboard/accounting/transactions/txn_003
+├   └ [+5 more paths]
+├ ƒ /dashboard/admin/audit-trail                  1.72 kB        89.2 kB
+├ ƒ /dashboard/admin/seed                         968 B          88.5 kB
+├ ƒ /dashboard/allocations                        4.21 kB         137 kB
+├ ƒ /dashboard/allocations/cogs-review            3.29 kB         133 kB
+├ ƒ /dashboard/allocations/history                210 B           123 kB
+├ ƒ /dashboard/allocations/policies               3.54 kB         133 kB
+├ ƒ /dashboard/allocations/support-schedule       3.59 kB         130 kB
+├ ƒ /dashboard/automation                         2.45 kB         132 kB
+├ ƒ /dashboard/batches                            4.29 kB         127 kB
+├ ƒ /dashboard/billing                            3.35 kB         126 kB
+├ ƒ /dashboard/business/acquisition               45.2 kB         168 kB
+├ ƒ /dashboard/business/customers                 1.98 kB         110 kB
+├ ƒ /dashboard/business/metrics                   121 kB          229 kB
+├ ƒ /dashboard/campaigns                          4.67 kB         128 kB
+├ ƒ /dashboard/compliance                         4.65 kB         128 kB
+├ ƒ /dashboard/content                            3.8 kB          127 kB
+├ ƒ /dashboard/cpa-portal                         3.64 kB         127 kB
+├ ƒ /dashboard/exports                            6.42 kB         136 kB
+├ ƒ /dashboard/inventory                          5.41 kB         128 kB
+├ ƒ /dashboard/metrc/sync                         5.92 kB         115 kB
+├ ƒ /dashboard/notifications                      4.92 kB         128 kB
+├ ƒ /dashboard/onboarding                         3.33 kB         126 kB
+├ ƒ /dashboard/payroll                            4.62 kB         128 kB
+├ ƒ /dashboard/pos                                1.17 kB        99.7 kB
+├ ƒ /dashboard/reconciliations                    3.97 kB         127 kB
+├ ● /dashboard/reconciliations/[id]               207 B           123 kB
+├   ├ /dashboard/reconciliations/rec_001
+├   ├ /dashboard/reconciliations/rec_002
+├   ├ /dashboard/reconciliations/rec_003
+├   └ /dashboard/reconciliations/rec_004
+├ ƒ /dashboard/settings                           12.1 kB         168 kB
+├ ƒ /dashboard/settings/account                   5.1 kB          150 kB
+├ ƒ /dashboard/settings/audit-log                 4.2 kB          127 kB
+├ ƒ /dashboard/settings/users                     3.87 kB         127 kB
+├ ƒ /demo                                         5.84 kB        93.3 kB
+├ ƒ /docs                                         187 B           123 kB
+├ ƒ /faq                                          238 B          96.5 kB
+├ ƒ /forgot-password                              218 B           124 kB
+├ ƒ /landing/time-hook                            236 B          96.5 kB
+├ ƒ /leads                                        2.99 kB        99.2 kB
+├ ƒ /onboarding                                   5.05 kB        92.6 kB
+├ ƒ /partner                                      236 B          96.5 kB
+├ ƒ /plan-b                                       2.66 kB        90.2 kB
+├ ƒ /pricing                                      3.76 kB        91.3 kB
+├ ○ /robots.txt                                   0 B                0 B
+├ ƒ /sandbox                                      1.78 kB         144 kB
+├ ƒ /sign-in/[[...sign-in]]                       195 B          87.7 kB
+├ ƒ /sign-up/[[...sign-up]]                       195 B          87.7 kB
+├ ○ /sitemap.xml                                  0 B                0 B
+├ ƒ /tools/280e-calculator                        3.51 kB        99.7 kB
+└ ƒ /try                                          236 B          96.5 kB
++ First Load JS shared by all                     87.5 kB
+  ├ chunks/2117-f1fb58d5274b9c2a.js               31.9 kB
+  ├ chunks/fd9d1056-c9ec27c8d6633ddc.js           53.6 kB
+  └ other shared chunks (total)                   1.96 kB
+
+
+ƒ Middleware                                      61.3 kB
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses getStaticProps)
+ƒ  (Dynamic)  server-rendered on demand
+
