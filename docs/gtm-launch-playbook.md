@@ -19,11 +19,15 @@ Free 48-hour audit of last 2 years of QuickBooks data showing dollar savings fro
 3. CPA firms bring their operator clients
 4. Operators see the value through CPA recommendation
 
-## Pricing Tiers (Draft)
-- **Free:** 280E Recovery Audit (lead gen)
-- **Solo:** $X/mo — single operator, basic allocation
-- **CPA:** $X/mo — multi-client dashboard, export packets
-- **Enterprise:** Custom — multi-state, API access
+## Pricing Tiers (shipped — matches /pricing)
+- **Free:** 280E Recovery Audit (lead-gen offer, not a plan)
+- **Essential — $347/mo** ($260/mo billed annually): single entity, up to $5M revenue, 280E + 471(c) engine, cash reconciliation, Metrc sync (1 location), month-end close, CPA export packets (QBO), 48hr support
+- **Premium — $897/mo** ($673/mo billed annually): unlimited entities/revenue, multi-entity consolidation, advanced audit trail, CPA collaboration workspace, QuickBooks + Xero export, API access, multi-state, dedicated account manager, 4hr support
+
+**Founding-customer trial:** $1/mo for 90 days (lighthouse operator only), 50% off thereafter for a referral. See lighthouse-operator-persona.md.
+
+## Launch Market
+Colorado only at launch — gated by Metrc integration coverage. Additional states unlock once Tranquillo Green is verified as a working 280E optimization with the lighthouse operator. CO is a mature, Metrc-mandatory market with a dense CPA ecosystem.
 
 ## 90-Day Milestones
 - 5-8 CPA firms active
