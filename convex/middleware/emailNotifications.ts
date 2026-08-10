@@ -27,7 +27,7 @@ export function buildLeadNotificationEmail(lead: {
 }) {
   return {
     from: "Tranquillo Green <notifications@tranquillogreen.com>",
-    to: ["sales@tranquillogreen.com"],
+    to: ["admin@tranquillogreen.com"],
     subject: `[NEW LEAD] ${lead.companyName} — ${lead.operatorType} in ${lead.state} (score: ${lead.score})`,
     html: `
       <!DOCTYPE html>
